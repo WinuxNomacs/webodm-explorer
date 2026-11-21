@@ -1,7 +1,7 @@
 /*
- * The Explorer pages: thumbnails that fail fall back to a placeholder, and the project page's Share button shows
- * the page's full link and copies it. The link only works for signed-in users the project is shared with;
- * nothing is stored.
+ * The Explorer pages: thumbnails that fail fall back to a placeholder, and the project page's Share panel shows the
+ * page's own link (for signed-in users the project is shared with) and, for users who can change the project, its
+ * "anyone with the link" links: listed, created and revoked through the plugin's API.
  */
 (function () {
     "use strict";
@@ -54,13 +54,26 @@
     function init(root) {
         watchThumbnails(root);
         initShare(root);
+        initLinks(root);
+    }
+
+    // The button says "Copied" for a moment after a copy; a copy the browser refuses leaves the text selected.
+    function wireCopy(button, input, copiedText) {
+        button.addEventListener("click", function () {
+            var label = button.innerHTML;
+            copyText(input, function (ok) {
+                if (!ok) return;
+                button.textContent = copiedText;
+                setTimeout(function () { button.innerHTML = label; }, 1500);
+            });
+        });
     }
 
     function initShare(root) {
         var shareButton = root.querySelector("[data-explorer-share]");
         var panel = root.querySelector("#explorer-share");
         if (!shareButton || !panel) return;
-        var input = panel.querySelector("input");
+        var input = panel.querySelector("#explorer-share-link") || panel.querySelector("input");
         var copyButton = panel.querySelector("[data-explorer-copy]");
 
         // The template renders the path; the full link uses the address the visitor reached WebODM by.
@@ -73,14 +86,123 @@
             if (opening) input.select();
         });
 
-        copyButton.addEventListener("click", function () {
-            var label = copyButton.innerHTML;
-            copyText(input, function (ok) {
-                if (!ok) return; // the link stays selected for a manual copy
-                copyButton.textContent = copyButton.getAttribute("data-copied");
-                setTimeout(function () { copyButton.innerHTML = label; }, 1500);
+        wireCopy(copyButton, input, copyButton.getAttribute("data-copied"));
+    }
+
+    function initLinks(root) {
+        var box = root.querySelector("[data-links-api]");
+        if (!box) return;
+        var api = box.getAttribute("data-links-api");
+        var list = box.querySelector(".explorer-links-list");
+        var form = box.querySelector(".explorer-link-form");
+        var submit = form.querySelector("[type=submit]");
+        var errorBox = box.querySelector(".explorer-links-error");
+        var csrf = form.querySelector("input[name=csrfmiddlewaretoken]").value;
+
+        function text(name) {
+            return box.getAttribute("data-" + name);
+        }
+
+        function showError(message) {
+            errorBox.textContent = message || "";
+            errorBox.hidden = !message;
+        }
+
+        // WebODM's CSRF check applies to the plugin's API, so every request carries the page's token.
+        function request(method, url, body) {
+            var options = {method: method, credentials: "same-origin",
+                headers: {"X-CSRFToken": csrf, "Accept": "application/json"}};
+            if (body) {
+                options.headers["Content-Type"] = "application/json";
+                options.body = JSON.stringify(body);
+            }
+            return window.fetch(url, options).then(function (response) {
+                if (response.ok) return response.status === 204 ? null : response.json();
+                return response.json().then(function (data) {
+                    throw new Error((data && data.detail) || text("error"));
+                }, function () {
+                    throw new Error(text("error"));
+                });
             });
+        }
+
+        function element(tag, className, content) {
+            var node = document.createElement(tag);
+            if (className) node.className = className;
+            if (content) node.textContent = content;
+            return node;
+        }
+
+        function renderLink(link) {
+            var row = element("div", "explorer-link theme-border-secondary-07");
+            row.setAttribute("data-token", link.token);
+            var heading = element("div", "explorer-link-heading");
+            heading.appendChild(element("span", "explorer-card-title", link.label || text("untitled")));
+            heading.appendChild(element("span", "explorer-card-text", link.expires
+                ? text("expires").replace("%(date)s", new Date(link.expires).toLocaleDateString())
+                : text("never")));
+            row.appendChild(heading);
+
+            var group = element("div", "input-group input-group-sm");
+            var input = element("input", "form-control");
+            input.type = "text";
+            input.readOnly = true;
+            input.value = window.location.origin + link.path;
+            input.setAttribute("aria-label", link.label || text("untitled"));
+            group.appendChild(input);
+            var buttons = element("span", "input-group-btn");
+            var copy = element("button", "btn btn-default", text("copy"));
+            copy.type = "button";
+            wireCopy(copy, input, text("copied"));
+            var revoke = element("button", "btn btn-danger", text("revoke"));
+            revoke.type = "button";
+            revoke.addEventListener("click", function () {
+                if (!window.confirm(text("confirm-revoke"))) return;
+                revoke.disabled = true;
+                request("DELETE", api + link.token + "/").then(load, function (e) {
+                    revoke.disabled = false;
+                    showError(e.message);
+                });
+            });
+            buttons.appendChild(copy);
+            buttons.appendChild(revoke);
+            group.appendChild(buttons);
+            row.appendChild(group);
+            return row;
+        }
+
+        function render(links) {
+            list.innerHTML = "";
+            if (!links.length) list.appendChild(element("p", "explorer-card-text", text("none")));
+            for (var i = 0; i < links.length; i++) list.appendChild(renderLink(links[i]));
+        }
+
+        function load() {
+            return request("GET", api).then(function (links) {
+                showError("");
+                render(links);
+            }, function (e) {
+                showError(e.message);
+            });
+        }
+
+        form.addEventListener("submit", function (e) {
+            e.preventDefault();
+            submit.disabled = true;
+            request("POST", api, {label: form.elements.label.value, expires_days: form.elements.expires_days.value})
+                .then(function (link) {
+                    form.elements.label.value = "";
+                    return load().then(function () {
+                        var input = list.querySelector('[data-token="' + link.token + '"] input');
+                        if (input) input.select();
+                    });
+                }, function (e) {
+                    showError(e.message);
+                })
+                .then(function () { submit.disabled = false; });
         });
+
+        load();
     }
 
     if (typeof module !== "undefined" && module.exports) {

@@ -1,9 +1,11 @@
 """
-The Explorer pages: which projects a user sees, which tasks get a card and which buttons each card gets. Every
-button opens one of WebODM's own pages (decision D2 in upcoming-changes.md).
+The Explorer pages: which projects a user sees, which tasks get a card and which buttons each card gets. On the
+signed-in pages every button opens one of WebODM's own pages (decision D2 in upcoming-changes.md); on a link page
+they open Explorer's own map and 3D pages under the link.
 """
 from app import pending_actions
 from app.models import Project, Task
+from django.core.exceptions import ValidationError
 from django.utils.translation import gettext as _
 from guardian.shortcuts import get_objects_for_user
 from nodeodm import status_codes
@@ -41,7 +43,46 @@ def task_outputs(task):
     return outputs
 
 
-def explorable_tasks(projects):
+def map_layers(task):
+    """The map layers a task has, as (tile type, label) pairs."""
+    assets = task.available_assets or []
+    return [(asset.removesuffix(".tif"), _(label)) for asset, label in MAP_LAYERS if asset in assets]
+
+
+def viewer_types(task):
+    """The types Explorer's 3D page can show for a task, as (type, label, icon) triples, in its switch's order."""
+    assets = task.available_assets or []
+    types = []
+    # WebODM's safe textured model view needs the GLB (Task.get_safe_textured_model)
+    if "textured_model.glb" in assets:
+        types.append(("mesh", _("Textured Model"), "fab fa-connectdevelop"))
+    if "splats.rad" in assets:
+        types.append(("splats", _("Gaussian Splats"), "fa fa-splat"))
+    return types
+
+
+def link_outputs(task, link_path):
+    """The buttons a link page's card gets; link_path is the link page's path, ending in a slash."""
+    outputs = []
+    layers = map_layers(task)
+    if layers:
+        outputs.append({"label": _("Map"), "detail": ", ".join(label for _type, label in layers),
+                        "icon": "fa fa-globe", "url": f"{link_path}map/{task.id}/"})
+    for kind, label, icon in viewer_types(task):
+        outputs.append({"label": label, "detail": "", "icon": icon, "url": f"{link_path}3d/{task.id}/?t={kind}"})
+    return outputs
+
+
+def explorable_task(project, task_pk):
+    """The project's task if it is completed and not being removed, else None."""
+    try:
+        return (Task.objects.filter(project=project, pk=task_pk, status=status_codes.COMPLETED)
+                .exclude(pending_action=pending_actions.REMOVE).first())
+    except ValidationError:
+        return None
+
+
+def explorable_tasks(projects, outputs_for=task_outputs):
     """Completed tasks (not being removed) with at least one output, newest first, as (task, outputs) pairs."""
     tasks = (Task.objects.filter(project__in=projects, status=status_codes.COMPLETED)
              .exclude(pending_action=pending_actions.REMOVE)
@@ -49,7 +90,7 @@ def explorable_tasks(projects):
              .order_by("-created_at"))
     cards = []
     for task in tasks:
-        outputs = task_outputs(task)
+        outputs = outputs_for(task)
         if outputs:
             cards.append((task, outputs))
     return cards

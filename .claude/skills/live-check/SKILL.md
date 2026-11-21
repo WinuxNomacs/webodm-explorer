@@ -34,3 +34,10 @@ rendering) on machines without a usable GPU. It renders correctly but slowly, so
 
 Note what is there already: the user works on this server too. Give everything the check creates a name of its
 own (e.g. starting "Live check"), delete only that afterwards, and say what was checked and what was removed.
+
+## Scripted checks
+
+- `link-shares.js` (in this folder): anyone-with-the-link shares end to end, the Share panel, the link page, the
+  map and 3D pages at desktop and phone widths, and a revoke while the map is open. Run it from the repo root with
+  the scratchpad as the screenshot folder, then read the screenshots and delete them. It assumes projects 1 and 2
+  have completed tasks; adjust the ids for other data.

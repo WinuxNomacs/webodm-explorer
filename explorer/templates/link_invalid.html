@@ -1,0 +1,12 @@
+{% extends "app/public/base.html" %}
+{% load i18n %}
+
+{% block extra-headers %}<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="{{ public }}explorer.css">{% endblock %}
+
+{% block content %}
+<div class="explorer explorer-public">
+    <h3>{% trans "Link Not Valid" %}</h3>
+    <p>{% trans "This link doesn't work, or no longer does. Ask the person who shared it for a new one." %}</p>
+</div>
+{% endblock %}

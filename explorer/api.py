@@ -1,0 +1,156 @@
+"""
+The plugin's API (api_mount_points, under /api/plugins/explorer/):
+- the Share panel's links: list, create and revoke, for users with change_project;
+- the token views a link page streams from: WebODM's tile, thumbnail, asset and textured model views with the link's
+  token check in place of WebODM's permission check (decision D1 in upcoming-changes.md).
+"""
+import posixpath
+import re
+
+from app import pending_actions
+from app.api.tasks import TaskAssets, TaskSafeTexturedModel, TaskThumbnail
+from app.api.tiler import Bounds, Metadata, TileJson, Tiles
+from app.models import Project
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.utils.translation import gettext as _
+from nodeodm import status_codes
+from rest_framework import exceptions, status
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from . import links
+
+LINK_PATH = "/plugins/{}/s/{}/"
+
+
+def link_json(link):
+    return {
+        "token": link["token"],
+        "label": link["label"],
+        "created": link["created"],
+        "expires": link["expires"],
+        "path": LINK_PATH.format(links.NAMESPACE, link["token"]),
+    }
+
+
+class ProjectLinksBase(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def get_project(self, request, project_pk):
+        """The project, if the user may change it: 404 if they can't see it, 403 if they can only see it."""
+        project = Project.objects.filter(pk=project_pk, deleting=False).first()
+        if project is None or not request.user.has_perm("app.view_project", project):
+            raise exceptions.NotFound()
+        if not request.user.has_perm("app.change_project", project):
+            raise exceptions.PermissionDenied(_("Only users who can change this project can manage its links."))
+        return project
+
+    def handle_exception(self, exc):
+        if isinstance(exc, links.LinkStoreBusy):
+            return Response({"detail": _("Links are being changed elsewhere. Try again in a moment.")},
+                            status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        return super().handle_exception(exc)
+
+
+class ProjectLinks(ProjectLinksBase):
+    def get(self, request, project_pk=None):
+        project = self.get_project(request, project_pk)
+        return Response([link_json(link) for link in links.list_links(project.id)])
+
+    def post(self, request, project_pk=None):
+        project = self.get_project(request, project_pk)
+        label = request.data.get("label", "")
+        expires = request.data.get("expires_days", links.DEFAULT_EXPIRY)
+        if not isinstance(label, str):
+            raise exceptions.ValidationError({"label": _("Not a valid label.")})
+        if expires in ("", "never"):
+            expires = None
+        try:
+            expires = None if expires is None else int(expires)
+        except (TypeError, ValueError):
+            expires = -1
+        if expires not in links.EXPIRY_CHOICES:
+            raise exceptions.ValidationError({"expires_days": _("Not a valid expiry.")})
+        link = links.create_link(project.id, label, expires, request.user)
+        return Response(link_json(link), status=status.HTTP_201_CREATED)
+
+
+class ProjectLink(ProjectLinksBase):
+    def delete(self, request, project_pk=None, token=None):
+        project = self.get_project(request, project_pk)
+        if not links.revoke_link(project.id, token):
+            raise exceptions.NotFound()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class TokenTaskMixin:
+    """
+    Replaces WebODM's permission check with the link's: the token must be live, the task in its project, completed
+    and not being removed. Every refusal is the same 404, so a visitor learns nothing about other tasks or links.
+    """
+    allowed = True
+
+    def dispatch(self, request, *args, **kwargs):
+        # WebODM's get() methods don't take the token
+        self.share_token = kwargs.pop("token", None)
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_and_check_task(self, request, pk, annotate=None):
+        project = links.project_for_token(self.share_token)
+        if project is None or not self.allowed:
+            raise exceptions.NotFound()
+        try:
+            task = self.queryset.annotate(**(annotate or {})).get(pk=pk, project=project)
+        except (ObjectDoesNotExist, ValidationError):
+            raise exceptions.NotFound()
+        if task.status != status_codes.COMPLETED or task.pending_action == pending_actions.REMOVE:
+            raise exceptions.NotFound()
+        return task
+
+    def finalize_response(self, request, response, *args, **kwargs):
+        response = super().finalize_response(request, response, *args, **kwargs)
+        # The token is in this request's URL: don't pass it on in Referer headers
+        response["Referrer-Policy"] = "strict-origin"
+        return response
+
+
+class TokenTileJson(TokenTaskMixin, TileJson):
+    pass
+
+
+class TokenBounds(TokenTaskMixin, Bounds):
+    pass
+
+
+class TokenMetadata(TokenTaskMixin, Metadata):
+    pass
+
+
+class TokenTiles(TokenTaskMixin, Tiles):
+    pass
+
+
+class TokenThumbnail(TokenTaskMixin, TaskThumbnail):
+    pass
+
+
+class TokenTexturedModel(TokenTaskMixin, TaskSafeTexturedModel):
+    pass
+
+
+# The asset paths a link page may stream: the splats now, the EPT point cloud from phase 2 and 3D Tiles from phase 3.
+# WebODM's own TaskAssets serves anything under assets/ (the full point cloud, the report, camera positions).
+ALLOWED_ASSET = re.compile(r"^(splats/model\.rad|entwine_pointcloud/[A-Za-z0-9_.\-/]+)$")
+
+
+def asset_allowed(path):
+    return (isinstance(path, str) and ALLOWED_ASSET.match(path) is not None
+            and posixpath.normpath(path) == path and ".." not in path.split("/"))
+
+
+class TokenAssets(TokenTaskMixin, TaskAssets):
+    def dispatch(self, request, *args, **kwargs):
+        # Checked here, before WebODM's code runs; get_and_check_task refuses the request when it fails
+        self.allowed = asset_allowed(kwargs.get("unsafe_asset_path"))
+        return super().dispatch(request, *args, **kwargs)

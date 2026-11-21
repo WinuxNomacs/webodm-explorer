@@ -4,17 +4,13 @@
 
 Up next:
 
-1. **"Anyone with the link" shares, with 2D maps, splats and meshes** (planned 2026-11-21, ready to build): links
-   made and revoked in the Explorer page's Share panel, a link page for visitors without an account, token-checked
-   plugin views (D1), a Leaflet page for orthophoto/DSM/DTM, and Explorer's own three.js viewer with Spark splats
-   and WebODM's downscaled GLB mesh. Details under "Plan: anyone-with-the-link shares" below.
+1. **EPT point cloud streamer** in Explorer's viewer, written in the plugin (the user, 2026-11-21): `ept.json` and
+   its hierarchy, nodes chosen by screen size, LAZ decoded in a worker (laz-perf, to vet when planning), drawn as
+   `THREE.Points`; served through the token asset view's `entwine_pointcloud/` (already allowed).
 
 Then:
 
-2. **EPT point cloud streamer** in Explorer's viewer, written in the plugin (the user, 2026-11-21): `ept.json` and
-   its hierarchy, nodes chosen by screen size, LAZ decoded in a worker (laz-perf, to vet when planning), drawn as
-   `THREE.Points`; served through the token asset view's `entwine_pointcloud/`.
-3. **On-demand mesh tiling and 3D Tiles in the viewer**: Obj2Tiles, bundled (D3, Linux x64/arm64), builds 3D Tiles
+2. **On-demand mesh tiling and 3D Tiles in the viewer**: Obj2Tiles, bundled (D3, Linux x64/arm64), builds 3D Tiles
    for a task's mesh the first time it is shared or opened, cached in the plugin's persistent path; the viewer
    streams them with 3DTilesRendererJS (and ODX `--3d-tiles` output where it exists), replacing the GLB.
 
@@ -120,7 +116,7 @@ How PDAL's COPC writer holds up on multi-GB clouds.
 - **On-demand mesh tiling** through `run_function_async`, written to the plugin's persistent path
   (`get_persistent_path`), never to the task's folder.
 
-### Plan: anyone-with-the-link shares (decided 2026-11-21)
+### Plan: anyone-with-the-link shares (decided 2026-11-21, built: see "Done")
 
 Checked in WebODM v4.0.1's code unless marked otherwise.
 
@@ -157,9 +153,8 @@ Checked in WebODM v4.0.1's code unless marked otherwise.
   Spark 2.4.0 `SplatMesh({paged: true})` on the token `.rad` URL, the GLB from the token `TaskSafeTexturedModel`
   view (`?platform=mobile|ios` as WebODM's 3D page does) with three's `GLTFLoader` and `DRACOLoader`; orbit
   controls; a switch between the types the task has. Point clouds come in phase 2.
-  **To check first when building (UNVERIFIED):** that Spark 2.4.0 reads the `.rad` files WebODM 4.0.1 writes
-  (WebODM loads them with its own Spark build on three r124, `threedgs.umd.min.js`), and whether WebODM's GLB is
-  Draco-compressed and which decoder three r187 needs.
+  Both checks made first when building passed (see "Done"): Spark 2.4.0 reads WebODM 4.0.1's `.rad` in paged
+  mode, and the GLB requires Draco, which three r187's glTF Draco decoder handles.
 - **How it can fail and what happens:** a link revoked or expired mid-visit: the next tile or asset request gets a
   404 and the page says "This link is no longer valid". A task removed after sharing: 404 for that task only. A
   data store entry that doesn't parse: treated as no links for that project, logged, replaced at the next write
@@ -172,14 +167,14 @@ Checked in WebODM v4.0.1's code unless marked otherwise.
   entry. Jest: the Share panel's list and form, the viewer's type switch with stand-in loaders. Live: a link opened
   in a fresh browser without login on the user's projects, at desktop and phone widths; a revoke while it is open.
 - **Build order:**
-  1. Run the two UNVERIFIED checks before writing anything else, as a throwaway page in the scratchpad: Spark 2.4.0
+  1. Run the two checks above before writing anything else, as a throwaway page in the scratchpad: Spark 2.4.0
      loading one of the user's `splats/model.rad` files, and the GLB's Draco use. If Spark can't read WebODM's
      `.rad`, stop and bring the options to the user.
   2. Link storage and API, then token views with their tests.
   3. Share panel, link page, 2D map page, 3D viewer, then README and the live check.
 - **Tooling this phase needs** (checked 2026-11-21 unless marked otherwise):
   - **Fetching the libraries:** npm reaches three 0.187.0, `@sparkjsdev/spark` 2.4.0 and leaflet 1.9.4. Vendor
-    them with a small `dev/vendor.sh` (to write):
+    them with `dev/vendor.sh` (written):
     - `npm pack` each pinned version into the scratchpad;
     - copy only the files the pages load, plus each library's licence, into
       `explorer/public/vendor/<lib>-<version>/`;
@@ -188,13 +183,13 @@ Checked in WebODM v4.0.1's code unless marked otherwise.
     `explorer/public/*.js` to ES5.
     - ESLint: give the viewer its own folder, `explorer/public/viewer/`, and its own config block (ecmaVersion
       2022, `sourceType: "module"`).
-    - Jest: keep the viewer's logic (type switch, URL building) in small modules that don't import three. Run them
-      under Jest's ESM support (`NODE_OPTIONS=--experimental-vm-modules`, UNVERIFIED with Jest 30.5.2) or keep
-      them CommonJS-compatible.
+    - Jest: as built, the viewer's logic (type switch, URLs, messages) is in `viewer-ui.js`, an ES5 script like
+      `explorer.js`, tested with a stand-in scene; only `viewer/scene.js` imports three. Jest's ESM support was not
+      needed.
   - **Browser checks:** headless Chromium (Playwright 1.64.1, already installed with its browsers) gives WebGL2
     through SwiftShader, which is software rendering. That is enough for Spark and three in a live check, but slow,
-    so allow longer waits. The Playwright MCP (`mcp__playwright__*`) is configured; whether its tools load in a
-    new session is UNVERIFIED. The Node script route in the `live-check` skill works either way.
+    so allow longer waits. The Playwright MCP (`mcp__playwright__*`) is configured, but its tools did not load
+    in the session that built this phase; the Node script route in the `live-check` skill was used.
 
 ### Phase 1 plan: Project Explorer page and "WebODM users only" links (decided 2026-11-21, built: see "Done")
 
@@ -250,6 +245,27 @@ Checked in WebODM v4.0.1's code:
   is installed).
 
 ## Done
+
+- **"Anyone with the link" shares, with 2D maps, splats and meshes** (2026-11-21):
+  - Code: `explorer/links.py` (link storage, the advisory lock), `explorer/api.py` (links API, token views),
+    `explorer/plugin.py` (link, map and 3D pages; API mount points), `explorer/pages.py` (link cards, map layers,
+    3D types), `explorer/templates/` (`cards.html` shared, `link*.html`), `explorer/public/` (`explorer.js` Share
+    panel links, `linkpage.js`, `map.js`, `viewer-ui.js`, `viewer/scene.js`), `explorer/public/vendor/` (from
+    `dev/vendor.sh`: three.js 0.187.0, Spark 2.4.0, Leaflet 1.9.4).
+  - Tests: `explorer/tests/test_links.py` (Django, including a two-thread revoke-during-create test, seen failing
+    without the lock, and a held lock answering 503), `explorer/public/__tests__/{links,map,viewer}.test.js` (Jest).
+  - Checked live on WebODM 4.0.1 with the user's projects, at desktop and phone widths: links created and revoked
+    in the Share panel; link page, map (orthophoto, DSM, a greyscale orthophoto) and 3D page (GLB and splats) opened
+    without signing in; a revoke while the map was open says "This link is no longer valid".
+  - Found while building:
+    - Spark 2.4.0 reads WebODM 4.0.1's `.rad` only in paged mode (whole-file loading gives 0 splats), which is how
+      WebODM loads it too.
+    - WebODM's GLB requires `KHR_draco_mesh_compression` and carries `CESIUM_RTC`, so three's glTF Draco decoder
+      is vendored.
+    - Task ids are UUIDs.
+    - Stray fragments and long splats make bounding boxes useless for framing, so the viewer frames on the 2nd to
+      98th percentile of sampled points.
+    - The Playwright MCP's tools did not load in this session, so live checks used the Playwright script route.
 
 - **Project Explorer page and "WebODM users only" links** (2026-11-21): `explorer/plugin.py` (main menu item, the
   two pages), `explorer/pages.py` (viewable projects, which tasks get cards, their buttons),

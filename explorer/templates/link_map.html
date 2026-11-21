@@ -1,0 +1,36 @@
+{% extends "app/public/base.html" %}
+{% load i18n %}
+
+{% block extra-headers %}<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="{{ public }}vendor/leaflet-1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="{{ public }}explorer.css">{% endblock %}
+
+{% block content %}
+<div class="explorer-viewer-page" data-explorer-map data-api="{{ api }}{{ task.id }}/" data-link="{{ link_path }}"
+     data-crop="{{ crop|yesno:"1," }}"
+     data-loading="{% trans "Loading..." %}"
+     data-invalid="{% trans "This link is no longer valid." %}"
+     data-error="{% trans "This layer could not be loaded." %}">
+    <div class="explorer-viewer-bar">
+        <div class="explorer-viewer-title">
+            <a href="{{ link_path }}"><i class="fa fa-arrow-left"></i> {{ project.name }}</a> /
+            {% if task.name %}{{ task.name }}{% else %}{% trans "Unnamed Task" %}{% endif %}
+        </div>
+        {% if layers|length > 1 %}
+        <div class="btn-group" role="group" aria-label="{% trans "Layer" %}">
+            {% for layer in layers %}
+            <button type="button" class="btn btn-default btn-sm" data-layer="{{ layer.type }}" aria-pressed="false">{{ layer.label }}</button>
+            {% endfor %}
+        </div>
+        {% else %}
+        <span data-layer="{{ layers.0.type }}" aria-pressed="false" hidden></span>
+        {% endif %}
+    </div>
+    <div class="explorer-status theme-secondary theme-border-secondary-07" role="status" hidden></div>
+    <div class="explorer-map"></div>
+</div>
+{{ bands|json_script:"explorer-bands" }}
+<script src="{{ public }}vendor/leaflet-1.9.4/dist/leaflet.js"></script>
+<script src="{{ public }}linkpage.js"></script>
+<script src="{{ public }}map.js"></script>
+{% endblock %}

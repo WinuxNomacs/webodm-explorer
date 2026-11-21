@@ -1,0 +1,42 @@
+{% extends "app/public/base.html" %}
+{% load i18n %}
+
+{% block extra-headers %}<meta name="robots" content="noindex, nofollow">
+<link rel="stylesheet" href="{{ public }}explorer.css">
+{# Before any module script. The versions match dev/vendor.sh. #}
+<script type="importmap">
+{"imports": {
+    "three": "{{ public }}vendor/three-0.187.0/build/three.module.js",
+    "three/addons/": "{{ public }}vendor/three-0.187.0/examples/jsm/",
+    "@sparkjsdev/spark": "{{ public }}vendor/spark-2.4.0/dist/spark.module.min.js"
+}}
+</script>{% endblock %}
+
+{% block content %}
+<div class="explorer-viewer-page" data-explorer-viewer data-initial="{{ initial }}" data-link="{{ link_path }}"
+     data-draco="{{ public }}vendor/three-0.187.0/examples/jsm/libs/draco/gltf/"
+     data-loading="{% trans "Loading..." %}"
+     data-invalid="{% trans "This link is no longer valid." %}"
+     data-error="{% trans "This view could not be loaded." %}"
+     data-no-webgl="{% trans "This browser can't show 3D views (WebGL 2 is not available)." %}">
+    <div class="explorer-viewer-bar">
+        <div class="explorer-viewer-title">
+            <a href="{{ link_path }}"><i class="fa fa-arrow-left"></i> {{ project.name }}</a> /
+            {% if task.name %}{{ task.name }}{% else %}{% trans "Unnamed Task" %}{% endif %}
+        </div>
+        <div class="btn-group" role="group" aria-label="{% trans "View" %}">
+            {% for type in types %}
+            <button type="button" class="btn btn-default btn-sm" data-type="{{ type.type }}" aria-pressed="false"
+                    data-url="{% if type.type == "mesh" %}{{ api }}{{ task.id }}/textured_model/{% else %}{{ api }}{{ task.id }}/assets/splats/model.rad{% endif %}">
+                <i class="{{ type.icon }}"></i> {{ type.label }}
+            </button>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="explorer-status theme-secondary theme-border-secondary-07" role="status" hidden></div>
+    <div class="explorer-scene"></div>
+</div>
+<script src="{{ public }}linkpage.js"></script>
+<script src="{{ public }}viewer-ui.js"></script>
+<script type="module" src="{{ public }}viewer/scene.js"></script>
+{% endblock %}

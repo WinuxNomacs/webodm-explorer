@@ -61,6 +61,9 @@ public: nothing private, nothing true only on one machine. Keep it short; edit i
   answers. The startup log then shows `Registered [coreplugins.explorer.plugin]`.
 - JSX components (`build_jsx_components`) are built by webpack inside the dev container; plain scripts in
   `explorer/public/*.js` are ES5 (ESLint enforces it).
+- Browser libraries (three.js, Spark, Leaflet) are vendored in `explorer/public/vendor/` by `dev/vendor.sh`, which pins
+  their versions; the 3D page's import map (`explorer/templates/link_3d.html`) and the map page's tags name the same
+  versions. `explorer/public/viewer/` is ES modules (its own ESLint block); the rest of `explorer/public/` stays ES5.
 - Host tools: `uv venv --python 3.14 .venv && uv pip install -r requirements-dev.txt` (Django and DRF for the IDE,
   Ruff); `npm install` (Jest, ESLint, Playwright). VSCode: interpreter `.venv`, `ignored/WebODM` on Pylance's
   extra paths (local `.vscode/settings.json`); extensions Python, Pylance, Ruff, ESLint, Docker.
@@ -69,7 +72,7 @@ public: nothing private, nothing true only on one machine. Keep it short; edit i
 
 The `test`, `live-check` and `release-check` skills in `.claude/skills` have the steps.
 
-- Django: `docker exec -w /webodm ex-webapp python manage.py test --noinput coreplugins.explorer.tests.test_explorer`.
+- Django: `docker exec -w /webodm ex-webapp python manage.py test --noinput coreplugins.explorer.tests`.
   One run at a time: runs share the stack's test database.
 - Jest: `npm test` at the repo root (jsdom). ESLint: `npm run lint`.
 - Ruff: `.venv/bin/ruff check .`
