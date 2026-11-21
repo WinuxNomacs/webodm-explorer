@@ -1,0 +1,36 @@
+# Added to WebODM's own docker-compose.yml and .dev.yml by dev/webodm.sh: a WebODM checkout runs in dev mode with
+# this repo's plugin mounted as coreplugins/explorer, under its own container names (EX_PREFIX), port and volumes, so
+# it can run beside another WebODM (whose names and port it would take). The images (EX_*_IMAGE) are pinned by digest
+# in dev/webodm.sh. The processing node is defined here rather than through WebODM's docker-compose.nodeodx.yml, so
+# its image is pinned too.
+services:
+  db:
+    image: ${EX_DB_IMAGE}
+    container_name: ${EX_PREFIX}-db
+  broker:
+    image: ${EX_BROKER_IMAGE}
+    container_name: ${EX_PREFIX}-broker
+  node-odx-1:
+    image: ${EX_NODE_IMAGE}
+    container_name: ${EX_PREFIX}-node-odx-1
+    expose:
+      - "3000"
+    restart: unless-stopped
+    oom_score_adj: 500
+  webapp:
+    image: ${EX_WEBAPP_IMAGE}
+    container_name: ${EX_PREFIX}-webapp
+    depends_on:
+      - node-odx-1
+    environment:
+      - WO_DEFAULT_NODES
+    ports: !override
+      - "${WO_PORT}:8000/tcp"
+      - "${EX_LIVERELOAD_PORT}:35729"
+    volumes:
+      - ${EX_PLUGIN_DIR}:/webodm/coreplugins/explorer
+  worker:
+    image: ${EX_WEBAPP_IMAGE}
+    container_name: ${EX_PREFIX}-worker
+    volumes:
+      - ${EX_PLUGIN_DIR}:/webodm/coreplugins/explorer

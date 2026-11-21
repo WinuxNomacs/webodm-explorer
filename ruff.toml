@@ -1,0 +1,12 @@
+# WebODM 4.0.x runs Python 3.14: the oldest WebODM the plugin supports (manifest webodmMinVersion 4.0.0)
+target-version = "py314"
+line-length = 120
+extend-exclude = ["ignored"]
+
+[lint]
+# `from .plugin import *` is how WebODM's plugins expose their Plugin class (coreplugins/hello-world)
+per-file-ignores = {"explorer/__init__.py" = ["F403"]}
+
+[lint.isort]
+# WebODM's own packages, which the plugin imports as it would any library
+known-third-party = ["app", "coreplugins", "webodm"]

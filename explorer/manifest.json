@@ -1,0 +1,12 @@
+{
+	"name": "Explorer",
+	"webodmMinVersion": "4.0.0",
+	"description": "Under development.",
+	"version": "0.1.0",
+	"author": "Winux Nomacs",
+	"repository": "https://github.com/WinuxNomacs/webodm-explorer",
+	"tags": ["ui"],
+	"homepage": "https://github.com/WinuxNomacs/webodm-explorer",
+	"experimental": true,
+	"deprecated": false
+}
