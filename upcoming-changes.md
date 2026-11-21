@@ -4,17 +4,19 @@
 
 Up next:
 
-1. **Decide D1** (below, "Open decisions"): how anonymous links grant access. D2, D3 and D4 are decided ("Decisions").
+1. **Project Explorer page for signed-in users** (to plan with the user next): a page per project listing every
+   task and its outputs, opening each in WebODM's own map and 3D views (D2), which already stream three of the
+   four output types. Access: `view_project`.
 
-Then (proposed, order to confirm once the decisions are made):
+Then:
 
-2. **Project Explorer page for signed-in users**: a page per project listing every task and its outputs,
-   opening each in a viewer. No new rendering yet: WebODM's own viewers, which already stream three of the four
-   output types.
-3. **Share links per project, chosen per share**: "WebODM users only" or "anyone with the link" (D1), from a
-   control in the project's Share popup.
-4. **Streamed textured meshes**: 3D Tiles in the Explorer viewer (D2, D4), for tasks that have them.
-5. **On-demand mesh tiling**: build 3D Tiles for a task's mesh the first time it is shared or opened, cached (D3).
+2. **"WebODM users only" share links**: a control in the project's Share popup (`addLinkControl`) makes a link to
+   the project's Explorer page for users the project is shared with.
+3. **Explorer's own viewer and "anyone with the link" shares**: a three.js viewer (vendored, D4) streaming 3D
+   Tiles meshes, EPT point clouds and `.rad` splats, plus the token-checked plugin views that serve it to anonymous
+   visitors (D1); links that expire and can be revoked.
+4. **On-demand mesh tiling**: Obj2Tiles, bundled (D3), builds 3D Tiles for a task's mesh the first time it is
+   shared or opened; cached in the plugin's persistent path.
 
 Later: COPC point clouds and a Range/caching asset endpoint (only if EPT through WebODM proves too slow);
 docs site (VitePress on GitHub Pages, as TweakUI) and screenshots, once there are features to show.
@@ -115,7 +117,7 @@ How PDAL's COPC writer holds up on multi-GB clouds.
 - **On-demand mesh tiling** through `run_function_async`, written to the plugin's persistent path
   (`get_persistent_path`), never to the task's folder.
 
-### Open decisions
+### The options weighed for D1-D4 (all decided 2026-11-21: see "Decisions")
 
 - **D1: how an anonymous link grants access.**
   - (a) The plugin turns on WebODM's own project sharing and the link works only while it is on. Simple, and
@@ -159,6 +161,11 @@ How PDAL's COPC writer holds up on multi-GB clouds.
 - **Dev dependencies** (2026-11-21): the same pinned versions TweakUI vetted (ESLint 10.12.0, Jest 30.5.2,
   Playwright 1.64.1, Ruff 0.17.3; Django 5.2.18 and DRF 3.18.3 as WebODM v4.0.1's `requirements.txt`). Re-vet when
   upgrading.
+- **D1: anonymous links are tokens checked by the plugin, which serves what its viewer needs** (the user,
+  2026-11-21): plugin views (`api_mount_points`) subclass WebODM's `Tiles`, `TileJson`, `Metadata`, `Bounds`,
+  `TaskAssets` and `TaskThumbnail`, and override only `get_and_check_task`. The project stays private, and links
+  are view-only, can expire and can be revoked. This is an exception to "official extension points only",
+  approved for this use; tests import those classes so a WebODM release that changes them fails loudly.
 - **D2: WebODM's viewers first** (the user, 2026-11-21): the project page links to WebODM's map and 3D views;
   Explorer's own viewer comes with the mesh phase.
 - **D3: Obj2Tiles bundled in the zip** (the user, 2026-11-21): v1.10.3 (2026-11-17) release zips are 10-11 MB
