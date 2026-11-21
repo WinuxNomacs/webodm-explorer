@@ -1,6 +1,15 @@
 # Explorer
 
-A plugin for [WebODM](https://github.com/WebODM/WebODM) 4.0 and later. Under development: no features yet.
+A plugin for [WebODM](https://github.com/WebODM/WebODM) 4.0 and later, to browse and share a project's outputs.
+Under development.
+
+## Features
+
+- **Explorer** in the main menu lists the projects you can view. Each opens its Explorer page: a card per
+  completed task with outputs, with a thumbnail and buttons that open WebODM's own views: **Map** (orthophoto, DSM,
+  DTM), **Point Cloud**, **Textured Model** and **Gaussian Splats**. **View All on Map** shows the whole project.
+- **Share** on a project's Explorer page shows and copies the page's link. It opens only for signed-in users the
+  project is shared with (Dashboard: the project's Edit dialog, Permissions).
 
 ## Install
 

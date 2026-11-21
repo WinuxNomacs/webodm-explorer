@@ -131,7 +131,9 @@ Checked in WebODM v4.0.1's code:
     (`app/views/app.py`). One card per **completed task with at least one viewable output** (queued, running,
     failed and cancelled tasks left out; new tasks appear on reload): thumbnail
     (`/api/projects/<p>/tasks/<t>/thumbnail`, when an orthophoto exists), name, date, and a button per output in
-    `available_assets`: Orthophoto, DSM and DTM open `/map/project/<p>/task/<t>/`; Point Cloud, Textured Model
+    `available_assets`: one **Map** button naming the layers it has (Orthophoto, DSM, DTM) opens
+    `/map/project/<p>/task/<t>/` (found while building: WebODM's map page cannot pick a layer from its URL, so
+    three buttons would all open the same page); Point Cloud, Textured Model
     and Gaussian Splats open `/3d/project/<p>/task/<t>/?t=cloud|mesh|splats` (the `t` parameter WebODM's
     `model_display` passes to `ModelView`). A "View All on Map" button opens `/map/project/<p>/`.
 - **Share button** on the project's Explorer page: copies the page's URL and says that only users the project is
