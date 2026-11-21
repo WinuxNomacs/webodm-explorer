@@ -1,6 +1,7 @@
 /*
- * The project Explorer page's Share button: shows the page's full link and copies it. The link only works for
- * signed-in users the project is shared with; nothing is stored.
+ * The Explorer pages: thumbnails that fail fall back to a placeholder, and the project page's Share button shows
+ * the page's full link and copies it. The link only works for signed-in users the project is shared with;
+ * nothing is stored.
  */
 (function () {
     "use strict";
@@ -26,7 +27,36 @@
         }
     }
 
+    // WebODM's thumbnail endpoint answers 404 for an orthophoto with fewer than three colour bands (a greyscale
+    // one): such a card gets the placeholder a task without an orthophoto has.
+    function useThumbnailPlaceholder(img) {
+        var placeholder = document.createElement("div");
+        placeholder.className = "explorer-thumbnail explorer-no-thumbnail theme-border-secondary-07";
+        var icon = document.createElement("i");
+        icon.className = img.getAttribute("data-placeholder-icon");
+        placeholder.appendChild(icon);
+        if (img.parentNode) img.parentNode.replaceChild(placeholder, img);
+    }
+
+    function watchThumbnails(root) {
+        var images = root.querySelectorAll("img.explorer-thumbnail");
+        for (var i = 0; i < images.length; i++) {
+            var img = images[i];
+            // An image that failed before this script ran has finished loading with no size.
+            if (img.complete && img.naturalWidth === 0) {
+                useThumbnailPlaceholder(img);
+            } else {
+                img.addEventListener("error", function (e) { useThumbnailPlaceholder(e.target); });
+            }
+        }
+    }
+
     function init(root) {
+        watchThumbnails(root);
+        initShare(root);
+    }
+
+    function initShare(root) {
         var shareButton = root.querySelector("[data-explorer-share]");
         var panel = root.querySelector("#explorer-share");
         if (!shareButton || !panel) return;

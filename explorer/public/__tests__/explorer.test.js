@@ -56,3 +56,34 @@ test("a copy the browser refuses leaves the button as it was and the link select
     expect(input.selectionStart).toBe(0);
     expect(input.selectionEnd).toBe(input.value.length);
 });
+
+test("a thumbnail that fails to load becomes the card's placeholder", () => {
+    document.body.innerHTML = `<div class="explorer-card">
+        <img class="explorer-thumbnail" alt="" data-placeholder-icon="fa fa-cube" src="/thumbnail">
+    </div>`;
+    init(document);
+    document.querySelector("img").dispatchEvent(new Event("error"));
+    expect(document.querySelector("img")).toBeNull();
+    const placeholder = document.querySelector(".explorer-card .explorer-no-thumbnail");
+    expect(placeholder.className).toContain("explorer-thumbnail");
+    expect(placeholder.querySelector("i").className).toBe("fa fa-cube");
+});
+
+test("a thumbnail that already failed before the script ran is replaced at once", () => {
+    document.body.innerHTML = `<div><img class="explorer-thumbnail" alt="" data-placeholder-icon="fa fa-folder-open" src="/thumbnail"></div>`;
+    const img = document.querySelector("img");
+    Object.defineProperty(img, "complete", { value: true });
+    Object.defineProperty(img, "naturalWidth", { value: 0 });
+    init(document);
+    expect(document.querySelector("img")).toBeNull();
+    expect(document.querySelector(".explorer-no-thumbnail i").className).toBe("fa fa-folder-open");
+});
+
+test("a thumbnail that loaded is kept", () => {
+    document.body.innerHTML = `<div><img class="explorer-thumbnail" alt="" data-placeholder-icon="fa fa-cube" src="/thumbnail"></div>`;
+    const img = document.querySelector("img");
+    Object.defineProperty(img, "complete", { value: true });
+    Object.defineProperty(img, "naturalWidth", { value: 512 });
+    init(document);
+    expect(document.querySelector("img")).toBe(img);
+});

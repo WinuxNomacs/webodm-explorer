@@ -11,7 +11,7 @@
         {% for entry in projects %}
         <a class="explorer-card explorer-card-link theme-border-secondary-07" href="{{ public }}project/{{ entry.project.id }}/">
             {% if entry.thumbnail %}
-            <img class="explorer-thumbnail" loading="lazy" alt=""
+            <img class="explorer-thumbnail" loading="lazy" alt="" data-placeholder-icon="fa fa-folder-open"
                  src="/api/projects/{{ entry.project.id }}/tasks/{{ entry.thumbnail.id }}/thumbnail?size=512">
             {% else %}
             <div class="explorer-thumbnail explorer-no-thumbnail theme-border-secondary-07"><i class="fa fa-folder-open"></i></div>
@@ -30,4 +30,5 @@
     <p>{% trans "No projects yet. Projects you create, or that are shared with you, appear here." %}</p>
     {% endif %}
 </div>
+<script src="{{ public }}explorer.js"></script>
 {% endblock %}
