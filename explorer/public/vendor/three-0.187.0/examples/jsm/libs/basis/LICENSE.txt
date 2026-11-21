@@ -1,0 +1,2 @@
+The Basis Universal transcoder (https://github.com/BinomialLLC/basis_universal), as shipped in three.js's
+examples/jsm/libs/basis, is licensed under the Apache License, Version 2.0: https://www.apache.org/licenses/LICENSE-2.0

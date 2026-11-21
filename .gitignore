@@ -234,3 +234,6 @@ CLAUDE.local.md
 !explorer/public/vendor/**/build/
 !explorer/public/vendor/**/dist/
 !explorer/public/vendor/**/lib/
+
+# The mesh tiling tools, fetched by dev/tools.sh and added to the release zip by dev/package.sh
+explorer/bin/
