@@ -41,3 +41,7 @@ own (e.g. starting "Live check"), delete only that afterwards, and say what was 
   map and 3D pages at desktop and phone widths, and a revoke while the map is open. Run it from the repo root with
   the scratchpad as the screenshot folder, then read the screenshots and delete them. It assumes projects 1 and 2
   have completed tasks; adjust the ids for other data.
+- `link-downloads.js` (same arguments, plus an optional project id, default 2): Allow Downloads on the create form
+  and on an existing link, the link page's Download menu at desktop and phone widths, one file downloaded as a
+  visitor (deleted when the browser closes), 404s for a view-only link and once downloads are turned off, and
+  `?filename=` ignored. Creates two "Live check" links and revokes both, also on failure.
