@@ -160,7 +160,7 @@ class TokenTexturedModel(TokenTaskMixin, TaskSafeTexturedModel):
     pass
 
 
-# The asset paths a link page may stream: the splats now, the EPT point cloud from phase 2 and 3D Tiles from phase 3.
+# The asset paths a link page may stream: the splats and the EPT point cloud (3D Tiles to come).
 # WebODM's own TaskAssets serves anything under assets/ (the full point cloud, the report, camera positions).
 ALLOWED_ASSET = re.compile(r"^(splats/model\.rad|entwine_pointcloud/[A-Za-z0-9_.\-/]+)$")
 

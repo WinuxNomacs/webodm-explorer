@@ -1,13 +1,14 @@
 /*
- * The 3D scene of a link's 3D page: three.js with orbit controls, WebODM's textured model as a Draco GLB, and its
- * Gaussian splats with Spark (paged, as WebODM's own 3D page loads them). One type shows at a time, framed to fit.
- * viewer-ui.js owns the page around it.
+ * The 3D scene of a link's 3D page: three.js with orbit controls, the EPT point cloud streamed by ept.js, WebODM's
+ * textured model as a Draco GLB, and its Gaussian splats with Spark (paged, as WebODM's own 3D page loads them). One
+ * type shows at a time, framed to fit. viewer-ui.js owns the page around it.
  */
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { SparkRenderer, SplatMesh } from "@sparkjsdev/spark";
+import { EptCloud } from "./ept.js";
 
 // A paged splat file's bounds fill in as its first pages arrive
 const BOUNDS_WAIT_MS = 10000;
@@ -58,7 +59,18 @@ function splatFrameBox(mesh) {
     return box.applyMatrix4(mesh.matrixWorld);
 }
 
-function createScene(container, dracoPath) {
+function cloudFrameBox(positions) {
+    const xs = [], ys = [], zs = [];
+    const count = positions.length / 3;
+    const step = Math.max(1, Math.floor(count / FRAME_SAMPLES));
+    for (let i = 0; i < count; i += step) {
+        xs.push(positions[i * 3]); ys.push(positions[i * 3 + 1]); zs.push(positions[i * 3 + 2]);
+    }
+    return robustBox(xs, ys, zs);
+}
+
+// options: {draco (the decoder's folder), cloud: {scripts, budget} for ept.js}
+function createScene(container, options) {
     // Throws where WebGL 2 is unavailable (three.js needs it)
     const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -72,9 +84,10 @@ function createScene(container, dracoPath) {
     controls.enableDamping = true;
     scene.add(new SparkRenderer({ renderer }));
 
-    const gltfLoader = new GLTFLoader().setDRACOLoader(new DRACOLoader().setDecoderPath(dracoPath));
+    const gltfLoader = new GLTFLoader().setDRACOLoader(new DRACOLoader().setDecoderPath(options.draco));
     const views = {}; // type -> Promise of {object, box}
     let current = null;
+    let cloud = null; // the EptCloud once open
 
     function resize() {
         const width = container.clientWidth || 1;
@@ -90,7 +103,10 @@ function createScene(container, dracoPath) {
         if (!box || box.isEmpty()) return;
         const center = box.getCenter(new THREE.Vector3());
         const radius = Math.max(box.getSize(new THREE.Vector3()).length() / 2, 0.01);
-        const distance = radius / Math.sin(THREE.MathUtils.degToRad(camera.fov / 2)) * 1.1;
+        // Fit the narrower of the two angles: on a phone held upright, the horizontal one
+        const vertical = THREE.MathUtils.degToRad(camera.fov);
+        const horizontal = 2 * Math.atan(Math.tan(vertical / 2) * camera.aspect);
+        const distance = radius / Math.sin(Math.min(vertical, horizontal) / 2) * 1.1;
         // From the south-east and above, as an oblique aerial view
         const direction = new THREE.Vector3(0.6, -0.6, 0.55).normalize();
         camera.position.copy(center).addScaledVector(direction, distance);
@@ -126,13 +142,31 @@ function createScene(container, dracoPath) {
         return { object: mesh, box: box.isEmpty() ? box : splatFrameBox(mesh) };
     }
 
-    async function show(type, url, onProgress) {
+    async function loadCloud(url, onProgress, onFailure) {
+        onProgress(null);
+        const opened = new EptCloud(url, { ...options.cloud, onFailure });
+        let positions;
+        try {
+            positions = await opened.open();
+        } catch (e) {
+            opened.dispose();
+            throw e;
+        }
+        cloud = opened;
+        scene.add(opened.group);
+        return { object: opened.group, box: cloudFrameBox(positions) };
+    }
+
+    const loaders = { cloud: loadCloud, mesh: loadMesh, splats: loadSplats };
+
+    // onFailure(status): a point cloud node failed after the view opened (status: the HTTP status, or null)
+    async function show(type, url, onProgress, onFailure) {
         current = type;
         for (const [other, view] of Object.entries(views)) {
             if (other !== type) view.then((v) => { v.object.visible = current === other; }, () => {});
         }
         if (!views[type]) {
-            views[type] = type === "mesh" ? loadMesh(url, onProgress) : loadSplats(url, onProgress);
+            views[type] = loaders[type](url, onProgress, onFailure || (() => {}));
             views[type].catch(() => { delete views[type]; });
         }
         const view = await views[type];
@@ -142,17 +176,34 @@ function createScene(container, dracoPath) {
 
     renderer.setAnimationLoop(() => {
         controls.update();
+        if (cloud && current === "cloud") cloud.update(camera, renderer);
         renderer.render(scene, camera);
     });
 
-    return { show, resize };
+    // For live checks: what the point cloud shows
+    function stats() {
+        return cloud ? { ...cloud.shown, loaded: cloud.loaded.size, failed: cloud.failed.size } : null;
+    }
+
+    return { show, resize, stats };
 }
 
 const page = document.querySelector("[data-explorer-viewer]");
 if (page && window.ExplorerViewer) {
     let scene = null;
     try {
-        scene = createScene(page.querySelector(".explorer-scene"), page.getAttribute("data-draco"));
+        scene = createScene(page.querySelector(".explorer-scene"), {
+            draco: page.getAttribute("data-draco"),
+            cloud: {
+                budget: window.ExplorerViewer.pointBudget,
+                scripts: {
+                    worker: page.getAttribute("data-ept-worker"),
+                    decode: new URL(page.getAttribute("data-ept-decode"), window.location.href).href,
+                    lazPerf: new URL(page.getAttribute("data-lazperf"), window.location.href).href,
+                    wasm: new URL(page.getAttribute("data-lazperf-wasm"), window.location.href).href,
+                },
+            },
+        });
     } catch (e) {
         console.error(e);
         window.ExplorerViewer.fail();
