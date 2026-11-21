@@ -96,3 +96,103 @@ a.explorer-card-link:focus .explorer-card-title {
 .explorer-output-detail {
     opacity: 0.85;
 }
+
+/* The Share panel's "anyone with the link" links */
+.explorer-links {
+    margin-top: 16px;
+}
+
+.explorer-links h4 {
+    margin: 0 0 4px;
+}
+
+.explorer-link {
+    border-top-width: 1px;
+    border-top-style: solid;
+    padding: 8px 0;
+}
+
+.explorer-link-heading {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 4px 12px;
+    margin-bottom: 4px;
+}
+
+.explorer-link-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.explorer-link-form input {
+    flex: 1 1 160px;
+    width: auto;
+}
+
+.explorer-link-form select {
+    flex: 0 1 auto;
+    width: auto;
+}
+
+.explorer-links-error {
+    margin: 8px 0 0;
+}
+
+/* Link pages */
+.explorer-public {
+    padding-top: 14px;
+}
+
+/* A link's map and 3D pages: a bar, then the view filling the window */
+.explorer-viewer-page {
+    margin: 0 -12px;
+}
+
+
+.explorer-viewer-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px 12px;
+    padding: 20px 12px 8px;
+}
+
+.explorer-viewer-title {
+    overflow-wrap: anywhere;
+}
+
+.explorer-viewer-page {
+    position: relative;
+}
+
+/* Over the top of the view, centred: no top, so it stays where it stands in the page; out of the flow so the view
+   doesn't move */
+.explorer-viewer-page .explorer-status {
+    position: absolute;
+    z-index: 1000;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-top: 12px;
+    padding: 6px 12px;
+    border-width: 1px;
+    border-style: solid;
+    border-radius: 4px;
+    max-width: calc(100% - 24px);
+}
+
+.explorer-map,
+.explorer-scene {
+    position: relative;
+    min-height: 240px;
+}
+
+.explorer-scene canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    touch-action: none;
+}

@@ -69,7 +69,7 @@ public: nothing private, nothing true only on one machine. Keep it short; edit i
 
 The `test`, `live-check` and `release-check` skills in `.claude/skills` have the steps.
 
-- Django: `docker exec -w /webodm ex-webapp python manage.py test --noinput coreplugins.explorer.tests.test_explorer`.
+- Django: `docker exec -w /webodm ex-webapp python manage.py test --noinput coreplugins.explorer.tests`.
   One run at a time: runs share the stack's test database.
 - Jest: `npm test` at the repo root (jsdom). ESLint: `npm run lint`.
 - Ruff: `.venv/bin/ruff check .`

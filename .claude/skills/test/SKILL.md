@@ -11,7 +11,7 @@ container `ex-webapp`, http://localhost:8008.
 1. **Ruff** (Python 3.14, WebODM 4.0's, and lint): `.venv/bin/ruff check .`
 2. **ESLint** (the ES5 scripts in `explorer/public`, the dev scripts): `npm run lint`
 3. **Jest**: `npm test` (add a path or `-t "<name>"` to run fewer).
-4. **Django**: `docker exec -w /webodm ex-webapp python manage.py test --noinput coreplugins.explorer.tests.test_explorer`.
+4. **Django**: `docker exec -w /webodm ex-webapp python manage.py test --noinput coreplugins.explorer.tests`.
    Before a merge, also WebODM's plugin tests: `app.tests.test_plugins`. Never two Django runs at once: they share
    the stack's test database.
    A test run starts WebODM in test mode, which adds a `test` plugin row to the dev database; until the webapp

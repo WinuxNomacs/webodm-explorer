@@ -1,0 +1,23 @@
+{% load i18n %}<div class="explorer-grid">
+    {% for task, outputs in cards %}
+    <div class="explorer-card theme-border-secondary-07">
+        {% if "orthophoto.tif" in task.available_assets %}
+        <img class="explorer-thumbnail" loading="lazy" alt="" data-placeholder-icon="fa fa-cube"
+             src="{{ thumbnails }}{{ task.id }}/thumbnail?size=512">
+        {% else %}
+        <div class="explorer-thumbnail explorer-no-thumbnail theme-border-secondary-07"><i class="fa fa-cube"></i></div>
+        {% endif %}
+        <div class="explorer-card-body">
+            <div class="explorer-card-title">{% if task.name %}{{ task.name }}{% else %}{% trans "Unnamed Task" %}{% endif %}</div>
+            <div class="explorer-card-text">{{ task.created_at|date:"SHORT_DATETIME_FORMAT" }}</div>
+            <div class="explorer-outputs">
+                {% for output in outputs %}
+                <a class="btn btn-primary btn-sm" href="{{ output.url }}"{% if output.detail %} title="{{ output.detail }}"{% endif %}>
+                    <i class="{{ output.icon }}"></i> {{ output.label }}{% if output.detail %} <span class="explorer-output-detail">({{ output.detail }})</span>{% endif %}
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>

@@ -10,6 +10,12 @@ Under development.
   DTM), **Point Cloud**, **Textured Model** and **Gaussian Splats**. **View All on Map** shows the whole project.
 - **Share** on a project's Explorer page shows and copies the page's link. It opens only for signed-in users the
   project is shared with (Dashboard: the project's Edit dialog, Permissions).
+- **Anyone with the Link**, in the Share panel for users who can change the project: links that open the project
+  without signing in, each with a label and an expiry (7, 30 or 90 days, or never), copied again or revoked at any
+  time. A link opens a page of the project's tasks, each with a **Map** (orthophoto, DSM, DTM; no basemap) and a 3D
+  view of its **Textured Model** and **Gaussian Splats**. Visitors can't download files: a link serves only what
+  these views stream. Links are kept in plain text in WebODM's database (so they can be copied again), and revoking
+  one stops it at once.
 
 ## Install
 
@@ -33,10 +39,11 @@ Checks:
 .venv/bin/ruff check .
 npm run lint
 npm test
-docker exec -w /webodm ex-webapp python manage.py test --noinput coreplugins.explorer.tests.test_explorer
+docker exec -w /webodm ex-webapp python manage.py test --noinput coreplugins.explorer.tests
 ```
 
-`dev/package.sh` builds the release zip `dist/explorer-X.Y.Z.zip` and prints its sha256.
+`dev/vendor.sh` fetches the pinned browser libraries (three.js, Spark, Leaflet) from npm into
+`explorer/public/vendor/`. `dev/package.sh` builds the release zip `dist/explorer-X.Y.Z.zip` and prints its sha256.
 
 ## Licence
 

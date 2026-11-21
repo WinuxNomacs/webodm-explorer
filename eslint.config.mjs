@@ -18,6 +18,12 @@ export default [
         rules: {...js.configs.recommended.rules, "no-unused-vars": ["error", {caughtErrors: "none"}]},
     },
     {
+        // The 3D scene: an ES module, loaded through the import map in link_3d.html (three.js ships ES modules only)
+        files: ["explorer/public/viewer/**/*.js"],
+        ...js.configs.recommended,
+        languageOptions: {ecmaVersion: 2022, sourceType: "module", globals: {...globals.browser}},
+    },
+    {
         files: ["explorer/public/__tests__/**/*.js", "dev/**/*.js"],
         ...js.configs.recommended,
         languageOptions: {ecmaVersion: 2022, sourceType: "commonjs", globals: {...globals.browser, ...globals.node, ...globals.jest}},

@@ -1,6 +1,6 @@
 """
 Tests of the Explorer plugin, run inside the dev stack's web container:
-docker exec -w /webodm ex-webapp python manage.py test --noinput coreplugins.explorer.tests.test_explorer
+docker exec -w /webodm ex-webapp python manage.py test --noinput coreplugins.explorer.tests
 """
 from app import pending_actions
 from app.models import Project, Task
