@@ -63,6 +63,9 @@ def viewer_types(task):
     """The types Explorer's 3D page can show for a task, as (type, label, icon) triples, in its switch's order."""
     assets = task.available_assets or []
     types = []
+    # As WebODM's own 3D page offers the point cloud; its EPT (entwine_pointcloud/) is built on import (Task.check_ept)
+    if "georeferenced_model.laz" in assets or "georeferenced_model.las" in assets:
+        types.append(("cloud", _("Point Cloud"), "fa fa-pointcloud"))
     # WebODM's safe textured model view needs the GLB (Task.get_safe_textured_model)
     if "textured_model.glb" in assets:
         types.append(("mesh", _("Textured Model"), "fab fa-connectdevelop"))

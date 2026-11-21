@@ -4,11 +4,7 @@
 
 Up next:
 
-1. **EPT point cloud streamer** in Explorer's viewer, written in the plugin (the user, 2026-11-21; plan below).
-
-Then:
-
-2. **On-demand mesh tiling and 3D Tiles in the viewer**: Obj2Tiles, bundled (D3, Linux x64/arm64), builds 3D Tiles
+1. **On-demand mesh tiling and 3D Tiles in the viewer**: Obj2Tiles, bundled (D3, Linux x64/arm64), builds 3D Tiles
    for a task's mesh the first time it is shared or opened, cached in the plugin's persistent path; the viewer
    streams them with 3DTilesRendererJS (and ODX `--3d-tiles` output where it exists), replacing the GLB.
 
@@ -205,7 +201,7 @@ Checked in WebODM v4.0.1's code unless marked otherwise.
 - **Link page**: each task card gets a Download menu listing that task's allowed files, only on links that allow
   downloads.
 
-### Plan: EPT point cloud streamer (decided 2026-11-21)
+### Plan: EPT point cloud streamer (decided 2026-11-21, built: see "Done")
 
 - **Data checked** (the user's three clouds on the dev stack, 2026-11-21): entwine EPT 1.1.0, `dataType: laszip`,
   `hierarchyType: json`, LAS point format 3 (RGB) with 4 extra bytes (`OriginId`), 38 bytes a point; the largest
@@ -220,8 +216,18 @@ Checked in WebODM v4.0.1's code unless marked otherwise.
   the token asset view (`entwine_pointcloud/`, already allowed), decodes in a worker pool, draws `THREE.Points`
   with RGB, offset to the cloud's centre for float precision; frees nodes that leave the selection.
 - **Colouring**: RGB only in this phase (the user, 2026-11-21).
-- **Failures**: a node that fails to load is retried, then skipped; a revoked link shows "This link is no longer
-  valid"; a worker crash or a wasm that fails to load shows the page's error message.
+- **Failures** (what each dependency can do, and what happens):
+  - `ept.json`, the root hierarchy or the root node fails (network, 5xx, timeout after 60 s): retried once after
+    1 s, then the view fails with the page's error message, or "no longer valid" if the link page answers 404.
+  - A node or subtree hierarchy file fails after the view opened: retried once (not on 404), then skipped for this
+    view; the page checks the link and says "no longer valid" only if it is gone.
+  - A fetch that hangs: aborted after 60 s, then as a failure.
+  - laz-perf's script or wasm fails to load in every worker: the view fails with the error message.
+  - A worker that errs or takes over 30 s on a node: terminated and replaced, the node counted as failed; once no
+    worker can start, every queued node fails.
+  - A corrupt node (decode throws): skipped; laz-perf's memory is freed either way.
+  - Memory: loaded points beyond 1.5 times the budget are freed, least recently shown first (never the root).
+  - Unsupported EPT (`dataType` other than `laszip`, other hierarchy types, bad bounds): the error message.
 - Streaming lets a determined visitor fetch every node and rebuild the full-resolution cloud; the user chose to
   offer full downloads per link instead (previous plan).
 
@@ -279,6 +285,28 @@ Checked in WebODM v4.0.1's code:
   is installed).
 
 ## Done
+
+- **EPT point cloud streamer** (2026-11-21):
+  - Code: `explorer/public/ept-tree.js` (octree, hierarchy, node selection as Potree: biggest on screen first,
+    150 px minimum node size, within the point budget), `explorer/public/ept-decode.js` (LAZ node to float32
+    positions and 8-bit colours; 16-bit colours detected from the root node), `explorer/public/ept-worker.js`
+    (laz-perf in a worker), `explorer/public/viewer/ept.js` (fetching with deadlines and retries, the worker pool,
+    `THREE.Points` with a small point shader sized from the deepest shown level, the cache),
+    `explorer/public/viewer/scene.js` (the cloud type; framing fits the narrower angle, so phones held upright see
+    the whole model), `explorer/public/viewer-ui.js` (point budget per device as WebODM's ModelView.jsx: 10M, 2M
+    mobile, 1M iOS; node failures), `explorer/pages.py` (Point Cloud first among 3D types, as on WebODM's own 3D
+    page), `explorer/templates/link_3d.html`, `dev/vendor.sh` (laz-perf 0.0.7).
+  - Tests: `explorer/public/__tests__/{ept-tree,ept-decode,viewer}.test.js` (Jest; decoding against a laz-perf
+    stand-in that can grow its memory or fail mid-file, the memory-growth test seen failing without the fix),
+    `explorer/tests/test_links.py` (the 3D page's cloud URL and laz-perf paths, node and hierarchy files through the
+    token asset view).
+  - Checked live on WebODM 4.0.1 (headless Chromium, SwiftShader) with the user's clouds (`link-cloud.js` in the
+    `live-check` skill): the 124M-point cloud's first view in about 0.2 s with 22 nodes (509k points), 84 nodes after
+    zooming in; switching type and back; phone width; nodes answering 500 skipped with no message; a missing wasm
+    showing the error message; a revoke while open showing "no longer valid". Frame rates on real GPUs were not
+    measured.
+  - Found while building: the Python `.gitignore` pattern `lib/` hid laz-perf's `lib/worker/` (now un-ignored as
+    `build/` and `dist/` are); the entwine clouds WebODM 4.0.1 builds hold 8-bit colour values in LAS's 16-bit fields.
 
 - **Downloads through anyone-with-the-link shares** (2026-11-21):
   - Code: `explorer/links.py` (`downloads` on each link, `set_downloads`, `resolve`), `explorer/api.py` (`downloads`

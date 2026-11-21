@@ -195,11 +195,11 @@ class LinkPagesTests(LinkTestMixin, BootTestCase):
         self.assertContains(response, "User Test Project")
         self.assertContains(response, "Shared Task")
         self.assertContains(response, f'href="{self.base}map/{task.id}/"')
+        self.assertContains(response, f'href="{self.base}3d/{task.id}/?t=cloud"')
         self.assertContains(response, f'href="{self.base}3d/{task.id}/?t=mesh"')
         self.assertContains(response, f'href="{self.base}3d/{task.id}/?t=splats"')
         self.assertContains(response, f'src="/api/plugins/explorer/s/{self.token}/tasks/{task.id}/thumbnail?size=512"')
-        # No point cloud until phase 2, and nothing of WebODM's own pages or API
-        self.assertNotContains(response, "t=cloud")
+        # Nothing of WebODM's own pages or API
         self.assertNotContains(response, "/api/projects/")
         self.assertNotContains(response, 'href="/map/')
         self.assertNotContains(response, 'href="/3d/')
@@ -243,11 +243,18 @@ class LinkPagesTests(LinkTestMixin, BootTestCase):
         self.assertContains(response, 'data-initial="splats"')
         self.assertContains(response, f'data-url="/api/plugins/explorer/s/{self.token}/tasks/{task.id}/textured_model/"')
         self.assertContains(response, f'data-url="/api/plugins/explorer/s/{self.token}/tasks/{task.id}/assets/splats/model.rad"')
+        self.assertContains(response, f'data-url="/api/plugins/explorer/s/{self.token}/tasks/{task.id}/assets/entwine_pointcloud/"')
         self.assertContains(response, '<script type="importmap">')
-        self.assertContains(Client().get(f"{self.base}3d/{task.id}/?t=nope"), 'data-initial="mesh"')
+        self.assertContains(response, "vendor/laz-perf-0.0.7/lib/worker/laz-perf.wasm")
+        # The point cloud first, as on WebODM's own 3D page
+        self.assertContains(Client().get(f"{self.base}3d/{task.id}/?t=nope"), 'data-initial="cloud"')
+        mesh_first = self.task(assets=["textured_model.glb", "splats.rad"])
+        self.assertContains(Client().get(f"{self.base}3d/{mesh_first.id}/"), 'data-initial="mesh"')
+        cloud_only = self.task(assets=["georeferenced_model.las"])
+        self.assertContains(Client().get(f"{self.base}3d/{cloud_only.id}/"), 'data-initial="cloud"')
         splats_only = self.task(assets=["splats.rad", "textured_model.zip"])
         self.assertContains(Client().get(f"{self.base}3d/{splats_only.id}/"), 'data-initial="splats"')
-        nothing = self.task(assets=["orthophoto.tif", "georeferenced_model.laz"])
+        nothing = self.task(assets=["orthophoto.tif", "textured_model.zip"])
         self.assertEqual(Client().get(f"{self.base}3d/{nothing.id}/").status_code, 404)
 
     def test_names_on_link_pages_are_escaped(self):
@@ -298,6 +305,16 @@ class TokenViewTests(LinkTestMixin, BootTestCase):
         self.assertEqual(response["Referrer-Policy"], "strict-origin")
         response = Client().get(self.url(self.task_ok, "assets/entwine_pointcloud/ept.json"))
         self.assertEqual(response.status_code, 200)
+
+    def test_a_live_link_streams_the_point_cloud_nodes_and_hierarchy(self):
+        for folder, name in (("ept-data", "0-0-0-0.laz"), ("ept-hierarchy", "1-0-1-0.json")):
+            os.makedirs(self.task_ok.assets_path("entwine_pointcloud", folder), exist_ok=True)
+            with open(self.task_ok.assets_path("entwine_pointcloud", folder, name), "w") as f:
+                f.write(name)
+            response = Client().get(self.url(self.task_ok, f"assets/entwine_pointcloud/{folder}/{name}"))
+            self.assertEqual(response.status_code, 200, name)
+            body = b"".join(response.streaming_content) if response.streaming else response.content
+            self.assertEqual(body, name.encode())
 
     def test_every_view_refuses_an_unknown_revoked_or_expired_link(self):
         unknown = "A" * 43

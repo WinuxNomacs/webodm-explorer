@@ -41,6 +41,10 @@ own (e.g. starting "Live check"), delete only that afterwards, and say what was 
   map and 3D pages at desktop and phone widths, and a revoke while the map is open. Run it from the repo root with
   the scratchpad as the screenshot folder, then read the screenshots and delete them. It assumes projects 1 and 2
   have completed tasks; adjust the ids for other data.
+- `link-cloud.js` (same arguments, plus an optional project id, default 1, and task id prefix): the streamed point
+  cloud on a link's 3D page, node counts as the camera zooms, switching type and back, phone width, a node
+  answering 500, laz-perf's wasm missing, and a revoke while the cloud is open (the message shows once a node is
+  refused: on a small cloud already fully loaded, none is). Creates one "Live check" link and revokes it.
 - `link-downloads.js` (same arguments, plus an optional project id, default 2): Allow Downloads on the create form
   and on an existing link, the link page's Download menu at desktop and phone widths, one file downloaded as a
   visitor (deleted when the browser closes), 404s for a view-only link and once downloads are turned off, and

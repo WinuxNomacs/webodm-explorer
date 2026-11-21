@@ -15,6 +15,13 @@
         return "";
     }
 
+    // Points drawn at most, as WebODM's own 3D page sets Potree's budget (ModelView.jsx)
+    function pointBudget(kind) {
+        if (kind === "ios") return 1000 * 1000;
+        if (kind === "mobile") return 2 * 1000 * 1000;
+        return 10 * 1000 * 1000;
+    }
+
     function meshUrl(url, kind) {
         return kind ? url + "?platform=" + kind : url;
     }
@@ -36,6 +43,7 @@
 
         function start(scene) {
             started = true;
+            viewer.scene = scene;
             clearTimeout(timer);
             helpers.fitHeight(page.querySelector(".explorer-scene"), scene.resize);
 
@@ -51,6 +59,11 @@
                 line.show(loading);
                 scene.show(type, urlFor(button), function (fraction) {
                     if (current === type && fraction !== null) line.show(loading + " " + Math.round(fraction * 100) + "%");
+                }, function () {
+                    // A point cloud node failed once the view was open: say so only if the link is gone
+                    helpers.linkIsValid(page.getAttribute("data-link")).then(function (valid) {
+                        if (!valid && current === type) line.show(page.getAttribute("data-invalid"));
+                    });
                 }).then(function () {
                     if (current === type) line.hide();
                 }, function () {
@@ -72,11 +85,12 @@
             line.show(page.getAttribute("data-no-webgl"));
         }
 
-        return {start: start, fail: fail};
+        var viewer = {start: start, fail: fail, pointBudget: pointBudget(kind), scene: null};
+        return viewer;
     }
 
     if (typeof module !== "undefined" && module.exports) {
-        module.exports = {create: create, platform: platform, meshUrl: meshUrl};
+        module.exports = {create: create, platform: platform, meshUrl: meshUrl, pointBudget: pointBudget};
     } else {
         var page = document.querySelector("[data-explorer-viewer]");
         if (page) {

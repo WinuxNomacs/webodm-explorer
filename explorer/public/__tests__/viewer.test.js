@@ -19,8 +19,8 @@ function fakeScene() {
     return {
         calls,
         resize: jest.fn(),
-        show: jest.fn((type, url, onProgress) => new Promise((resolve, reject) => {
-            calls.push({type, url, onProgress, resolve, reject});
+        show: jest.fn((type, url, onProgress, onFailure) => new Promise((resolve, reject) => {
+            calls.push({type, url, onProgress, onFailure, resolve, reject});
         })),
     };
 }
@@ -39,6 +39,43 @@ test("the GLB is asked for at the size WebODM picks for the device", () => {
     expect(viewer.platform(desktop.userAgent, false)).toBe("");
     expect(viewer.meshUrl("/m/", "ios")).toBe("/m/?platform=ios");
     expect(viewer.meshUrl("/m/", "")).toBe("/m/");
+});
+
+test("the point budget is the one WebODM's own 3D page sets for the device", () => {
+    expect(viewer.pointBudget("ios")).toBe(1000000);
+    expect(viewer.pointBudget("mobile")).toBe(2000000);
+    expect(viewer.pointBudget("")).toBe(10000000);
+    expect(viewer.create(page("mesh"), {userAgent: "Mozilla/5.0 (Linux; Android 14)", touch: true}).pointBudget).toBe(2000000);
+});
+
+test("a point cloud node that fails says the link is gone only when it is", async () => {
+    const element = page("mesh");
+    const scene = fakeScene();
+    viewer.create(element, desktop).start(scene);
+    scene.calls[0].resolve();
+    await settle();
+    const status = element.querySelector(".explorer-status");
+    window.fetch = jest.fn(() => Promise.resolve({status: 200}));
+    scene.calls[0].onFailure(500);
+    await settle();
+    expect(window.fetch).toHaveBeenCalledWith("/plugins/explorer/s/TOKEN/", expect.objectContaining({method: "HEAD"}));
+    expect(status.hidden).toBe(true);
+    window.fetch = jest.fn(() => Promise.resolve({status: 404}));
+    scene.calls[0].onFailure(404);
+    await settle();
+    expect(status.hidden).toBe(false);
+    expect(status.textContent).toBe("Gone.");
+});
+
+test("a failure from a type no longer shown changes nothing", async () => {
+    const element = page("mesh");
+    const scene = fakeScene();
+    viewer.create(element, desktop).start(scene);
+    element.querySelector("[data-type=splats]").click();
+    window.fetch = jest.fn(() => Promise.resolve({status: 404}));
+    scene.calls[0].onFailure(404);
+    await settle();
+    expect(element.querySelector(".explorer-status").textContent).toBe("Loading...");
 });
 
 test("the type the link asked for opens first, with its progress shown", async () => {

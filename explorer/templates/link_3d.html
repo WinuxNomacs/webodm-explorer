@@ -15,6 +15,9 @@
 {% block content %}
 <div class="explorer-viewer-page" data-explorer-viewer data-initial="{{ initial }}" data-link="{{ link_path }}"
      data-draco="{{ public }}vendor/three-0.187.0/examples/jsm/libs/draco/gltf/"
+     data-ept-worker="{{ public }}ept-worker.js" data-ept-decode="{{ public }}ept-decode.js"
+     data-lazperf="{{ public }}vendor/laz-perf-0.0.7/lib/worker/laz-perf.js"
+     data-lazperf-wasm="{{ public }}vendor/laz-perf-0.0.7/lib/worker/laz-perf.wasm"
      data-loading="{% trans "Loading..." %}"
      data-invalid="{% trans "This link is no longer valid." %}"
      data-error="{% trans "This view could not be loaded." %}"
@@ -27,7 +30,7 @@
         <div class="btn-group" role="group" aria-label="{% trans "View" %}">
             {% for type in types %}
             <button type="button" class="btn btn-default btn-sm" data-type="{{ type.type }}" aria-pressed="false"
-                    data-url="{% if type.type == "mesh" %}{{ api }}{{ task.id }}/textured_model/{% else %}{{ api }}{{ task.id }}/assets/splats/model.rad{% endif %}">
+                    data-url="{% if type.type == "mesh" %}{{ api }}{{ task.id }}/textured_model/{% elif type.type == "cloud" %}{{ api }}{{ task.id }}/assets/entwine_pointcloud/{% else %}{{ api }}{{ task.id }}/assets/splats/model.rad{% endif %}">
                 <i class="{{ type.icon }}"></i> {{ type.label }}
             </button>
             {% endfor %}
@@ -38,5 +41,6 @@
 </div>
 <script src="{{ public }}linkpage.js"></script>
 <script src="{{ public }}viewer-ui.js"></script>
+<script src="{{ public }}ept-tree.js"></script>
 <script type="module" src="{{ public }}viewer/scene.js"></script>
 {% endblock %}
