@@ -4,13 +4,14 @@
 
 Up next:
 
-1. **EPT point cloud streamer** in Explorer's viewer, written in the plugin (the user, 2026-11-21): `ept.json` and
-   its hierarchy, nodes chosen by screen size, LAZ decoded in a worker (laz-perf, to vet when planning), drawn as
-   `THREE.Points`; served through the token asset view's `entwine_pointcloud/` (already allowed).
+1. **Downloads through anyone-with-the-link shares** (the user, 2026-11-21; plan below): a per-link Allow
+   Downloads setting, and a Download menu on the link page's task cards for the output files.
 
 Then:
 
-2. **On-demand mesh tiling and 3D Tiles in the viewer**: Obj2Tiles, bundled (D3, Linux x64/arm64), builds 3D Tiles
+2. **EPT point cloud streamer** in Explorer's viewer, written in the plugin (the user, 2026-11-21; plan below).
+
+3. **On-demand mesh tiling and 3D Tiles in the viewer**: Obj2Tiles, bundled (D3, Linux x64/arm64), builds 3D Tiles
    for a task's mesh the first time it is shared or opened, cached in the plugin's persistent path; the viewer
    streams them with 3DTilesRendererJS (and ODX `--3d-tiles` output where it exists), replacing the GLB.
 
@@ -191,6 +192,42 @@ Checked in WebODM v4.0.1's code unless marked otherwise.
     so allow longer waits. The Playwright MCP (`mcp__playwright__*`) is configured, but its tools did not load
     in the session that built this phase; the Node script route in the `live-check` skill was used.
 
+### Plan: downloads through links (decided 2026-11-21)
+
+- **Setting it** (Share panel on a project's Explorer page, Anyone with the Link section): an Allow Downloads
+  checkbox on the create form (off by default) and a toggle on each existing link; links made before this phase
+  have it off. Stored on the link (`downloads: true|false`), changed under the same advisory lock.
+- **What can be downloaded** (output files only): the point cloud (`georeferenced_model.laz`, and `.las`/`.ply`/
+  `.csv` where they exist), the textured model (`textured_model.zip`, `textured_model.glb`), `orthophoto.tif`,
+  `dsm.tif`, `dtm.tif`, from the task's `available_assets`. Not `all.zip`, the report, camera positions, tiles zips
+  or other files.
+- **Serving** (D1 widened by `TaskDownloads`, approved 2026-11-21): a token view subclassing WebODM's
+  `TaskDownloads` (`app/api/tasks.py`), overriding only `get_and_check_task`, plus the allowlist above and a check
+  that the link allows downloads; 404 otherwise. Deferred zips (`textured_model.zip`) are built by WebODM's own
+  code path.
+- **Link page**: each task card gets a Download menu listing that task's allowed files, only on links that allow
+  downloads.
+
+### Plan: EPT point cloud streamer (decided 2026-11-21)
+
+- **Data checked** (the user's three clouds on the dev stack, 2026-11-21): entwine EPT 1.1.0, `dataType: laszip`,
+  `hierarchyType: json`, LAS point format 3 (RGB) with 4 extra bytes (`OriginId`), 38 bytes a point; the largest
+  has 124M points in 2,789 nodes (biggest node 932 KB) and a single hierarchy file. RGB values seen were in the
+  8-bit range though LAS stores 16 bits, so the viewer scales by the cloud's range (as Potree does).
+- **Decoder**: laz-perf 0.0.7 (approved 2026-11-21), vendored by `dev/vendor.sh` (`lib/worker/laz-perf.js`, a
+  classic script defining `createLazPerf`, and its 214 KB wasm). Decoded the user's root node (25,154 points) in
+  11 ms under Node.
+- **Viewer**: a Point Cloud button on the link's 3D page beside Mesh and Splats. Reads `ept.json` and the
+  hierarchy (following `-1` subtree pointers into `ept-hierarchy/<key>.json`), picks nodes by projected size
+  within a point budget (to be set by measuring; lower on phones), nearest and largest first; fetches them through
+  the token asset view (`entwine_pointcloud/`, already allowed), decodes in a worker pool, draws `THREE.Points`
+  with RGB, offset to the cloud's centre for float precision; frees nodes that leave the selection.
+- **Colouring**: RGB only in this phase (the user, 2026-11-21).
+- **Failures**: a node that fails to load is retried, then skipped; a revoked link shows "This link is no longer
+  valid"; a worker crash or a wasm that fails to load shows the page's error message.
+- Streaming lets a determined visitor fetch every node and rebuild the full-resolution cloud; the user chose to
+  offer full downloads per link instead (previous plan).
+
 ### Phase 1 plan: Project Explorer page and "WebODM users only" links (decided 2026-11-21, built: see "Done")
 
 Checked in WebODM v4.0.1's code:
@@ -291,8 +328,9 @@ Checked in WebODM v4.0.1's code:
   upgrading.
 - **D1: anonymous links are tokens checked by the plugin, which serves what its viewer needs** (the user,
   2026-11-21): plugin views (`api_mount_points`) subclass WebODM's `Tiles`, `TileJson`, `Metadata`, `Bounds`,
-  `TaskAssets`, `TaskThumbnail` and (2026-11-21) `TaskSafeTexturedModel`, and override only `get_and_check_task`. The project stays private, and links
-  are view-only, can expire and can be revoked. This is an exception to "official extension points only",
+  `TaskAssets`, `TaskThumbnail`, `TaskSafeTexturedModel` and (2026-11-21, for links that allow downloads)
+  `TaskDownloads`, and override only `get_and_check_task`. The project stays private, and links can expire and be
+  revoked; downloads are off unless a link allows them. This is an exception to "official extension points only",
   approved for this use; tests import those classes so a WebODM release that changes them fails loudly.
 - **D2: WebODM's viewers first** (the user, 2026-11-21): the project page links to WebODM's map and 3D views;
   Explorer's own viewer comes with the mesh phase.
@@ -320,3 +358,9 @@ Checked in WebODM v4.0.1's code:
   the popup makes its project or task public as soon as it opens.
 - **Share links**: per project; per share, "anyone with the link" or "WebODM users only"; streamable formats
   built inside WebODM on demand and cached (the user, 2026-11-21).
+- **Downloads through links** (the user, 2026-11-21): an Allow Downloads setting per link, set at creation and
+  changeable, off for older links; output files only (point cloud, textured model, orthophoto, DSM, DTM); its own
+  phase before the EPT streamer.
+- **EPT streamer** (the user, 2026-11-21): laz-perf 0.0.7 vendored (Apache-2.0, Hobu, no dependencies, no
+  advisories; npm release 2025-02-19, C++ release 3.4.0 2023-08-23, repo pushed 2026-10-18, so mature but rarely
+  released; re-vet when upgrading); RGB colouring only.
