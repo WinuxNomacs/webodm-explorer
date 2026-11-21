@@ -229,3 +229,7 @@ node_modules/
 new.md
 CLAUDE.local.md
 .claude/settings.local.json
+
+# The vendored browser libraries keep their packages' layout (build/, dist/), which the Python patterns above ignore
+!explorer/public/vendor/**/build/
+!explorer/public/vendor/**/dist/
