@@ -221,3 +221,11 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+ignored/
+
+node_modules/
+.vscode/
+
+new.md
+CLAUDE.local.md
+.claude/settings.local.json
