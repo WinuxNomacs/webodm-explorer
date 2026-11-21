@@ -13,6 +13,16 @@ from nodeodm import status_codes
 # The layers WebODM's map page shows. Its URL cannot pick one (MapView's selectedMapType is never set from the
 # request), so they share one button that names them.
 MAP_LAYERS = (("orthophoto.tif", "Orthophoto"), ("dsm.tif", "DSM"), ("dtm.tif", "DTM"))
+# A link's Download menu: the files api.DOWNLOADABLE allows, with the labels and icons of WebODM's own Download menu
+# (AssetDownloads.js), in its order.
+LINK_DOWNLOADS = (
+    ("orthophoto.tif", "Orthophoto", "far fa-image"),
+    ("dtm.tif", "Terrain Model", "fa fa-chart-area"),
+    ("dsm.tif", "Surface Model", "fa fa-chart-area"),
+    ("georeferenced_model.laz", "Point Cloud", "fa fa-pointcloud"),
+    ("textured_model.zip", "Textured Model", "fab fa-connectdevelop"),
+    ("textured_model.glb", "Textured Model (glTF)", "fab fa-connectdevelop"),
+)
 
 
 def viewable_projects(user):
@@ -73,6 +83,13 @@ def link_outputs(task, link_path):
     return outputs
 
 
+def link_downloads(task, api_path):
+    """A link page card's Download menu: label, icon and URL of each file the task has; api_path ends in a slash."""
+    assets = task.available_assets or []
+    return [{"label": _(label), "icon": icon, "url": f"{api_path}{task.id}/download/{asset}"}
+            for asset, label, icon in LINK_DOWNLOADS if asset in assets]
+
+
 def explorable_task(project, task_pk):
     """The project's task if it is completed and not being removed, else None."""
     try:
@@ -82,8 +99,11 @@ def explorable_task(project, task_pk):
         return None
 
 
-def explorable_tasks(projects, outputs_for=task_outputs):
-    """Completed tasks (not being removed) with at least one output, newest first, as (task, outputs) pairs."""
+def explorable_tasks(projects, outputs_for=task_outputs, downloads_for=None):
+    """
+    Completed tasks (not being removed) with at least one output, newest first, as (task, outputs, downloads)
+    triples; downloads is [] without downloads_for.
+    """
     tasks = (Task.objects.filter(project__in=projects, status=status_codes.COMPLETED)
              .exclude(pending_action=pending_actions.REMOVE)
              .only("id", "project_id", "name", "created_at", "available_assets")
@@ -92,7 +112,7 @@ def explorable_tasks(projects, outputs_for=task_outputs):
     for task in tasks:
         outputs = outputs_for(task)
         if outputs:
-            cards.append((task, outputs))
+            cards.append((task, outputs, downloads_for(task) if downloads_for else []))
     return cards
 
 
@@ -100,7 +120,7 @@ def project_cards(user):
     """The project list: each viewable project with how many tasks have outputs and a thumbnail task if any."""
     projects = list(viewable_projects(user))
     summary = {project.id: {"project": project, "count": 0, "thumbnail": None} for project in projects}
-    for task, _outputs in explorable_tasks(projects):
+    for task, _outputs, _downloads in explorable_tasks(projects):
         entry = summary[task.project_id]
         entry["count"] += 1
         if entry["thumbnail"] is None and "orthophoto.tif" in task.available_assets:

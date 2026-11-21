@@ -13,9 +13,11 @@ Under development.
 - **Anyone with the Link**, in the Share panel for users who can change the project: links that open the project
   without signing in, each with a label and an expiry (7, 30 or 90 days, or never), copied again or revoked at any
   time. A link opens a page of the project's tasks, each with a **Map** (orthophoto, DSM, DTM; no basemap) and a 3D
-  view of its **Textured Model** and **Gaussian Splats**. Visitors can't download files: a link serves only what
-  these views stream. Links are kept in plain text in WebODM's database (so they can be copied again), and revoking
-  one stops it at once.
+  view of its **Textured Model** and **Gaussian Splats**. A link serves only what these views stream, unless it has
+  **Allow Downloads** (ticked when creating it, or on the link later): its task cards then get a **Download** menu
+  with the orthophoto, DSM, DTM, point cloud (LAZ) and textured model (zip and glTF), but not the report, camera
+  positions or All Assets. Links are kept in plain text in WebODM's database (so they can be copied again), and
+  revoking one, or unticking Allow Downloads, takes effect at once.
 
 ## Install
 

@@ -65,11 +65,14 @@ class Plugin(PluginBase):
                     "cards_template": self.template_path("cards.html"), "thumbnails": api_path, **extra}
 
         def link_page(request, token):
-            project = links.project_for_token(token)
+            project, link = links.resolve(token)
             if project is None:
                 return invalid_link(request)
             link_path = f"{public}s/{token}/"
-            cards = pages.explorable_tasks([project], lambda task: pages.link_outputs(task, link_path))
+            api_path = f"/api/plugins/{links.NAMESPACE}/s/{token}/tasks/"
+            downloads = links.allows_downloads(link)
+            cards = pages.explorable_tasks([project], lambda task: pages.link_outputs(task, link_path),
+                                           (lambda task: pages.link_downloads(task, api_path)) if downloads else None)
             return link_headers(render(request, self.template_path("link.html"),
                                        link_context(token, project, title=project.name, cards=cards)))
 
@@ -123,4 +126,5 @@ class Plugin(PluginBase):
             MountPoint(rf"{base}thumbnail$", api.TokenThumbnail.as_view()),
             MountPoint(rf"{base}textured_model/$", api.TokenTexturedModel.as_view()),
             MountPoint(rf"{base}assets/(?P<unsafe_asset_path>.+)$", api.TokenAssets.as_view()),
+            MountPoint(rf"{base}download/(?P<asset>[A-Za-z0-9_.]+)$", api.TokenDownloads.as_view()),
         ]

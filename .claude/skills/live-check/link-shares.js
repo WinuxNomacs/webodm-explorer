@@ -33,7 +33,7 @@ const watch = (page, label) => {
             await admin.click(".explorer-link-form [type=submit]");
             await admin.waitForSelector(".explorer-link");
             const row = admin.locator(".explorer-link", { hasText: "Live check" }).first();
-            const url = await row.locator("input").inputValue();
+            const url = await row.locator(".explorer-link-address").inputValue();
             const token = url.match(/s\/([A-Za-z0-9_-]{43})\//)[1];
             created.push([projectId, token]);
             return url;
