@@ -228,6 +228,11 @@ Checked in WebODM v4.0.1's code unless marked otherwise.
     dependencies, run by the Node 20 that WebODM's image already has, so one copy serves x64 and arm64; three.js
     reads its output with its own `meshopt_decoder` in `examples/jsm/libs`, to vendor beside Draco and basis). Not yet tried: running it was refused by the sandbox
     pending the user's approval.
+- **Baseline** (2026-11-21, `link-perf.js`, headless Chromium on an Apple M4 Pro through Metal, task 358acbe0,
+  light background load): all three viewers keep 16.7 ms frames (60 fps) while orbiting and zooming and when idle;
+  each has one long task while loading: point cloud 155 ms (first view 0.5 s), mesh 543 ms (first view 1.0 s),
+  splats 114 ms (0.4 s). The mesh's 543 ms freeze is what tiles should remove; the other two are worth finding.
+  Phones are untested and will be slower.
 - **Smoothness first** (the user's rule, 2026-11-21): the phase starts by adding a frame-time measurement to the
   live checks (a real GPU through headless Chromium on Metal, frame times and long tasks while orbiting and zooming)
   and measuring today's three viewers, so the tiles are judged against the GLB, and anything poor in the point cloud

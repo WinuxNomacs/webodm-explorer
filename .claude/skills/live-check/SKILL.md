@@ -45,6 +45,12 @@ own (e.g. starting "Live check"), delete only that afterwards, and say what was 
   cloud on a link's 3D page, node counts as the camera zooms, switching type and back, phone width, a node
   answering 500, laz-perf's wasm missing, and a revoke while the cloud is open (the message shows once a node is
   refused: on a small cloud already fully loaded, none is). Creates one "Live check" link and revokes it.
+- `link-perf.js` (repo, user, password, then optional project id, task id prefix and types, default
+  `cloud,mesh,splats`): smoothness on the real GPU (headless Chromium on Metal): time to the first view, then frame
+  times (p50/p95/p99/max, frames over 33 and 100 ms) and long tasks while loading, orbiting and zooming, and idle.
+  No screenshots. List the busy processes first (`ps -Ao pcpu,comm -r | head`, `docker stats --no-stream`) and
+  report them with the numbers. Baseline (2026-11-21, M4 Pro, task 358acbe0): steady 16.7 ms frames while
+  interacting for all three; one long task while loading: cloud 155 ms, mesh 543 ms, splats 114 ms.
 - `link-downloads.js` (same arguments, plus an optional project id, default 2): Allow Downloads on the create form
   and on an existing link, the link page's Download menu at desktop and phone widths, one file downloaded as a
   visitor (deleted when the browser closes), 404s for a view-only link and once downloads are turned off, and
