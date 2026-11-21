@@ -18,8 +18,8 @@ public: nothing private, nothing true only on one machine. Keep it short; edit i
     in `app/static/app/js/classes/plugins/` (`App.ready`, `Dashboard.*`, `Map.*`, `ModelView.addActionButton`,
     `SharePopup.addLinkControl`, `Workers.*`). No Django models or migrations (data goes in the plugin's data
     stores, `GlobalDataStore` and `UserDataStore`, which store it unencrypted).
-  - One approved exception: share-link views subclass WebODM's tile and asset API views (`app/api/tiler.py`,
-    `app/api/tasks.py`) and override only `get_and_check_task` with the link's token check (`upcoming-changes.md`,
+  - One approved exception: share-link views subclass WebODM's tile, asset and safe textured model API views
+    (`app/api/tiler.py`, `app/api/tasks.py`) and override only `get_and_check_task` with the link's token check (`upcoming-changes.md`,
     decision D1). Tests import those classes, so a WebODM release that changes them fails the tests. No other
     WebODM internals without the user's approval.
   - **No changes to WebODM itself; avoid pull requests to it.** A feature that needs a hook WebODM lacks is
@@ -32,7 +32,8 @@ public: nothing private, nothing true only on one machine. Keep it short; edit i
     imports inside the plugin, never `coreplugins.explorer` outside the tests.
   - The manifest says `"experimental": true` until the user decides otherwise; licence AGPL-3.0.
   - The guide's "no tests unless asked" does not apply: the user's rules ask for tests.
-- **WebODM 4.0.0 and later**: Python 3.14, Django 5.2, DRF 3.18, Postgres 18 without GIS. The manifest's
+- **WebODM 4.0.0 and later, Docker installs only** (not the native Windows app): Python 3.14, Django 5.2, DRF 3.18,
+  Postgres 18 without GIS, Linux x64 or arm64. The manifest's
   `webodmMinVersion` is 4.0.0; the dev stack runs the latest release (4.0.1). Ruff targets py314.
 - **Never push and never tag.** No workflow runs yet. A release: Claude prepares a `release/X.Y.Z` branch (manifest
   version, `CHANGELOG.md`, `README.md`), builds the zip with `dev/package.sh` (`dist/explorer-X.Y.Z.zip` and its
