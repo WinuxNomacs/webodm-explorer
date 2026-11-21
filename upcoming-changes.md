@@ -226,8 +226,14 @@ Checked in WebODM v4.0.1's code unless marked otherwise.
     root) is needed; candidate: gltfpack 1.3.0 (meshoptimizer, MIT, 2026-09-25, releases every 3 months, essentially
     one maintainer with 4,213 of the commits, no advisories; its npm build is 348 KB of WebAssembly with no
     dependencies, run by the Node 20 that WebODM's image already has, so one copy serves x64 and arm64; three.js
-    reads its output with its own `meshopt_decoder` in `examples/jsm/libs`, to vendor beside Draco and basis). Not yet tried: running it was refused by the sandbox
-    pending the user's approval.
+    reads its output with its own `meshopt_decoder` in `examples/jsm/libs`, to vendor beside Draco and basis). Approved by the user (2026-11-21), widening D3.
+  - gltfpack measured (2026-11-21, project 2's build): `-cc` (meshopt compression and quantization) takes the root
+    from 12.4 MB to 3.1 MB in 0.15 s; with `-si 0.25` (a quarter of the faces) to 1.25 MB, `-si 0.1` to 0.75 MB
+    (WebODM's GLB: 6 MB). Across a sample of finer tiles, 34% smaller (their KTX2 textures dominate). The same output
+    from WebODM's Node 20 in the worker, about 30 ms a tile with one process each: about 2 minutes for 4,100 tiles,
+    less in parallel or with its library in one process. KTX2 textures pass through untouched.
+  - To check while building: hairline cracks between neighbouring tiles from per-tile quantization (else `-vpf`),
+    and the simplified root's `geometricError` raised to match, so the renderer refines it at the right distance.
 - **Baseline** (2026-11-21, `link-perf.js`, headless Chromium on an Apple M4 Pro through Metal, task 358acbe0,
   light background load): all three viewers keep 16.7 ms frames (60 fps) while orbiting and zooming and when idle;
   each has one long task while loading: point cloud 155 ms (first view 0.5 s), mesh 543 ms (first view 1.0 s),
