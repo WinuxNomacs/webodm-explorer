@@ -1,0 +1,98 @@
+/* Explorer pages. Colours come from WebODM's theme classes (theme-border-*, btn-*), never set here. */
+.explorer-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.explorer-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.explorer-share {
+    border-width: 1px;
+    border-style: solid;
+    border-radius: 4px;
+    padding: 12px;
+    margin: 12px 0;
+    max-width: 640px;
+}
+
+.explorer-share p {
+    margin: 8px 0 0;
+}
+
+.explorer-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 16px;
+    margin: 16px 0;
+}
+
+.explorer-card {
+    display: flex;
+    flex-direction: column;
+    border-width: 1px;
+    border-style: solid;
+    border-radius: 4px;
+    overflow: hidden;
+    min-width: 0;
+}
+
+a.explorer-card-link,
+a.explorer-card-link:hover,
+a.explorer-card-link:focus {
+    color: inherit;
+    text-decoration: none;
+}
+
+a.explorer-card-link:hover .explorer-card-title,
+a.explorer-card-link:focus .explorer-card-title {
+    text-decoration: underline;
+}
+
+.explorer-thumbnail {
+    display: block;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+}
+
+.explorer-no-thumbnail {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 48px;
+    opacity: 0.4;
+    border-bottom-width: 1px;
+    border-bottom-style: solid;
+}
+
+.explorer-card-body {
+    padding: 10px 12px 12px;
+}
+
+.explorer-card-title {
+    font-weight: bold;
+    overflow-wrap: anywhere;
+}
+
+.explorer-card-text {
+    opacity: 0.8;
+    overflow-wrap: anywhere;
+}
+
+.explorer-outputs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+}
+
+.explorer-output-detail {
+    opacity: 0.85;
+}
