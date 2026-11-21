@@ -4,15 +4,19 @@
 
 Up next:
 
-1. **Explorer's own viewer and "anyone with the link" shares**: a three.js viewer (vendored, D4) streaming 3D
-   Tiles meshes, EPT point clouds and `.rad` splats, plus the token-checked plugin views that serve it to anonymous
-   visitors (D1); links that expire and can be revoked, created and revoked from the Explorer page's Share
-   button. To plan with the user next.
+1. **"Anyone with the link" shares, with 2D maps, splats and meshes** (planned 2026-11-21, ready to build): links
+   made and revoked in the Explorer page's Share panel, a link page for visitors without an account, token-checked
+   plugin views (D1), a Leaflet page for orthophoto/DSM/DTM, and Explorer's own three.js viewer with Spark splats
+   and WebODM's downscaled GLB mesh. Details under "Plan: anyone-with-the-link shares" below.
 
 Then:
 
-2. **On-demand mesh tiling**: Obj2Tiles, bundled (D3), builds 3D Tiles for a task's mesh the first time it is
-   shared or opened; cached in the plugin's persistent path.
+2. **EPT point cloud streamer** in Explorer's viewer, written in the plugin (the user, 2026-11-21): `ept.json` and
+   its hierarchy, nodes chosen by screen size, LAZ decoded in a worker (laz-perf, to vet when planning), drawn as
+   `THREE.Points`; served through the token asset view's `entwine_pointcloud/`.
+3. **On-demand mesh tiling and 3D Tiles in the viewer**: Obj2Tiles, bundled (D3, Linux x64/arm64), builds 3D Tiles
+   for a task's mesh the first time it is shared or opened, cached in the plugin's persistent path; the viewer
+   streams them with 3DTilesRendererJS (and ODX `--3d-tiles` output where it exists), replacing the GLB.
 
 Later: COPC point clouds and a Range/caching asset endpoint (only if EPT through WebODM proves too slow);
 docs site (VitePress on GitHub Pages, as TweakUI) and screenshots, once there are features to show.
@@ -116,6 +120,58 @@ How PDAL's COPC writer holds up on multi-GB clouds.
 - **On-demand mesh tiling** through `run_function_async`, written to the plugin's persistent path
   (`get_persistent_path`), never to the task's folder.
 
+### Plan: anyone-with-the-link shares (decided 2026-11-21)
+
+Checked in WebODM v4.0.1's code unless marked otherwise.
+
+- **Who makes links:** users with `change_project`, the permission WebODM's own public toggle needs
+  (`DjangoObjectPermissions` on PATCH). The Explorer page's Share panel gains a list of the project's links (label,
+  created, expires, Copy, Revoke) and a form: label, expiry (never, 7, 30 or 90 days; 30 by default). Users without
+  `change_project` see only the "WebODM users only" link, as now.
+- **Links:** `secrets.token_urlsafe(32)`, kept in plain text so they can be copied again (the user's choice;
+  plugin data is unencrypted, so a database dump exposes live links). One `GlobalDataStore` key per project,
+  `links:<project_id>`, holds its links; a second key per link, `token:<token>` -> project id, finds it (the data
+  store has no listing or prefix query). Every write runs in `transaction.atomic()` under
+  `pg_advisory_xact_lock` (Postgres always: Docker installs only), so a revoke and a create at the same moment
+  cannot bring a revoked link back. Expired links are refused on read and dropped at the next write. A deleted
+  project's links are refused (the project is gone) and their keys dropped at lookup; WebODM has no
+  project-removed signal.
+- **API** (`api_mount_points`, session auth, CSRF as WebODM requires): list, create and revoke under
+  `/api/plugins/explorer/projects/<id>/links/`; each checks `change_project`.
+- **Link page** `/plugins/explorer/s/<token>/` (`app_mount_points`, no login): the project's name and the same task
+  cards as the signed-in page, the buttons opening Explorer's own pages below. An unknown, revoked or expired link
+  gets one plain 404 page (no hint which). Link pages and token views send `Referrer-Policy: strict-origin`, and the
+  HTML `Cache-Control: private, no-store`, so the token doesn't leak through Referer headers or shared caches.
+- **Token views** (D1; `api_mount_points` under `/api/plugins/explorer/s/<token>/tasks/<task_id>/...`): subclasses
+  of `TileJson`, `Bounds`, `Metadata`, `Tiles`, `TaskThumbnail`, `TaskAssets` and `TaskSafeTexturedModel` (added by
+  the user's choice of a GLB until meshes are tiled), overriding only `get_and_check_task`: the token must be live
+  and the task must be in its project and completed. `dispatch` takes the token out of the URL kwargs (WebODM's
+  `get` methods don't accept it). The asset subclass serves only `entwine_pointcloud/` and `splats/model.rad` (and
+  `3d_tiles/` from phase 3), because WebODM's own `TaskAssets` serves anything under `assets/` (the full point
+  cloud, report, camera positions). `TileJson`'s tile URLs point at WebODM's own tile view, so the token map page
+  builds its tile URL itself. No downloads.
+- **2D map page** `/plugins/explorer/s/<token>/map/<task_id>/`: Leaflet 1.9.4, vendored (D4), an XYZ layer from the
+  token tile view with an Orthophoto/DSM/DTM switch, fitted to `Bounds`; no basemap (one would send visitors'
+  addresses to a tile provider; to revisit if wanted).
+- **3D viewer page** `/plugins/explorer/s/<token>/3d/<task_id>/?t=mesh|splats`: three.js r187 with an import map,
+  Spark 2.4.0 `SplatMesh({paged: true})` on the token `.rad` URL, the GLB from the token `TaskSafeTexturedModel`
+  view (`?platform=mobile|ios` as WebODM's 3D page does) with three's `GLTFLoader` and `DRACOLoader`; orbit
+  controls; a switch between the types the task has. Point clouds come in phase 2.
+  **To check first when building (UNVERIFIED):** that Spark 2.4.0 reads the `.rad` files WebODM 4.0.1 writes
+  (WebODM loads them with its own Spark build on three r124, `threedgs.umd.min.js`), and whether WebODM's GLB is
+  Draco-compressed and which decoder three r187 needs.
+- **How it can fail and what happens:** a link revoked or expired mid-visit: the next tile or asset request gets a
+  404 and the page says "This link is no longer valid". A task removed after sharing: 404 for that task only. A
+  data store entry that doesn't parse: treated as no links for that project, logged, replaced at the next write
+  (never a 500). A lock wait past Postgres's timeout: a 503, and the Share panel says so. Heavy tile rendering by
+  anonymous visitors costs what WebODM's public projects cost; no rate limit in this phase (noted for later).
+- **Tests:** Django: link create/list/revoke permissions and CSRF; each token view refusing an unknown, revoked or
+  expired token, a task from another project, a task not completed, and an asset outside the allowed folders
+  (including `../` and URL-encoded traversal); imports of the subclassed WebODM views (they fail loudly if WebODM
+  renames them); concurrent revoke and create (two threads) never bringing a link back; a broken data store
+  entry. Jest: the Share panel's list and form, the viewer's type switch with stand-in loaders. Live: a link opened
+  in a fresh browser without login on the user's projects, at desktop and phone widths; a revoke while it is open.
+
 ### Phase 1 plan: Project Explorer page and "WebODM users only" links (decided 2026-11-21, built: see "Done")
 
 Checked in WebODM v4.0.1's code:
@@ -184,6 +240,8 @@ Checked in WebODM v4.0.1's code:
 
 ## Decisions
 
+- **Docker installs of WebODM only, not the native Windows app** (the user, 2026-11-21): Postgres is always the
+  database (link storage may use its locks); bundled binaries are Linux x64 and arm64 only (D3).
 - **WebODM 4.0.0 minimum, dev stack on 4.0.1** (2026-11-21, Claude's default from the request "WebODM 4.0+"): one
   stack only; no 3.3.x support. The user may change it.
 - **Plugin id `explorer`, name "Explorer"** (2026-11-21, from the repository name). Renaming is cheap until the
@@ -193,17 +251,31 @@ Checked in WebODM v4.0.1's code:
   upgrading.
 - **D1: anonymous links are tokens checked by the plugin, which serves what its viewer needs** (the user,
   2026-11-21): plugin views (`api_mount_points`) subclass WebODM's `Tiles`, `TileJson`, `Metadata`, `Bounds`,
-  `TaskAssets` and `TaskThumbnail`, and override only `get_and_check_task`. The project stays private, and links
+  `TaskAssets`, `TaskThumbnail` and (2026-11-21) `TaskSafeTexturedModel`, and override only `get_and_check_task`. The project stays private, and links
   are view-only, can expire and can be revoked. This is an exception to "official extension points only",
   approved for this use; tests import those classes so a WebODM release that changes them fails loudly.
 - **D2: WebODM's viewers first** (the user, 2026-11-21): the project page links to WebODM's map and 3D views;
   Explorer's own viewer comes with the mesh phase.
 - **D3: Obj2Tiles bundled in the zip** (the user, 2026-11-21): v1.10.3 (2026-11-17) release zips are 10-11 MB
-  each for Linux x64/arm64 and macOS, 21-22 MB for Windows x64/arm64. Which platforms go in (Docker's Linux
-  x64 and arm64, WebODM's native Windows app) is to settle when planning the mesh tiling phase. AGPL-3.0, like the plugin.
+  each for Linux x64/arm64 and macOS, 21-22 MB for Windows x64/arm64. Platforms: Linux x64 and arm64 only (Docker
+  installs only, decided 2026-11-21). AGPL-3.0, like the plugin.
 - **D4: vendored prebuilt JS** (the user, 2026-11-21): pinned builds in `explorer/public/vendor/`.
 - **Phase 1** (the user, 2026-11-21): reached from a main menu item and a project list; lists completed tasks with
   outputs only; merged with the "WebODM users only" links phase.
+- **Anyone-with-the-link shares** (the user, 2026-11-21): point clouds through an EPT streamer written in the
+  plugin (its own phase); meshes as WebODM's downscaled GLB (`TaskSafeTexturedModel` subclassed too, widening D1
+  by one view) until they are tiled; links kept so they can be copied again.
+- **Viewer libraries** (vetted 2026-11-21 from npm and GitHub): three.js 0.187.0 (MIT, 2026-10-30, ~10 releases a
+  year); Spark 2.4.0 (MIT, 2026-10-20, releases every 1-2 months, ~4 active contributors, peer three >=0.180,
+  paged `.rad` in the release, prebuilt `dist/spark.module.min.js`); 3DTilesRendererJS 0.5.4 (Apache-2.0,
+  2026-11-03, monthly, mostly one maintainer, peer three >=0.167, `preprocessURL`/`fetchOptions` for tokens,
+  advisory GHSA-x68m-9hr9-xr2j fixed in 0.5.1; for phase 3); Leaflet 1.9.4 (BSD-2-Clause, 2023-05-18, the current
+  stable; 2.0 in betas, repo active 2026-11-20, no advisories). Rejected for EPT: potree-core 2.0.17 (dropped EPT),
+  @pnext/three-loader 1.0.0 (no EPT, three ~0.160), iTowns 2.46.0 (three ^0.174), Giro3D 2.0.7 (no EPT found,
+  three ^0.180, OpenLayers). Running Spark and 3DTilesRendererJS together on r187 is unverified.
+- **Playwright MCP** (the user, 2026-11-21): `@playwright/mcp@0.0.86` (Microsoft, Apache-2.0, 2026-11-18; pins a
+  Playwright 1.66 pre-release), added with local scope for this project only, headless and isolated; the scripted
+  Playwright 1.64.1 checks stay.
 - **Explorer's share control lives on the Explorer page, not in WebODM's Share popup** (the user, 2026-11-21):
   the popup makes its project or task public as soon as it opens.
 - **Share links**: per project; per share, "anyone with the link" or "WebODM users only"; streamable formats
