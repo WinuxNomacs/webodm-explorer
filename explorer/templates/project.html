@@ -1,0 +1,63 @@
+{% extends "app/plugins/templates/base.html" %}
+{% load i18n %}
+
+{% block extra-headers %}<link rel="stylesheet" href="{{ public }}explorer.css">{% endblock %}
+
+{% block content %}
+<div class="explorer">
+    <div class="explorer-header">
+        <h3><a href="{{ public }}">{% trans "Explorer" %}</a> / {{ project.name }}</h3>
+        <div class="explorer-actions">
+            {% if cards %}
+            <a class="btn btn-default btn-sm" href="/map/project/{{ project.id }}/"><i class="fa fa-globe"></i> {% trans "View All on Map" %}</a>
+            {% endif %}
+            <button type="button" class="btn btn-primary btn-sm" data-explorer-share aria-expanded="false" aria-controls="explorer-share">
+                <i class="fa fa-share-alt"></i> {% trans "Share" %}
+            </button>
+        </div>
+    </div>
+    {% if project.description %}<p>{{ project.description }}</p>{% endif %}
+
+    <div id="explorer-share" class="explorer-share theme-border-secondary-07" hidden>
+        <label for="explorer-share-link">{% trans "Link to this page" %}</label>
+        <div class="input-group">
+            <input id="explorer-share-link" class="form-control" type="text" readonly value="{{ request.path }}">
+            <span class="input-group-btn">
+                <button type="button" class="btn btn-default" data-explorer-copy data-copied="{% trans "Copied" %}">
+                    <i class="fa fa-copy"></i> {% trans "Copy" %}
+                </button>
+            </span>
+        </div>
+        <p class="explorer-card-text">{% trans "Only signed-in users this project is shared with can open it. To share it with someone, add them in the Dashboard: the project's Edit dialog, Permissions." %}</p>
+    </div>
+
+    {% if cards %}
+    <div class="explorer-grid">
+        {% for task, outputs in cards %}
+        <div class="explorer-card theme-border-secondary-07">
+            {% if "orthophoto.tif" in task.available_assets %}
+            <img class="explorer-thumbnail" loading="lazy" alt="" data-placeholder-icon="fa fa-cube"
+                 src="/api/projects/{{ project.id }}/tasks/{{ task.id }}/thumbnail?size=512">
+            {% else %}
+            <div class="explorer-thumbnail explorer-no-thumbnail theme-border-secondary-07"><i class="fa fa-cube"></i></div>
+            {% endif %}
+            <div class="explorer-card-body">
+                <div class="explorer-card-title">{% if task.name %}{{ task.name }}{% else %}{% trans "Unnamed Task" %}{% endif %}</div>
+                <div class="explorer-card-text">{{ task.created_at|date:"SHORT_DATETIME_FORMAT" }}</div>
+                <div class="explorer-outputs">
+                    {% for output in outputs %}
+                    <a class="btn btn-primary btn-sm" href="{{ output.url }}"{% if output.detail %} title="{{ output.detail }}"{% endif %}>
+                        <i class="{{ output.icon }}"></i> {{ output.label }}{% if output.detail %} <span class="explorer-output-detail">({{ output.detail }})</span>{% endif %}
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p>{% trans "No completed tasks with outputs yet. Tasks appear here once they finish processing." %}</p>
+    {% endif %}
+</div>
+<script src="{{ public }}explorer.js"></script>
+{% endblock %}

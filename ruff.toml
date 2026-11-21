@@ -9,4 +9,4 @@ per-file-ignores = {"explorer/__init__.py" = ["F403"]}
 
 [lint.isort]
 # WebODM's own packages, which the plugin imports as it would any library
-known-third-party = ["app", "coreplugins", "webodm"]
+known-third-party = ["app", "coreplugins", "nodeodm", "webodm"]

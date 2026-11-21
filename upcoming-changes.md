@@ -4,17 +4,14 @@
 
 Up next:
 
-1. **Project Explorer page and "WebODM users only" links** (planned 2026-11-21, ready to build; phases 1 and 2
-   merged): an "Explorer" main menu item, a project list, and a page per project whose task cards open WebODM's
-   own map and 3D views (D2), with a Share button that copies the page link. Details under "Phase 1 plan" below.
+1. **Explorer's own viewer and "anyone with the link" shares**: a three.js viewer (vendored, D4) streaming 3D
+   Tiles meshes, EPT point clouds and `.rad` splats, plus the token-checked plugin views that serve it to anonymous
+   visitors (D1); links that expire and can be revoked, created and revoked from the Explorer page's Share
+   button. To plan with the user next.
 
 Then:
 
-2. **Explorer's own viewer and "anyone with the link" shares**: a three.js viewer (vendored, D4) streaming 3D
-   Tiles meshes, EPT point clouds and `.rad` splats, plus the token-checked plugin views that serve it to anonymous
-   visitors (D1); links that expire and can be revoked, created and revoked from the Explorer page's Share
-   button.
-3. **On-demand mesh tiling**: Obj2Tiles, bundled (D3), builds 3D Tiles for a task's mesh the first time it is
+2. **On-demand mesh tiling**: Obj2Tiles, bundled (D3), builds 3D Tiles for a task's mesh the first time it is
    shared or opened; cached in the plugin's persistent path.
 
 Later: COPC point clouds and a Range/caching asset endpoint (only if EPT through WebODM proves too slow);
@@ -119,7 +116,7 @@ How PDAL's COPC writer holds up on multi-GB clouds.
 - **On-demand mesh tiling** through `run_function_async`, written to the plugin's persistent path
   (`get_persistent_path`), never to the task's folder.
 
-### Phase 1 plan: Project Explorer page and "WebODM users only" links (decided 2026-11-21)
+### Phase 1 plan: Project Explorer page and "WebODM users only" links (decided 2026-11-21, built: see "Done")
 
 Checked in WebODM v4.0.1's code:
 
@@ -131,7 +128,9 @@ Checked in WebODM v4.0.1's code:
     (`app/views/app.py`). One card per **completed task with at least one viewable output** (queued, running,
     failed and cancelled tasks left out; new tasks appear on reload): thumbnail
     (`/api/projects/<p>/tasks/<t>/thumbnail`, when an orthophoto exists), name, date, and a button per output in
-    `available_assets`: Orthophoto, DSM and DTM open `/map/project/<p>/task/<t>/`; Point Cloud, Textured Model
+    `available_assets`: one **Map** button naming the layers it has (Orthophoto, DSM, DTM) opens
+    `/map/project/<p>/task/<t>/` (found while building: WebODM's map page cannot pick a layer from its URL, so
+    three buttons would all open the same page); Point Cloud, Textured Model
     and Gaussian Splats open `/3d/project/<p>/task/<t>/?t=cloud|mesh|splats` (the `t` parameter WebODM's
     `model_display` passes to `ModelView`). A "View All on Map" button opens `/map/project/<p>/`.
 - **Share button** on the project's Explorer page: copies the page's URL and says that only users the project is
@@ -171,6 +170,13 @@ Checked in WebODM v4.0.1's code:
   is installed).
 
 ## Done
+
+- **Project Explorer page and "WebODM users only" links** (2026-11-21): `explorer/plugin.py` (main menu item, the
+  two pages), `explorer/pages.py` (viewable projects, which tasks get cards, their buttons),
+  `explorer/templates/`, `explorer/public/explorer.{js,css}` (Share panel, thumbnail fallback). Tests:
+  `explorer/tests/test_explorer.py` (Django), `explorer/public/__tests__/explorer.test.js` (Jest). Checked live on
+  WebODM 4.0.1 at desktop and phone widths with the user's projects. Found live: WebODM's thumbnail endpoint answers
+  404 for a greyscale orthophoto, so a thumbnail that fails falls back to the placeholder.
 
 - **Project setup** (2026-11-21): plugin skeleton `explorer/` (manifest, `plugin.py`, Django tests in
   `explorer/tests/`), dev stack `dev/webodm.sh` (WebODM 4.0.1 by digest, http://localhost:8008), release zip
