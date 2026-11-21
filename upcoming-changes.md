@@ -4,8 +4,7 @@
 
 Up next:
 
-1. **Decide the open questions of the research** (below, "Open decisions"): how anonymous links grant access (D1),
-   which viewer to start from (D2), how meshes without 3D Tiles get them (D3), how JS libraries are shipped (D4).
+1. **Decide D1** (below, "Open decisions"): how anonymous links grant access. D2, D3 and D4 are decided ("Decisions").
 
 Then (proposed, order to confirm once the decisions are made):
 
@@ -122,10 +121,18 @@ How PDAL's COPC writer holds up on multi-GB clouds.
   - (a) The plugin turns on WebODM's own project sharing and the link works only while it is on. Simple, and
     WebODM's endpoints serve everything. But anyone with a task's id gets all of it, the backup zip included,
     and revoking means turning the project's `public` off.
-  - (b) The plugin serves everything itself behind its token: tiles, EPT nodes, `.rad` ranges and 3D Tiles. The
-    project stays private, and links can expire or be revoked one by one. It means re-implementing tile
-    rendering (rio-tiler through WebODM's internals, which are not a plugin API) and Range serving, with every
-    byte through Python.
+  - (b) The plugin serves what the viewer needs behind its token: tiles, EPT nodes, `.rad` ranges, 3D Tiles. The
+    project stays private, and links can expire or be revoked one by one. Checked in code: WebODM's `Tiles`,
+    `TileJson`, `Metadata`, `Bounds` (`app/api/tiler.py`) and `TaskAssets`, `TaskThumbnail` (`app/api/tasks.py`)
+    all call `self.get_and_check_task`. So plugin views mounted with `api_mount_points` can subclass them and
+    override only that check, which reuses WebODM's tile rendering and Range serving rather than re-implementing
+    them. Costs:
+    - It subclasses WebODM internals, which are not a plugin API, so a WebODM release can break it (tests catch it).
+    - WebODM's map and 3D pages hard-code `/api/projects/...` URLs, so anonymous links need Explorer's own viewer.
+    - The token is in the URL.
+    - The check also runs per tile and node: the token, and that the task belongs to the token's project
+      (`get_and_check_task` ignores `project_pk`).
+    - It exposes only viewing: no downloads, backup zip or exports.
   - (c) Ask WebODM for a share hook in `get_and_check_task`. A pull request: only with the user's approval.
 - **D2: which viewer to start from.** Link to WebODM's existing map and 3D pages first (phase 2 delivers
   quickly), or build the Explorer's own three.js viewer from the start (one viewer to switch between tasks and
@@ -152,5 +159,11 @@ How PDAL's COPC writer holds up on multi-GB clouds.
 - **Dev dependencies** (2026-11-21): the same pinned versions TweakUI vetted (ESLint 10.12.0, Jest 30.5.2,
   Playwright 1.64.1, Ruff 0.17.3; Django 5.2.18 and DRF 3.18.3 as WebODM v4.0.1's `requirements.txt`). Re-vet when
   upgrading.
+- **D2: WebODM's viewers first** (the user, 2026-11-21): the project page links to WebODM's map and 3D views;
+  Explorer's own viewer comes with the mesh phase.
+- **D3: Obj2Tiles bundled in the zip** (the user, 2026-11-21): v1.10.3 (2026-11-17) release zips are 10-11 MB
+  each for Linux x64/arm64 and macOS, 21-22 MB for Windows x64/arm64. Which platforms go in (Docker's Linux
+  x64 and arm64, WebODM's native Windows app) is to settle when planning phase 5. AGPL-3.0, like the plugin.
+- **D4: vendored prebuilt JS** (the user, 2026-11-21): pinned builds in `explorer/public/vendor/`.
 - **Share links**: per project; per share, "anyone with the link" or "WebODM users only"; streamable formats
   built inside WebODM on demand and cached (the user, 2026-11-21).
