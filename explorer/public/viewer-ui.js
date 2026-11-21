@@ -22,6 +22,16 @@
         return 10 * 1000 * 1000;
     }
 
+    // Bytes of mesh tiles kept in memory: lower on phones, as the point budget
+    function tilesMemory(kind) {
+        if (kind === "ios") return 96 * 1024 * 1024;
+        if (kind === "mobile") return 192 * 1024 * 1024;
+        return 512 * 1024 * 1024;
+    }
+
+    // How long the note that a faster view is being prepared stays
+    var NOTE_MS = 8000;
+
     function meshUrl(url, kind) {
         return kind ? url + "?platform=" + kind : url;
     }
@@ -36,9 +46,16 @@
             if (!started) line.show(page.getAttribute("data-error"));
         }, START_TIMEOUT);
 
+        // The mesh's data-url is its tiles when they are built (data-fallback: WebODM's GLB), else the GLB
         function urlFor(button) {
             var url = button.getAttribute("data-url");
-            return button.getAttribute("data-type") === "mesh" ? meshUrl(url, kind) : url;
+            var tiled = button.hasAttribute("data-fallback");
+            return button.getAttribute("data-type") === "mesh" && !tiled ? meshUrl(url, kind) : url;
+        }
+
+        function fallbackFor(button) {
+            var url = button.getAttribute("data-fallback");
+            return url ? meshUrl(url, kind) : null;
         }
 
         function start(scene) {
@@ -64,8 +81,14 @@
                     helpers.linkIsValid(page.getAttribute("data-link")).then(function (valid) {
                         if (!valid && current === type) line.show(page.getAttribute("data-invalid"));
                     });
-                }).then(function () {
-                    if (current === type) line.hide();
+                }, fallbackFor(button)).then(function () {
+                    if (current !== type) return;
+                    if (!button.hasAttribute("data-preparing")) return line.hide();
+                    // The GLB shows while the tiles are built: say a faster view comes next time
+                    line.show(page.getAttribute("data-preparing"));
+                    setTimeout(function () {
+                        if (current === type && line.text() === page.getAttribute("data-preparing")) line.hide();
+                    }, NOTE_MS);
                 }, function () {
                     if (current === type) helpers.explainFailure(page, line);
                 });
@@ -85,12 +108,13 @@
             line.show(page.getAttribute("data-no-webgl"));
         }
 
-        var viewer = {start: start, fail: fail, pointBudget: pointBudget(kind), scene: null};
+        var viewer = {start: start, fail: fail, pointBudget: pointBudget(kind), tilesMemory: tilesMemory(kind), scene: null};
         return viewer;
     }
 
     if (typeof module !== "undefined" && module.exports) {
-        module.exports = {create: create, platform: platform, meshUrl: meshUrl, pointBudget: pointBudget};
+        module.exports = {create: create, platform: platform, meshUrl: meshUrl, pointBudget: pointBudget,
+            tilesMemory: tilesMemory};
     } else {
         var page = document.querySelector("[data-explorer-viewer]");
         if (page) {

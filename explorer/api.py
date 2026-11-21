@@ -2,26 +2,30 @@
 The plugin's API (api_mount_points, under /api/plugins/explorer/):
 - the Share panel's links: list, create and revoke, for users with change_project;
 - the token views a link page streams from: WebODM's tile, thumbnail, asset and textured model views with the link's
-  token check in place of WebODM's permission check (decision D1 in upcoming-changes.md), and its download view for
-  links that allow downloads.
+  token check in place of WebODM's permission check (decision D1 in upcoming-changes.md), its download view for
+  links that allow downloads, and the mesh tiles Explorer builds (tiles.py).
 """
+import logging
+import os
 import posixpath
 import re
 
 from app import pending_actions
 from app.api.tasks import TaskAssets, TaskDownloads, TaskSafeTexturedModel, TaskThumbnail
 from app.api.tiler import Bounds, Metadata, TileJson, Tiles
-from app.models import Project
+from app.models import Project, Task
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.http import FileResponse
 from django.utils.translation import gettext as _
 from nodeodm import status_codes
 from rest_framework import exceptions, status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from . import links
+from . import links, pages, tiles
 
+logger = logging.getLogger("app.logger")
 LINK_PATH = "/plugins/{}/s/{}/"
 
 
@@ -84,7 +88,18 @@ class ProjectLinks(ProjectLinksBase):
             raise exceptions.ValidationError({"expires_days": _("Not a valid expiry.")})
         downloads = downloads_value(request.data)
         link = links.create_link(project.id, label, expires, request.user, downloads)
+        prepare_tiles(project)
         return Response(link_json(link), status=status.HTTP_201_CREATED)
+
+
+def prepare_tiles(project):
+    """A mesh is tiled the first time it is shared: queues the project's builds; the link is made either way."""
+    try:
+        store = tiles.Tiles.current()
+        if store:
+            store.prepare(task for task, _outputs, _downloads in pages.explorable_tasks([project]))
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"Explorer: could not queue the mesh tiles of project {project.id}: {e}")
 
 
 class ProjectLink(ProjectLinksBase):
@@ -160,7 +175,7 @@ class TokenTexturedModel(TokenTaskMixin, TaskSafeTexturedModel):
     pass
 
 
-# The asset paths a link page may stream: the splats and the EPT point cloud (3D Tiles to come).
+# The asset paths a link page may stream: the splats and the EPT point cloud (mesh tiles: TokenMeshTiles).
 # WebODM's own TaskAssets serves anything under assets/ (the full point cloud, the report, camera positions).
 ALLOWED_ASSET = re.compile(r"^(splats/model\.rad|entwine_pointcloud/[A-Za-z0-9_.\-/]+)$")
 
@@ -194,3 +209,25 @@ class TokenDownloads(TokenTaskMixin, TaskDownloads):
             request.GET = request.GET.copy()
             del request.GET["filename"]
         return super().dispatch(request, *args, **kwargs)
+
+
+TILE_TYPES = {".json": "application/json", ".glb": "model/gltf-binary"}
+
+
+class TokenMeshTiles(TokenTaskMixin, APIView):
+    """A file of a task's mesh tiles (tiles_build.py), from the plugin's persistent path."""
+    queryset = Task.objects.all()
+    permission_classes = (AllowAny,)
+
+    def get(self, request, pk=None, build=None, path=None):
+        task = self.get_and_check_task(request, pk)
+        store = tiles.Tiles.current()
+        file = store.file(task.id, build, path) if store else None
+        if file is None:
+            raise exceptions.NotFound()
+        # FileResponse closes the file once sent
+        response = FileResponse(open(file, "rb"), content_type=TILE_TYPES[os.path.splitext(file)[1]])  # noqa: SIM115
+        # A build's files never change (its id comes from the mesh's), so the browser keeps them; private, since the
+        # URL holds the token
+        response["Cache-Control"] = "private, max-age=31536000, immutable"
+        return response
