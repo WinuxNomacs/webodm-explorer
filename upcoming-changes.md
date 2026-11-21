@@ -4,18 +4,17 @@
 
 Up next:
 
-1. **Project Explorer page for signed-in users** (to plan with the user next): a page per project listing every
-   task and its outputs, opening each in WebODM's own map and 3D views (D2), which already stream three of the
-   four output types. Access: `view_project`.
+1. **Project Explorer page and "WebODM users only" links** (planned 2026-11-21, ready to build; phases 1 and 2
+   merged): an "Explorer" main menu item, a project list, and a page per project whose task cards open WebODM's
+   own map and 3D views (D2), with a Share button that copies the page link. Details under "Phase 1 plan" below.
 
 Then:
 
-2. **"WebODM users only" share links**: a control in the project's Share popup (`addLinkControl`) makes a link to
-   the project's Explorer page for users the project is shared with.
-3. **Explorer's own viewer and "anyone with the link" shares**: a three.js viewer (vendored, D4) streaming 3D
+2. **Explorer's own viewer and "anyone with the link" shares**: a three.js viewer (vendored, D4) streaming 3D
    Tiles meshes, EPT point clouds and `.rad` splats, plus the token-checked plugin views that serve it to anonymous
-   visitors (D1); links that expire and can be revoked.
-4. **On-demand mesh tiling**: Obj2Tiles, bundled (D3), builds 3D Tiles for a task's mesh the first time it is
+   visitors (D1); links that expire and can be revoked, created and revoked from the Explorer page's Share
+   button.
+3. **On-demand mesh tiling**: Obj2Tiles, bundled (D3), builds 3D Tiles for a task's mesh the first time it is
    shared or opened; cached in the plugin's persistent path.
 
 Later: COPC point clouds and a Range/caching asset endpoint (only if EPT through WebODM proves too slow);
@@ -70,7 +69,9 @@ request and no cache headers; there is no X-Accel-Redirect.
   from turning `public` off, no password, and no token access to a task that is not public.
 - The Share popup's `PluginsAPI.SharePopup.addLinkControl` hook lets a plugin add a control (it receives the popup,
   with `props.task` or `props.project`). The shortlinks and editshortlinks plugins use it: their links only redirect
-  to WebODM's public pages, so the task must still be public.
+  to WebODM's public pages, so the task must still be public. **The popup makes its task or project public as soon
+  as it opens** (`SharePopup.jsx` `componentDidMount` calls `handleEnableSharing` when `public` is false), so it
+  cannot hold a "WebODM users only" control; it opens only from the Share button on the map and 3D pages.
 - **Hard limit for a plugin:** a link token cannot make WebODM's own endpoints (tiles, assets, 3D view) serve a
   project that is not public. Only three ways round it: (a) the plugin turns the project's `public` on;
   (b) plugin endpoints check the token and serve tiles and assets themselves; (c) a hook in WebODM (a pull
@@ -112,10 +113,33 @@ How PDAL's COPC writer holds up on multi-GB clouds.
   The 2D map comes from WebODM's tile endpoints; point clouds and splats are streamed as WebODM streams them;
   meshes come as 3D Tiles where they exist. Signed-in access checks `view_project`.
 - **Share links** stored in the plugin's global data store (token -> project, mode, creator, created; revocable),
-  created and revoked through an `api_mount_points` view and a control in the project Share popup
-  (`addLinkControl`, `props.project`). Removed on project or task deletion (signals) where they apply.
+  created and revoked through an `api_mount_points` view and the Explorer page's Share button (not WebODM's Share
+  popup, which makes the project public on opening). Removed on project or task deletion (signals) where they
+  apply.
 - **On-demand mesh tiling** through `run_function_async`, written to the plugin's persistent path
   (`get_persistent_path`), never to the task's folder.
+
+### Phase 1 plan: Project Explorer page and "WebODM users only" links (decided 2026-11-21)
+
+Checked in WebODM v4.0.1's code:
+
+- **Pages** (`app_mount_points`, `login_required`, server-rendered templates extending `app/logged_in_base.html`,
+  no webpack build):
+  - `/plugins/explorer/`: the projects the user can view (`view_project`), each linking to its Explorer page.
+    Reached from an **"Explorer" item in the left main menu** (`main_menu`), shown to every signed-in user.
+  - `/plugins/explorer/project/<id>/`: 404 without `view_project`, as WebODM's own `/map/project/<id>/` does
+    (`app/views/app.py`). One card per **completed task with at least one viewable output** (queued, running,
+    failed and cancelled tasks left out; new tasks appear on reload): thumbnail
+    (`/api/projects/<p>/tasks/<t>/thumbnail`, when an orthophoto exists), name, date, and a button per output in
+    `available_assets`: Orthophoto, DSM and DTM open `/map/project/<p>/task/<t>/`; Point Cloud, Textured Model
+    and Gaussian Splats open `/3d/project/<p>/task/<t>/?t=cloud|mesh|splats` (the `t` parameter WebODM's
+    `model_display` passes to `ModelView`). A "View All on Map" button opens `/map/project/<p>/`.
+- **Share button** on the project's Explorer page: copies the page's URL and says that only users the project is
+  shared with (Dashboard > project panel > Edit > permissions) can open it. Nothing is stored for these links.
+- **Not used:** a button in the Dashboard's project panel (`Dashboard.addNewTaskButton` is drawn only for users
+  with `add` permission, `ProjectListItem.jsx`), and WebODM's Share popup (see the research findings).
+- Tests: Django tests for the menu item, the project list (only viewable projects), the 404 without permission,
+  which tasks get cards and which buttons each gets; a live check in the browser on mobile and desktop widths.
 
 ### The options weighed for D1-D4 (all decided 2026-11-21: see "Decisions")
 
@@ -170,7 +194,11 @@ How PDAL's COPC writer holds up on multi-GB clouds.
   Explorer's own viewer comes with the mesh phase.
 - **D3: Obj2Tiles bundled in the zip** (the user, 2026-11-21): v1.10.3 (2026-11-17) release zips are 10-11 MB
   each for Linux x64/arm64 and macOS, 21-22 MB for Windows x64/arm64. Which platforms go in (Docker's Linux
-  x64 and arm64, WebODM's native Windows app) is to settle when planning phase 5. AGPL-3.0, like the plugin.
+  x64 and arm64, WebODM's native Windows app) is to settle when planning the mesh tiling phase. AGPL-3.0, like the plugin.
 - **D4: vendored prebuilt JS** (the user, 2026-11-21): pinned builds in `explorer/public/vendor/`.
+- **Phase 1** (the user, 2026-11-21): reached from a main menu item and a project list; lists completed tasks with
+  outputs only; merged with the "WebODM users only" links phase.
+- **Explorer's share control lives on the Explorer page, not in WebODM's Share popup** (the user, 2026-11-21):
+  the popup makes its project or task public as soon as it opens.
 - **Share links**: per project; per share, "anyone with the link" or "WebODM users only"; streamable formats
   built inside WebODM on demand and cached (the user, 2026-11-21).
