@@ -39,6 +39,10 @@ public: nothing private, nothing true only on one machine. Keep it short; edit i
   version, `CHANGELOG.md`, `README.md`), builds the zip with `dev/package.sh` (`dist/explorer-X.Y.Z.zip` and its
   sha256), runs the `release-check` skill and merges; the user tags `vX.Y.Z`, attaches the zip to the GitHub release
   and adds `{url, sha256}` to WebODM-Plugins' `directory.json`.
+- **A smooth, responsive UI is a key measure of the results** (the user, 2026-11-21): viewers keep a steady frame
+  rate while streaming (decoding, parsing and building off the main thread, no long tasks on interaction), show
+  something useful at once and refine it, and never block on a build or download the visitor didn't ask for. Each
+  phase plans for it and its live check measures it (frame times and long tasks on a real GPU), not only the tests.
 - **Names in the UI are in Title Case**: headings, buttons, menu items and setting names; descriptions and messages
   are sentences.
 - Planned in `upcoming-changes.md`; new requests arrive in `new.md` (untracked).
