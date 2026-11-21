@@ -18,6 +18,10 @@ the scratchpad that loads Playwright from this repo (`require('<repo>/node_modul
 Chromium with `headless: true` and a fresh profile, logs in, and saves screenshots to the scratchpad. Read the
 screenshots back to look at them, and read the page's console messages.
 
+3D pages (WebODM's 3D view, Explorer's viewer): headless Chromium has WebGL2 through SwiftShader (software
+rendering) on machines without a usable GPU. It renders correctly but slowly, so wait for the canvas to draw
+(a few seconds, or a page signal) before taking a screenshot.
+
 ## What to check
 
 - The change itself, on the pages it touches (Dashboard, Map, 3D Model view, ...), at desktop and phone widths,

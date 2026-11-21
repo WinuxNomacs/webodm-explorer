@@ -171,6 +171,30 @@ Checked in WebODM v4.0.1's code unless marked otherwise.
   renames them); concurrent revoke and create (two threads) never bringing a link back; a broken data store
   entry. Jest: the Share panel's list and form, the viewer's type switch with stand-in loaders. Live: a link opened
   in a fresh browser without login on the user's projects, at desktop and phone widths; a revoke while it is open.
+- **Build order:**
+  1. Run the two UNVERIFIED checks before writing anything else, as a throwaway page in the scratchpad: Spark 2.4.0
+     loading one of the user's `splats/model.rad` files, and the GLB's Draco use. If Spark can't read WebODM's
+     `.rad`, stop and bring the options to the user.
+  2. Link storage and API, then token views with their tests.
+  3. Share panel, link page, 2D map page, 3D viewer, then README and the live check.
+- **Tooling this phase needs** (checked 2026-11-21 unless marked otherwise):
+  - **Fetching the libraries:** npm reaches three 0.187.0, `@sparkjsdev/spark` 2.4.0 and leaflet 1.9.4. Vendor
+    them with a small `dev/vendor.sh` (to write):
+    - `npm pack` each pinned version into the scratchpad;
+    - copy only the files the pages load, plus each library's licence, into
+      `explorer/public/vendor/<lib>-<version>/`;
+    - print their sha256 sums.
+  - **ESLint and Jest:** the viewer is ES modules (three r187 ships ESM only), while ESLint holds
+    `explorer/public/*.js` to ES5.
+    - ESLint: give the viewer its own folder, `explorer/public/viewer/`, and its own config block (ecmaVersion
+      2022, `sourceType: "module"`).
+    - Jest: keep the viewer's logic (type switch, URL building) in small modules that don't import three. Run them
+      under Jest's ESM support (`NODE_OPTIONS=--experimental-vm-modules`, UNVERIFIED with Jest 30.5.2) or keep
+      them CommonJS-compatible.
+  - **Browser checks:** headless Chromium (Playwright 1.64.1, already installed with its browsers) gives WebGL2
+    through SwiftShader, which is software rendering. That is enough for Spark and three in a live check, but slow,
+    so allow longer waits. The Playwright MCP (`mcp__playwright__*`) is configured; whether its tools load in a
+    new session is UNVERIFIED. The Node script route in the `live-check` skill works either way.
 
 ### Phase 1 plan: Project Explorer page and "WebODM users only" links (decided 2026-11-21, built: see "Done")
 
