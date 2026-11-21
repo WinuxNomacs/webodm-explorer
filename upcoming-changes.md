@@ -201,6 +201,76 @@ Checked in WebODM v4.0.1's code unless marked otherwise.
 - **Link page**: each task card gets a Download menu listing that task's allowed files, only on links that allow
   downloads.
 
+### Plan: on-demand mesh tiling and 3D Tiles (proposed 2026-11-21; the user's answers below)
+
+- **The user's answers** (2026-11-21): measure Obj2Tiles on the user's meshes in the dev worker before building;
+  KTX2 textures (WebP if KTX2's quality proves poor on the user's meshes); the Explorer page for signed-in users
+  keeps WebODM's own 3D page, never Explorer's viewer.
+
+- **Why** (checked 2026-11-21 on the user's three tasks): ODM's textured meshes have 684k-831k faces and 56-126
+  textures of 4096x4096 each (the OBJ). WebODM's GLB, which the link's 3D page loads whole, is that mesh with Draco
+  geometry and downscaled JPEG textures: 6, 25 and 64 MB, holding 18, 81 and 261 Mpx of texture, all on the GPU at
+  once (about 4 bytes a pixel uncompressed: roughly 1 GB for the biggest). No task has ODX's `--3d-tiles` output.
+  Tiles load only what is on screen, with finer detail than the GLB close up.
+- **Obj2Tiles measured** (2026-11-21, the dev worker, arm64, 14 cores; the user's three meshes):
+  - `--preset standard --local --glb --unlit --texture-format Ktx2`: 47, 60 and 91 s; 162-275 MB in 3,500-4,100
+    files; project 2's TIFF textures read fine. The finest level keeps 65, 186 and 517 Mpx of texture (2-3.6 times the
+    GLB's) but in 23,000-46,000 textures, about 11 per tile (one per source texture it touches: many draw calls).
+  - The root tile is the problem for a first view: 8-12 MB, of which almost all is geometry (246k-360k faces stored
+    uncompressed, about 33 bytes a face), whatever `--lods` is. Obj2Tiles has no geometry compression (issue 87,
+    a Draco request, closed).
+  - `--single-material-per-part` (one atlas per tile) halves the size (85-99 MB, 1,360 files on project 2, 27-29 s)
+    but keeps only 22-29 Mpx at the finest level, less detail than the default; `--max-texture-size 0` doesn't change
+    that. `--no-root-content` drops the root but the coarsest level is then 16 tiles of up to 1.2 MB each.
+  - So Obj2Tiles alone doesn't give a smooth first view. A post-pass that compresses geometry (and simplifies the
+    root) is needed; candidate: gltfpack 1.3.0 (meshoptimizer, MIT, 2026-09-25, releases every 3 months, essentially
+    one maintainer with 4,213 of the commits, no advisories; its npm build is 348 KB of WebAssembly with no
+    dependencies, run by the Node 20 that WebODM's image already has, so one copy serves x64 and arm64; three.js
+    reads its output with its own `meshopt_decoder` in `examples/jsm/libs`, to vendor beside Draco and basis). Not yet tried: running it was refused by the sandbox
+    pending the user's approval.
+- **Smoothness first** (the user's rule, 2026-11-21): the phase starts by adding a frame-time measurement to the
+  live checks (a real GPU through headless Chromium on Metal, frame times and long tasks while orbiting and zooming)
+  and measuring today's three viewers, so the tiles are judged against the GLB, and anything poor in the point cloud
+  or splats is fixed first.
+- **Build**: Obj2Tiles 1.10.3 (D3), Linux x64 and arm64 binaries in the zip (12 MB each zipped; each comes with
+  `libktx.so` for KTX2 textures). WebODM's plugin install unzips with `zipfile`, which drops the executable bit, so
+  the plugin copies the binary into its persistent path and makes it executable before the first build. Run through
+  `run_function_async` on the worker: `--preset standard --local --glb --unlit --progress --texture-format Ktx2` (octree tiles, decimated
+  LODs, half-size textures per coarser LOD, textures as baked). Not yet run on the user's meshes: build time and size
+  to be measured first; project 2's textures are TIFFs that Pillow can't read, so whether Obj2Tiles reads them is to
+  be checked.
+- **When**: as decided, the first time a mesh is shared or opened: creating an anyone-with-the-link share queues every
+  task of the project that has a mesh, a task completed in a shared project is queued, and opening a mesh with no
+  tiles queues it. One build at a time.
+- **While it builds, the visitor sees the GLB as today**, with a quiet note ("Preparing a faster view"); when the tiles
+  are ready, the next open uses them. Nothing waits on a build.
+- **Cache**: `<persistent path>/tiles/<task id>/<build id>/`, built in a temporary folder and renamed when
+  `tileset.json` has been read back; removed when the task is removed or reprocessed. ODX `3d_tiles/model` output is
+  used as is where it exists.
+- **Serving**: a token view serving that folder (only `.json`, `.glb`, `.b3dm`, `.jpg`, `.webp`, `.ktx2`, paths
+  resolved inside the build folder only: no path traversal), with long cache headers since a build id never changes,
+  so a second visit loads from the browser's cache.
+- **Viewer**: 3DTilesRendererJS 0.5.4 (vetted 2026-11-21: Apache-2.0, imports only `three` and `three/addons`, which
+  the import map already serves; `TilesFadePlugin` for LOD changes without popping, `UpdateOnChangePlugin` so idle
+  views cost nothing), its parse queue limited per frame so tiles never cause long tasks, memory cache smaller on
+  phones (as the point budget).
+- **Failures** (the build runs unattended):
+  - The binary missing, not executable or for another platform: no build, the GLB stays; the reason is logged.
+  - Obj2Tiles exits non-zero or reports `{"stage":"error"}`: the build is marked failed with its message, the
+    temporary folder removed; tried again after 24 h or when the task is reprocessed.
+  - A build that hangs: no progress line for 10 minutes, or over its deadline (scaled to the face count): SIGTERM,
+    then SIGKILL after 30 s; then as a failure.
+  - The disk too full: free space checked before starting (twice the OBJ and its textures), a write error fails the
+    build; the temporary folder is removed either way.
+  - The worker restarts mid-build: the build's state carries a heartbeat written on each progress line; a stale one
+    counts as failed and its temporary folder is removed on the next attempt.
+  - Two requests for the same task: one owner, the build's state in the plugin's data store under the existing lock;
+    a second request finds it queued and does nothing.
+  - The task reprocessed or removed during a build: the result is checked against the task's mesh (size and time)
+    before the rename and discarded if stale; `task_removing` removes the cache.
+  - A tile or `tileset.json` failing in the browser: as point cloud nodes (retry once, then skip); a tileset that
+    can't load at all falls back to the GLB.
+
 ### Plan: EPT point cloud streamer (decided 2026-11-21, built: see "Done")
 
 - **Data checked** (the user's three clouds on the dev stack, 2026-11-21): entwine EPT 1.1.0, `dataType: laszip`,
@@ -372,7 +442,8 @@ Checked in WebODM v4.0.1's code:
   revoked; downloads are off unless a link allows them. This is an exception to "official extension points only",
   approved for this use; tests import those classes so a WebODM release that changes them fails loudly.
 - **D2: WebODM's viewers first** (the user, 2026-11-21): the project page links to WebODM's map and 3D views;
-  Explorer's own viewer comes with the mesh phase.
+  Explorer's own viewer serves links. Signed-in users keep WebODM's 3D page, also once meshes are tiled (the user,
+  2026-11-21).
 - **D3: Obj2Tiles bundled in the zip** (the user, 2026-11-21): v1.10.3 (2026-11-17) release zips are 10-11 MB
   each for Linux x64/arm64 and macOS, 21-22 MB for Windows x64/arm64. Platforms: Linux x64 and arm64 only (Docker
   installs only, decided 2026-11-21). AGPL-3.0, like the plugin.
