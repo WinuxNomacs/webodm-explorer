@@ -1,5 +1,5 @@
 {% load i18n %}<div class="explorer-grid">
-    {% for task, outputs in cards %}
+    {% for task, outputs, downloads in cards %}
     <div class="explorer-card theme-border-secondary-07">
         {% if "orthophoto.tif" in task.available_assets %}
         <img class="explorer-thumbnail" loading="lazy" alt="" data-placeholder-icon="fa fa-cube"
@@ -16,6 +16,18 @@
                     <i class="{{ output.icon }}"></i> {{ output.label }}{% if output.detail %} <span class="explorer-output-detail">({{ output.detail }})</span>{% endif %}
                 </a>
                 {% endfor %}
+                {% if downloads %}
+                <div class="btn-group">
+                    <button type="button" class="btn btn-default btn-sm dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <i class="fa fa-download"></i> {% trans "Download" %} <span class="caret"></span>
+                    </button>
+                    <ul class="dropdown-menu">
+                        {% for file in downloads %}
+                        <li><a href="{{ file.url }}" download><i class="{{ file.icon }} fa-fw"></i> {{ file.label }}</a></li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>

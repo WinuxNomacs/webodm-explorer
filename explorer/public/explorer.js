@@ -141,10 +141,11 @@
             heading.appendChild(element("span", "explorer-card-text", link.expires
                 ? text("expires").replace("%(date)s", new Date(link.expires).toLocaleDateString())
                 : text("never")));
+            heading.appendChild(downloadsToggle(link));
             row.appendChild(heading);
 
             var group = element("div", "input-group input-group-sm");
-            var input = element("input", "form-control");
+            var input = element("input", "form-control explorer-link-address");
             input.type = "text";
             input.readOnly = true;
             input.value = window.location.origin + link.path;
@@ -171,6 +172,28 @@
             return row;
         }
 
+        // Allows or stops downloads through the link at once; the box goes back if the change fails.
+        function downloadsToggle(link) {
+            var label = element("label", "explorer-link-downloads explorer-card-text");
+            var box = element("input");
+            box.type = "checkbox";
+            box.checked = !!link.downloads;
+            box.addEventListener("change", function () {
+                var wanted = box.checked;
+                box.disabled = true;
+                request("PATCH", api + link.token + "/", {downloads: wanted}).then(function (updated) {
+                    showError("");
+                    box.checked = !!updated.downloads;
+                }, function (e) {
+                    box.checked = !wanted;
+                    showError(e.message);
+                }).then(function () { box.disabled = false; });
+            });
+            label.appendChild(box);
+            label.appendChild(document.createTextNode(" " + text("downloads")));
+            return label;
+        }
+
         function render(links) {
             list.innerHTML = "";
             if (!links.length) list.appendChild(element("p", "explorer-card-text", text("none")));
@@ -189,11 +212,13 @@
         form.addEventListener("submit", function (e) {
             e.preventDefault();
             submit.disabled = true;
-            request("POST", api, {label: form.elements.label.value, expires_days: form.elements.expires_days.value})
+            request("POST", api, {label: form.elements.label.value, expires_days: form.elements.expires_days.value,
+                downloads: form.elements.downloads.checked})
                 .then(function (link) {
                     form.elements.label.value = "";
+                    form.elements.downloads.checked = false;
                     return load().then(function () {
-                        var input = list.querySelector('[data-token="' + link.token + '"] input');
+                        var input = list.querySelector('[data-token="' + link.token + '"] .explorer-link-address');
                         if (input) input.select();
                     });
                 }, function (e) {

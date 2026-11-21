@@ -4,14 +4,11 @@
 
 Up next:
 
-1. **Downloads through anyone-with-the-link shares** (the user, 2026-11-21; plan below): a per-link Allow
-   Downloads setting, and a Download menu on the link page's task cards for the output files.
+1. **EPT point cloud streamer** in Explorer's viewer, written in the plugin (the user, 2026-11-21; plan below).
 
 Then:
 
-2. **EPT point cloud streamer** in Explorer's viewer, written in the plugin (the user, 2026-11-21; plan below).
-
-3. **On-demand mesh tiling and 3D Tiles in the viewer**: Obj2Tiles, bundled (D3, Linux x64/arm64), builds 3D Tiles
+2. **On-demand mesh tiling and 3D Tiles in the viewer**: Obj2Tiles, bundled (D3, Linux x64/arm64), builds 3D Tiles
    for a task's mesh the first time it is shared or opened, cached in the plugin's persistent path; the viewer
    streams them with 3DTilesRendererJS (and ODX `--3d-tiles` output where it exists), replacing the GLB.
 
@@ -192,7 +189,7 @@ Checked in WebODM v4.0.1's code unless marked otherwise.
     so allow longer waits. The Playwright MCP (`mcp__playwright__*`) is configured, but its tools did not load
     in the session that built this phase; the Node script route in the `live-check` skill was used.
 
-### Plan: downloads through links (decided 2026-11-21)
+### Plan: downloads through links (decided 2026-11-21, built: see "Done")
 
 - **Setting it** (Share panel on a project's Explorer page, Anyone with the Link section): an Allow Downloads
   checkbox on the create form (off by default) and a toggle on each existing link; links made before this phase
@@ -282,6 +279,20 @@ Checked in WebODM v4.0.1's code:
   is installed).
 
 ## Done
+
+- **Downloads through anyone-with-the-link shares** (2026-11-21):
+  - Code: `explorer/links.py` (`downloads` on each link, `set_downloads`, `resolve`), `explorer/api.py` (`downloads`
+    on create and PATCH, `TokenDownloads` with the `DOWNLOADABLE` allowlist, `?filename=` dropped),
+    `explorer/pages.py` (`link_downloads`; cards are (task, outputs, downloads) triples), `explorer/plugin.py` (the
+    download mount point), `explorer/templates/{cards,project}.html`, `explorer/public/explorer.{js,css}`.
+  - Tests: `explorer/tests/test_downloads.py` (Django; the download-permission and `?filename=` tests seen failing
+    with their checks disabled), `explorer/public/__tests__/links.test.js` (Jest).
+  - Checked live on WebODM 4.0.1 with the user's project 2, desktop and phone widths (`link-downloads.js` in the
+    `live-check` skill): Allow Downloads on create and toggled on an existing link, the Download menu, a 7.3 MB GLB
+    downloaded as a visitor, 404 for a view-only link and right after turning downloads off.
+  - Found while building: the cards' `overflow: hidden` clipped the Download menu (now the thumbnail rounds its
+    own corners); a link row's checkbox came before its address field, so selecting a new link picked the checkbox
+    (the address field now has its own class).
 
 - **"Anyone with the link" shares, with 2D maps, splats and meshes** (2026-11-21):
   - Code: `explorer/links.py` (link storage, the advisory lock), `explorer/api.py` (links API, token views),

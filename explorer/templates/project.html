@@ -35,9 +35,10 @@
              data-confirm-revoke="{% trans "Revoke this link? Anyone using it loses access at once." %}"
              data-untitled="{% trans "Untitled Link" %}" data-never="{% trans "Never expires" %}"
              data-expires="{% trans "Expires %(date)s" %}" data-none="{% trans "No links yet." %}"
+             data-downloads="{% trans "Allow Downloads" %}"
              data-error="{% trans "Something went wrong. Try again." %}">
             <h4>{% trans "Anyone with the Link" %}</h4>
-            <p class="explorer-card-text">{% trans "Anyone with one of these links can open this project's maps and 3D views without signing in, until the link expires or is revoked. They can't download files." %}</p>
+            <p class="explorer-card-text">{% trans "Anyone with one of these links can open this project's maps and 3D views without signing in, until the link expires or is revoked. With Allow Downloads, they can also download the orthophoto, elevation models, point cloud and textured model." %}</p>
             <div class="explorer-links-list" aria-live="polite"></div>
             <form class="explorer-link-form">
                 {% csrf_token %}
@@ -48,6 +49,7 @@
                     <option value="90">{% trans "Expires in 90 days" %}</option>
                     <option value="never">{% trans "Never expires" %}</option>
                 </select>
+                <label class="explorer-link-downloads"><input type="checkbox" name="downloads"> {% trans "Allow Downloads" %}</label>
                 <button type="submit" class="btn btn-primary btn-sm"><i class="fa fa-link"></i> {% trans "Create Link" %}</button>
             </form>
             <div class="explorer-links-error alert alert-warning" role="alert" hidden></div>

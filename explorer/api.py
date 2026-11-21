@@ -2,13 +2,14 @@
 The plugin's API (api_mount_points, under /api/plugins/explorer/):
 - the Share panel's links: list, create and revoke, for users with change_project;
 - the token views a link page streams from: WebODM's tile, thumbnail, asset and textured model views with the link's
-  token check in place of WebODM's permission check (decision D1 in upcoming-changes.md).
+  token check in place of WebODM's permission check (decision D1 in upcoming-changes.md), and its download view for
+  links that allow downloads.
 """
 import posixpath
 import re
 
 from app import pending_actions
-from app.api.tasks import TaskAssets, TaskSafeTexturedModel, TaskThumbnail
+from app.api.tasks import TaskAssets, TaskDownloads, TaskSafeTexturedModel, TaskThumbnail
 from app.api.tiler import Bounds, Metadata, TileJson, Tiles
 from app.models import Project
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
@@ -31,7 +32,16 @@ def link_json(link):
         "created": link["created"],
         "expires": link["expires"],
         "path": LINK_PATH.format(links.NAMESPACE, link["token"]),
+        "downloads": links.allows_downloads(link),
     }
+
+
+def downloads_value(data):
+    """The request's `downloads` (a JSON boolean), False when absent; a 400 for anything else."""
+    value = data.get("downloads", False)
+    if not isinstance(value, bool):
+        raise exceptions.ValidationError({"downloads": _("Not a valid choice.")})
+    return value
 
 
 class ProjectLinksBase(APIView):
@@ -72,11 +82,21 @@ class ProjectLinks(ProjectLinksBase):
             expires = -1
         if expires not in links.EXPIRY_CHOICES:
             raise exceptions.ValidationError({"expires_days": _("Not a valid expiry.")})
-        link = links.create_link(project.id, label, expires, request.user)
+        downloads = downloads_value(request.data)
+        link = links.create_link(project.id, label, expires, request.user, downloads)
         return Response(link_json(link), status=status.HTTP_201_CREATED)
 
 
 class ProjectLink(ProjectLinksBase):
+    def patch(self, request, project_pk=None, token=None):
+        project = self.get_project(request, project_pk)
+        if "downloads" not in request.data:
+            raise exceptions.ValidationError({"downloads": _("This field is required.")})
+        link = links.set_downloads(project.id, token, downloads_value(request.data))
+        if link is None:
+            raise exceptions.NotFound()
+        return Response(link_json(link))
+
     def delete(self, request, project_pk=None, token=None):
         project = self.get_project(request, project_pk)
         if not links.revoke_link(project.id, token):
@@ -90,6 +110,7 @@ class TokenTaskMixin:
     and not being removed. Every refusal is the same 404, so a visitor learns nothing about other tasks or links.
     """
     allowed = True
+    needs_downloads = False
 
     def dispatch(self, request, *args, **kwargs):
         # WebODM's get() methods don't take the token
@@ -97,8 +118,8 @@ class TokenTaskMixin:
         return super().dispatch(request, *args, **kwargs)
 
     def get_and_check_task(self, request, pk, annotate=None):
-        project = links.project_for_token(self.share_token)
-        if project is None or not self.allowed:
+        project, link = links.resolve(self.share_token)
+        if project is None or not self.allowed or (self.needs_downloads and not links.allows_downloads(link)):
             raise exceptions.NotFound()
         try:
             task = self.queryset.annotate(**(annotate or {})).get(pk=pk, project=project)
@@ -153,4 +174,23 @@ class TokenAssets(TokenTaskMixin, TaskAssets):
     def dispatch(self, request, *args, **kwargs):
         # Checked here, before WebODM's code runs; get_and_check_task refuses the request when it fails
         self.allowed = asset_allowed(kwargs.get("unsafe_asset_path"))
+        return super().dispatch(request, *args, **kwargs)
+
+
+# What a link that allows downloads offers (the user, 2026-11-21: output files only), as WebODM's download names
+# (app/models/task.py ASSETS_MAP). Not all.zip, the report, camera positions or tiles zips.
+DOWNLOADABLE = ("orthophoto.tif", "dtm.tif", "dsm.tif", "georeferenced_model.laz", "textured_model.zip",
+                "textured_model.glb")
+
+
+class TokenDownloads(TokenTaskMixin, TaskDownloads):
+    needs_downloads = True
+
+    def dispatch(self, request, *args, **kwargs):
+        self.allowed = kwargs.get("asset") in DOWNLOADABLE
+        # WebODM names the saved file after ?filename= when given; a link someone passes on must not rename it
+        # (a .tif saved as invoice.exe). The file keeps WebODM's own name.
+        if "filename" in request.GET:
+            request.GET = request.GET.copy()
+            del request.GET["filename"]
         return super().dispatch(request, *args, **kwargs)

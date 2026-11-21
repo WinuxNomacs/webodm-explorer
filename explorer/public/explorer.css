@@ -39,7 +39,7 @@
     border-width: 1px;
     border-style: solid;
     border-radius: 4px;
-    overflow: hidden;
+    /* Not overflow: hidden, which would clip a link card's Download menu; the thumbnail rounds its own corners */
     min-width: 0;
 }
 
@@ -60,6 +60,7 @@ a.explorer-card-link:focus .explorer-card-title {
     width: 100%;
     aspect-ratio: 4 / 3;
     object-fit: cover;
+    border-radius: 3px 3px 0 0;
 }
 
 .explorer-no-thumbnail {
@@ -127,9 +128,23 @@ a.explorer-card-link:focus .explorer-card-title {
     margin-top: 8px;
 }
 
-.explorer-link-form input {
+.explorer-link-form input[name=label] {
     flex: 1 1 160px;
     width: auto;
+}
+
+/* "Allow Downloads", on the create form and on each link */
+.explorer-link-downloads {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin: 0;
+    font-weight: normal;
+    white-space: nowrap;
+}
+
+.explorer-link-downloads input {
+    margin: 0;
 }
 
 .explorer-link-form select {

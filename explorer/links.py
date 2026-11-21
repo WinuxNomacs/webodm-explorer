@@ -2,7 +2,8 @@
 "Anyone with the link" shares (upcoming-changes.md, "Plan: anyone-with-the-link shares").
 
 Links live in the plugin's global data store, which has no listing or locking:
-- `links:<project id>` holds the project's links, a JSON list of {token, label, created, expires, created_by};
+- `links:<project id>` holds the project's links, a JSON list of {token, label, created, expires, created_by,
+  downloads} (`downloads` is missing on links made before downloads existed, which means off);
 - `token:<token>` holds the project id, to find a link from its token.
 
 Every write takes one transaction-scoped Postgres advisory lock (WebODM's Docker installs always run Postgres), so
@@ -61,7 +62,7 @@ def _valid_entry(entry):
     try:
         _parse_time(entry["expires"])
         return (isinstance(entry["token"], str) and isinstance(entry["label"], str)
-                and _parse_time(entry["created"]) is not None)
+                and _parse_time(entry["created"]) is not None and isinstance(entry.get("downloads", False), bool))
     except (KeyError, TypeError, ValueError):
         return False
 
@@ -76,6 +77,10 @@ def _read(project_id):
                        "none until the next change replaces them")
         return []
     return value
+
+
+def allows_downloads(link):
+    return link.get("downloads") is True
 
 
 def is_expired(link, now=None):
@@ -122,10 +127,12 @@ def _write(project_id, links):
     return kept
 
 
-def create_link(project_id, label, expiry_days, user):
+def create_link(project_id, label, expiry_days, user, downloads=False):
     """A new link for the project; expiry_days is one of EXPIRY_CHOICES."""
     if expiry_days not in EXPIRY_CHOICES:
         raise ValueError("expiry_days")
+    if not isinstance(downloads, bool):
+        raise TypeError("downloads")
     now = timezone.now()
     link = {
         "token": secrets.token_urlsafe(32),
@@ -133,6 +140,7 @@ def create_link(project_id, label, expiry_days, user):
         "created": now.isoformat(),
         "expires": (now + timedelta(days=expiry_days)).isoformat() if expiry_days else None,
         "created_by": user.id if user else None,
+        "downloads": downloads,
     }
     with _locked():
         links = _read(project_id)
@@ -154,16 +162,35 @@ def revoke_link(project_id, token):
     return True
 
 
+def set_downloads(project_id, token, downloads):
+    """Allows or stops downloads through the link; the updated link, or None if the project has no such live link."""
+    if not isinstance(downloads, bool):
+        raise TypeError("downloads")
+    with _locked():
+        links = _read(project_id)
+        link = next((link for link in links if link["token"] == token and not is_expired(link)), None)
+        if link is None:
+            return None
+        link["downloads"] = downloads
+        _write(project_id, links)
+    return link
+
+
 def project_for_token(token):
     """The project a live link opens, or None for an unknown, revoked or expired link or a removed project."""
+    return resolve(token)[0]
+
+
+def resolve(token):
+    """(project, link) for a live link, or (None, None) for an unknown, revoked or expired link or a removed project."""
     if not isinstance(token, str) or len(token) != 43:
-        return None
+        return None, None
     project_id = store().get_int(token_key(token), None)
     if project_id is None:
-        return None
+        return None, None
     link = next((link for link in _read(project_id) if link["token"] == token), None)
     if link is None or is_expired(link):
-        return None
+        return None, None
     project = Project.objects.filter(pk=project_id, deleting=False).first()
     if project is None:
         # WebODM has no project-removed signal: the links of a removed project go when one of them is next used
@@ -174,5 +201,5 @@ def project_for_token(token):
                 store().del_key(links_key(project_id))
         except LinkStoreBusy:
             pass
-        return None
-    return project
+        return None, None
+    return project, link
