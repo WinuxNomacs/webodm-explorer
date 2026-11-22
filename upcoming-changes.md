@@ -369,6 +369,16 @@ Checked in WebODM v4.0.1's code:
 
 ## Done
 
+- **Preview without a link** (the user, 2026-11-21): **Preview** in the project page's header opens the link pages
+  for a signed-in user who can view the project, with a bar saying so and Back to Explorer. They read WebODM's own
+  API (the same paths as the token views, with WebODM's permission check) and Explorer's signed-in mesh tiles view;
+  no Download menu, as on a link without Allow Downloads. Code: `explorer/plugin.py` (link and preview pages share
+  `list_page`, `map_page`, `page_3d` over a `pages.Viewer`), `explorer/api.py` (`MeshTilesView`, `PreviewMeshTiles`),
+  `explorer/templates/preview_bar.html`, `link*.html` (`tiles_api`), `project.html`. Also fixed: the map and 3D
+  pages scrolled the window by 14 px (the page's bottom padding), now taken off the view (`linkpage.js`
+  `fitHeight`). Tests: `explorer/tests/test_preview.py`. Checked live at desktop and phone widths: the list page, map,
+  point cloud (0.3 s), splats (0.5 s), mesh tiles (0.5 s), no window scroll.
+
 - **Fixes the user reported** (2026-11-21): the Share panel's Link for WebODM Users showed the origin twice
   (`explorer.js` prepended it to the field's value, which a browser restoring the field on reload or back already
   holds: now from a `data-path` attribute, with `autocomplete="off"`; the doubling itself was not reproduced in
@@ -524,6 +534,8 @@ Checked in WebODM v4.0.1's code:
 - **Playwright MCP** (the user, 2026-11-21): `@playwright/mcp@0.0.86` (Microsoft, Apache-2.0, 2026-11-18; pins a
   Playwright 1.66 pre-release), added with local scope for this project only, headless and isolated; the scripted
   Playwright 1.64.1 checks stay.
+- **Preview** (the user, 2026-11-21): the link pages for signed-in viewers of a project, without a link, through
+  WebODM's own API; the Explorer page's buttons still open WebODM's own map and 3D pages.
 - **Explorer's share control lives on the Explorer page, not in WebODM's Share popup** (the user, 2026-11-21):
   the popup makes its project or task public as soon as it opens.
 - **Share links**: per project; per share, "anyone with the link" or "WebODM users only"; streamable formats

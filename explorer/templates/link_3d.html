@@ -15,6 +15,7 @@
 </script>{% endblock %}
 
 {% block content %}
+{% if preview %}{% include preview_template %}{% endif %}
 <div class="explorer-viewer-page" data-explorer-viewer data-initial="{{ initial }}" data-link="{{ link_path }}"
      data-draco="{{ public }}vendor/three-0.187.0/examples/jsm/libs/draco/gltf/"
      data-basis="{{ public }}vendor/three-0.187.0/examples/jsm/libs/basis/"
@@ -36,7 +37,7 @@
             {% if type.type == "mesh" %}
             {# The tiles once built, WebODM's GLB as their fallback; the GLB alone until then #}
             <button type="button" class="btn btn-default btn-sm" data-type="mesh" aria-pressed="false"
-                    {% if mesh_build %}data-url="{{ api }}{{ task.id }}/tiles/{{ mesh_build }}/tileset.json"
+                    {% if mesh_build %}data-url="{{ tiles_api }}{{ task.id }}/tiles/{{ mesh_build }}/tileset.json"
                     data-fallback="{{ api }}{{ task.id }}/textured_model/"{% else %}data-url="{{ api }}{{ task.id }}/textured_model/"{% endif %}
                     {% if preparing %}data-preparing{% endif %}>
             {% else %}

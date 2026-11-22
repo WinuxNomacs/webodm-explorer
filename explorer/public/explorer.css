@@ -211,3 +211,18 @@ a.explorer-card-link:focus .explorer-card-title {
     height: 100%;
     touch-action: none;
 }
+
+/* A signed-in user's preview of the link pages */
+.explorer-preview-bar {
+    /* Clear of WebODM's fixed navbar, as .explorer-public's padding is */
+    margin: 14px 0 0;
+    padding: 6px 12px;
+    border-width: 1px;
+    border-style: solid;
+    border-radius: 4px;
+}
+
+.explorer-preview-bar a {
+    margin-left: 8px;
+    white-space: nowrap;
+}

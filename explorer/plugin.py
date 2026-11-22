@@ -60,12 +60,16 @@ class Plugin(PluginBase):
                 "projects": pages.project_cards(request.user),
             })
 
-        @login_required
-        def project_page(request, project_pk):
+        def viewable_project(request, project_pk):
             project = get_object_or_404(Project, pk=project_pk, deleting=False)
             # A 404 rather than a 403, as WebODM's own map page (app/views/app.py) does.
             if not request.user.has_perm("app.view_project", project):
                 raise Http404()
+            return project
+
+        @login_required
+        def project_page(request, project_pk):
+            project = viewable_project(request, project_pk)
             return render(request, self.template_path("project.html"), {
                 "title": project.name,
                 "public": public,
@@ -75,6 +79,7 @@ class Plugin(PluginBase):
                 "thumbnails": f"/api/projects/{project.id}/tasks/",
                 "can_share": request.user.has_perm("app.change_project", project),
                 "links_api": f"/api/plugins/{links.NAMESPACE}/projects/{project.id}/links/",
+                "preview_path": f"{public}project/{project.id}/preview/",
             })
 
         def invalid_link(request):
@@ -82,40 +87,54 @@ class Plugin(PluginBase):
             return link_headers(render(request, self.template_path("link_invalid.html"),
                                        {"title": _("Link Not Valid"), "public": public}, status=404))
 
-        def link_context(token, project, **extra):
-            api_path = f"/api/plugins/{links.NAMESPACE}/s/{token}/tasks/"
-            return {"public": public, "project": project, "link_path": f"{public}s/{token}/", "api": api_path,
-                    "cards_template": self.template_path("cards.html"), "thumbnails": api_path, **extra}
-
-        def link_page(request, token):
+        def link_viewer(token):
+            """The link's pages: Explorer's token views. None for a link that doesn't open anything."""
             project, link = links.resolve(token)
             if project is None:
-                return invalid_link(request)
-            link_path = f"{public}s/{token}/"
+                return None
             api_path = f"/api/plugins/{links.NAMESPACE}/s/{token}/tasks/"
-            downloads = links.allows_downloads(link)
-            cards = pages.explorable_tasks([project], lambda task: pages.link_outputs(task, link_path),
-                                           (lambda task: pages.link_downloads(task, api_path)) if downloads else None)
+            return pages.Viewer(project=project, path=f"{public}s/{token}/", api=api_path, tiles_api=api_path,
+                                downloads=links.allows_downloads(link), preview=False)
+
+        def preview_viewer(request, project_pk):
+            """
+            The same pages for a signed-in user who can view the project, without a link: WebODM's own API (the same
+            paths as the token views, with WebODM's permission check) and Explorer's signed-in mesh tiles view. No
+            Download menu, as on a link that doesn't allow downloads.
+            """
+            project = viewable_project(request, project_pk)
+            return pages.Viewer(project=project, path=f"{public}project/{project.id}/preview/",
+                                api=f"/api/projects/{project.id}/tasks/",
+                                tiles_api=f"/api/plugins/{links.NAMESPACE}/projects/{project.id}/tasks/",
+                                downloads=False, preview=True)
+
+        def viewer_context(viewer, **extra):
+            return {"public": public, "project": viewer.project, "link_path": viewer.path, "api": viewer.api,
+                    "tiles_api": viewer.tiles_api, "thumbnails": viewer.api, "preview": viewer.preview,
+                    "back": f"{public}project/{viewer.project.id}/", "cards_template": self.template_path("cards.html"),
+                    "preview_template": self.template_path("preview_bar.html"), **extra}
+
+        def list_page(request, viewer):
+            if viewer is None:
+                return invalid_link(request)
+            cards = pages.explorable_tasks([viewer.project], lambda task: pages.link_outputs(task, viewer.path),
+                                           (lambda task: pages.link_downloads(task, viewer.api)) if viewer.downloads
+                                           else None)
             return link_headers(render(request, self.template_path("link.html"),
-                                       link_context(token, project, title=project.name, cards=cards)))
+                                       viewer_context(viewer, title=viewer.project.name, cards=cards)))
 
-        def link_task(token, pk):
-            project = links.project_for_token(token)
-            task = pages.explorable_task(project, pk) if project else None
-            return project, task
-
-        def link_map(request, token, pk):
-            project, task = link_task(token, pk)
+        def map_page(request, viewer, pk):
+            task = pages.explorable_task(viewer.project, pk) if viewer else None
             layers = pages.map_layers(task) if task else []
             if not layers:
                 return invalid_link(request)
-            return link_headers(render(request, self.template_path("link_map.html"), link_context(
-                token, project, title=task.name or project.name, task=task,
+            return link_headers(render(request, self.template_path("link_map.html"), viewer_context(
+                viewer, title=task.name or viewer.project.name, task=task,
                 layers=[{"type": kind, "label": label} for kind, label in layers],
                 bands=task.orthophoto_bands or [], crop=task.crop is not None)))
 
-        def link_3d(request, token, pk):
-            project, task = link_task(token, pk)
+        def page_3d(request, viewer, pk):
+            task = pages.explorable_task(viewer.project, pk) if viewer else None
             types = pages.viewer_types(task) if task else []
             if not types:
                 return invalid_link(request)
@@ -126,14 +145,38 @@ class Plugin(PluginBase):
             if "mesh" in kinds:
                 store = tiles.Tiles.current()
                 mesh_build, preparing = store.tileset(task) if store else (None, False)
-            return link_headers(render(request, self.template_path("link_3d.html"), link_context(
-                token, project, title=task.name or project.name, task=task,
+            return link_headers(render(request, self.template_path("link_3d.html"), viewer_context(
+                viewer, title=task.name or viewer.project.name, task=task,
                 types=[{"type": kind, "label": label, "icon": icon} for kind, label, icon in types],
                 initial=initial, mesh_build=mesh_build, preparing=preparing)))
+
+        def link_page(request, token):
+            return list_page(request, link_viewer(token))
+
+        def link_map(request, token, pk):
+            return map_page(request, link_viewer(token), pk)
+
+        def link_3d(request, token, pk):
+            return page_3d(request, link_viewer(token), pk)
+
+        @login_required
+        def preview_page(request, project_pk):
+            return list_page(request, preview_viewer(request, project_pk))
+
+        @login_required
+        def preview_map(request, project_pk, pk):
+            return map_page(request, preview_viewer(request, project_pk), pk)
+
+        @login_required
+        def preview_3d(request, project_pk, pk):
+            return page_3d(request, preview_viewer(request, project_pk), pk)
 
         return with_and_without_slash([
             ("", project_list),
             (r"project/(?P<project_pk>[0-9]+)/", project_page),
+            (r"project/(?P<project_pk>[0-9]+)/preview/", preview_page),
+            (rf"project/(?P<project_pk>[0-9]+)/preview/map/{TASK}/", preview_map),
+            (rf"project/(?P<project_pk>[0-9]+)/preview/3d/{TASK}/", preview_3d),
             (rf"s/{TOKEN}/", link_page),
             (rf"s/{TOKEN}/map/{TASK}/", link_map),
             (rf"s/{TOKEN}/3d/{TASK}/", link_3d),
@@ -145,6 +188,9 @@ class Plugin(PluginBase):
         return [
             MountPoint(r"projects/(?P<project_pk>[0-9]+)/links/$", api.ProjectLinks.as_view()),
             MountPoint(rf"projects/(?P<project_pk>[0-9]+)/links/{TOKEN}/$", api.ProjectLink.as_view()),
+            # Preview: the mesh tiles for signed-in users who can view the project (everything else is WebODM's API)
+            MountPoint(rf"projects/(?P<project_pk>[0-9]+)/tasks/{TASK}/tiles/(?P<build>[0-9a-f]{{16}})/"
+                       r"(?P<path>[A-Za-z0-9_\-/.]+)$", api.PreviewMeshTiles.as_view()),
             # The same paths as WebODM's own views (app/api/urls.py), below the link's token
             MountPoint(rf"{base}{TILE_TYPE}/tiles\.json$", api.TokenTileJson.as_view()),
             MountPoint(rf"{base}{TILE_TYPE}/bounds$", api.TokenBounds.as_view()),

@@ -11,6 +11,9 @@
             {% if cards %}
             <a class="btn btn-default btn-sm" href="/map/project/{{ project.id }}/"><i class="fa fa-globe"></i> {% trans "View All on Map" %}</a>
             {% endif %}
+            {% if cards %}
+            <a class="btn btn-default btn-sm" href="{{ preview_path }}" title="{% trans "See the project as anyone with a link sees it" %}"><i class="fa fa-eye"></i> {% trans "Preview" %}</a>
+            {% endif %}
             <button type="button" class="btn btn-primary btn-sm" data-explorer-share aria-expanded="false" aria-controls="explorer-share">
                 <i class="fa fa-share-alt"></i> {% trans "Share" %}
             </button>

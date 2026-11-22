@@ -214,13 +214,11 @@ class TokenDownloads(TokenTaskMixin, TaskDownloads):
 TILE_TYPES = {".json": "application/json", ".glb": "model/gltf-binary"}
 
 
-class TokenMeshTiles(TokenTaskMixin, APIView):
+class MeshTilesView(APIView):
     """A file of a task's mesh tiles (tiles_build.py), from the plugin's persistent path."""
     queryset = Task.objects.all()
-    permission_classes = (AllowAny,)
 
-    def get(self, request, pk=None, build=None, path=None):
-        task = self.get_and_check_task(request, pk)
+    def serve(self, task, build, path):
         store = tiles.Tiles.current()
         file = store.file(task.id, build, path) if store else None
         if file is None:
@@ -231,3 +229,24 @@ class TokenMeshTiles(TokenTaskMixin, APIView):
         # URL holds the token
         response["Cache-Control"] = "private, max-age=31536000, immutable"
         return response
+
+
+class TokenMeshTiles(TokenTaskMixin, MeshTilesView):
+    permission_classes = (AllowAny,)
+
+    def get(self, request, pk=None, build=None, path=None):
+        return self.serve(self.get_and_check_task(request, pk), build, path)
+
+
+class PreviewMeshTiles(MeshTilesView):
+    """The same files for a signed-in user's preview: the project viewable, the task in it, completed."""
+    permission_classes = (IsAuthenticated,)
+
+    def get(self, request, project_pk=None, pk=None, build=None, path=None):
+        project = Project.objects.filter(pk=project_pk, deleting=False).first()
+        if project is None or not request.user.has_perm("app.view_project", project):
+            raise exceptions.NotFound()
+        task = pages.explorable_task(project, pk)
+        if task is None:
+            raise exceptions.NotFound()
+        return self.serve(task, build, path)

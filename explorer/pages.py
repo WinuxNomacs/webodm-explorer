@@ -3,6 +3,8 @@ The Explorer pages: which projects a user sees, which tasks get a card and which
 signed-in pages every button opens one of WebODM's own pages (decision D2 in upcoming-changes.md); on a link page
 they open Explorer's own map and 3D pages under the link.
 """
+from typing import NamedTuple
+
 from app import pending_actions
 from app.models import Project, Task
 from django.core.exceptions import ValidationError
@@ -23,6 +25,19 @@ LINK_DOWNLOADS = (
     ("textured_model.zip", "Textured Model", "fab fa-connectdevelop"),
     ("textured_model.glb", "Textured Model (glTF)", "fab fa-connectdevelop"),
 )
+
+
+class Viewer(NamedTuple):
+    """
+    What a set of link pages opens and through which API: a link (Explorer's token views) or a signed-in user's
+    preview (WebODM's own API, the same paths). path is the list page's path, api and tiles_api end in "tasks/".
+    """
+    project: Project
+    path: str
+    api: str
+    tiles_api: str
+    downloads: bool
+    preview: bool
 
 
 def viewable_projects(user):
