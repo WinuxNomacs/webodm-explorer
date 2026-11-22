@@ -12,7 +12,7 @@ Under development.
   project is shared with (Dashboard: the project's Edit dialog, Permissions).
 - **Anyone with the Link**, in the Share panel for users who can change the project: links that open the project
   without signing in, each with a label and an expiry (7, 30 or 90 days, or never), copied again or revoked at any
-  time. A link opens a page of the project's tasks, each with a **Map** (orthophoto, DSM, DTM; no basemap) and a 3D
+  time, or opened with **Open** to see them as visitors do. A link opens a page of the project's tasks, each with a **Map** (orthophoto, DSM, DTM; no basemap) and a 3D
   view of its **Point Cloud** (streamed node by node from WebODM's EPT, within the point budget WebODM's own 3D page
   uses: 10 million points on a computer, 2 million on a phone, 1 million on iOS), **Textured Model** and **Gaussian
   Splats**. The textured model streams as 3D Tiles (only what is on screen, finer close up), which Explorer builds

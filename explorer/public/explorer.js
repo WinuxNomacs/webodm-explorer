@@ -76,8 +76,9 @@
         var input = panel.querySelector("#explorer-share-link") || panel.querySelector("input");
         var copyButton = panel.querySelector("[data-explorer-copy]");
 
-        // The template renders the path; the full link uses the address the visitor reached WebODM by.
-        input.value = window.location.origin + input.value;
+        // The template renders the path; the full link uses the address the visitor reached WebODM by. From the data
+        // attribute, not the field: a browser restoring the field's value on reload or back would double the origin.
+        input.value = window.location.origin + (input.getAttribute("data-path") || input.value);
 
         shareButton.addEventListener("click", function () {
             var opening = panel.hidden;
@@ -165,6 +166,13 @@
                     showError(e.message);
                 });
             });
+            // The link page as anyone with the link sees it, in a new tab (this user's session changes nothing there)
+            var open = element("a", "btn btn-default", text("open"));
+            open.href = link.path;
+            open.target = "_blank";
+            open.rel = "noopener noreferrer";
+            open.title = text("open-title");
+            buttons.appendChild(open);
             buttons.appendChild(copy);
             buttons.appendChild(revoke);
             group.appendChild(buttons);
