@@ -1,7 +1,8 @@
 {% extends "app/plugins/templates/base.html" %}
 {% load i18n %}
 
-{% block extra-headers %}<link rel="stylesheet" href="{{ public }}explorer.css">{% endblock %}
+{% block extra-headers %}{% if query.view == "map" %}<link rel="stylesheet" href="{{ public }}vendor/leaflet-1.9.4/dist/leaflet.css">
+{% endif %}<link rel="stylesheet" href="{{ public }}explorer.css">{% endblock %}
 
 {% block content %}
 <div class="explorer">
@@ -22,10 +23,56 @@
         <div class="checkbox">
             <label><input type="checkbox" name="basemaps_on_links"{% if settings.basemaps_on_links %} checked{% endif %}> {% trans "Basemaps on Links" %}</label>
         </div>
-        <p class="explorer-card-text">{% trans "Maps opened from links and previews show the basemaps set in Administration, Basemaps. Each visitor's browser then loads them from their provider, which sees the visitor's address and the area viewed." %}</p>
+        <p class="explorer-card-text">{% trans "Maps opened from links and with View as Visitor show the basemaps set in Administration, Basemaps. Each visitor's browser then loads them from their provider, which sees the visitor's address and the area viewed." %}</p>
         <div class="explorer-settings-error alert alert-warning" role="alert" hidden></div>
     </form>
     {% endif %}
+    {% if any_projects %}
+    {# A plain GET form: the page's address holds the search, so a view can be bookmarked and works without scripts #}
+    <form class="explorer-toolbar" method="get" role="search" data-explorer-toolbar>
+        <div class="explorer-search input-group input-group-sm">
+            <input type="search" name="q" value="{{ query.q }}" class="form-control" maxlength="100"
+                   placeholder="{% trans "Search Projects" %}" aria-label="{% trans "Search Projects" %}">
+            <span class="input-group-btn">
+                <button type="submit" class="btn btn-default" title="{% trans "Search" %}" aria-label="{% trans "Search" %}"><i class="fa fa-search"></i></button>
+            </span>
+        </div>
+        <div class="explorer-toolbar-row">
+            <select name="scope" data-default="all" class="form-control input-sm" aria-label="{% trans "Projects" %}">
+                {% for value, label in scopes %}<option value="{{ value }}"{% if query.scope == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+            {% if query.view != "map" %}
+            <select name="sort" data-default="activity" class="form-control input-sm" aria-label="{% trans "Sort" %}">
+                {% for value, label in sorts %}<option value="{{ value }}"{% if query.sort == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+            {% else %}
+            <input type="hidden" name="view" value="map">
+            {% if query.sort != "activity" %}<input type="hidden" name="sort" value="{{ query.sort }}">{% endif %}
+            {% endif %}
+            <label class="explorer-filter"><input type="checkbox" name="3d" value="1"{% if query.has_3d %} checked{% endif %}> {% trans "Has 3D" %}</label>
+            <label class="explorer-filter"><input type="checkbox" name="linked" value="1"{% if query.linked %} checked{% endif %}> {% trans "Shared by Link" %}</label>
+            <div class="btn-group btn-group-sm explorer-view-switch" role="group" aria-label="{% trans "View" %}">
+                <a class="btn btn-default{% if query.view != "map" %} active{% endif %}" href="?{{ grid_params }}"{% if query.view != "map" %} aria-current="page"{% endif %}><i class="fa fa-th-large"></i> {% trans "Grid" %}</a>
+                <a class="btn btn-default{% if query.view == "map" %} active{% endif %}" href="?{{ map_params }}"{% if query.view == "map" %} aria-current="page"{% endif %}><i class="fa fa-map"></i> {% trans "Map" %}</a>
+            </div>
+        </div>
+    </form>
+
+    {% if query.view == "map" %}
+    {% if places.places %}
+    <div class="explorer-home-map explorer-footprint-map theme-border-secondary-07" data-explorer-footprints="projects"
+         data-tasks-one="{% trans "1 task" %}" data-tasks-many="{% trans "%(count)s tasks" %}"></div>
+    {% endif %}
+    {% if places.missing or places.capped or not places.places %}
+    <p class="explorer-card-text explorer-map-note">
+        {% if not places.places %}{% if query.filtered %}{% trans "No projects match, or none of them has outputs with a location." %}{% else %}{% trans "None of these projects has outputs with a location yet." %}{% endif %}
+        {% elif places.capped %}{% blocktrans with count=places.limit %}The {{ count }} most recently active projects are shown.{% endblocktrans %}
+        {% else %}{% blocktrans count count=places.missing %}{{ count }} project without outputs with a location is not on the map.{% plural %}{{ count }} projects without outputs with a location are not on the map.{% endblocktrans %}{% endif %}
+    </p>
+    {% endif %}
+    {{ places.places|json_script:"explorer-footprints" }}
+    {{ basemaps|json_script:"explorer-basemaps" }}
+    {% else %}
     {% if projects %}
     <div class="explorer-grid">
         {% for entry in projects %}
@@ -41,19 +88,50 @@
             <div class="explorer-thumbnail explorer-no-thumbnail theme-border-secondary-07"><i class="fa fa-folder-open"></i></div>
             {% endif %}
             <div class="explorer-card-body">
-                <div class="explorer-card-title">{{ entry.project.name }}</div>
-                {% if entry.project.description %}<div class="explorer-card-text">{{ entry.project.description }}</div>{% endif %}
-                <div class="explorer-card-text">
-                    {% blocktrans count count=entry.count %}{{ count }} task with outputs{% plural %}{{ count }} tasks with outputs{% endblocktrans %}
+                <div class="explorer-card-heading">
+                    <span class="explorer-card-title">{{ entry.project.name }}</span>
+                    {% if entry.links.count %}
+                    <span class="label {% if entry.links.expires_soon %}label-warning{% else %}label-default{% endif %} explorer-link-badge"
+                          title="{% if entry.links.expires_soon %}{% trans "A link expires within 7 days" %}{% else %}{% trans "Anyone with the link can open it" %}{% endif %}">
+                        <i class="fa fa-link"></i> {% blocktrans count count=entry.links.count %}{{ count }} Link{% plural %}{{ count }} Links{% endblocktrans %}{% if entry.links.expires_soon %} &middot; {% trans "Expires Soon" %}{% endif %}
+                    </span>
+                    {% endif %}
+                </div>
+                {% if entry.project.description %}<div class="explorer-card-text explorer-description">{{ entry.project.description }}</div>{% endif %}
+                {% if entry.tags %}<div class="explorer-tags">{% for tag in entry.tags %}<span class="explorer-tag theme-border-secondary-07">{{ tag }}</span>{% endfor %}</div>{% endif %}
+                {% if entry.outputs %}
+                <div class="explorer-counts">
+                    {% for output in entry.outputs %}<span title="{{ output.label }}"><i class="{{ output.icon }}"></i> {{ output.count }}<span class="sr-only"> {{ output.label }}</span></span>{% endfor %}
+                </div>
+                {% else %}
+                <div class="explorer-card-text">{% trans "No outputs yet" %}</div>
+                {% endif %}
+                <div class="explorer-card-text explorer-card-meta">
+                    {% blocktrans with when=entry.project.activity|timesince %}Updated {{ when }} ago{% endblocktrans %}{% if entry.owner %} &middot; {{ entry.owner.username }}{% endif %}
                 </div>
             </div>
         </a>
         {% endfor %}
     </div>
+    {% if page.paginator.num_pages > 1 %}
+    <nav class="explorer-pages" aria-label="{% trans "Pages" %}">
+        {% if previous_params is not None %}<a class="btn btn-default btn-sm" href="?{{ previous_params }}" rel="prev"><i class="fa fa-chevron-left"></i> {% trans "Previous" %}</a>{% endif %}
+        <span class="explorer-card-text">{% blocktrans with number=page.number total=page.paginator.num_pages %}Page {{ number }} of {{ total }}{% endblocktrans %}</span>
+        {% if next_params is not None %}<a class="btn btn-default btn-sm" href="?{{ next_params }}" rel="next">{% trans "Next" %} <i class="fa fa-chevron-right"></i></a>{% endif %}
+    </nav>
+    {% endif %}
+    {% else %}
+    <p>{% trans "No projects match." %} <a href="?{% if query.view == "map" %}view=map{% endif %}">{% trans "Clear Filters" %}</a></p>
+    {% endif %}
+    {% endif %}
     {% else %}
     <p>{% trans "No projects yet. Projects you create, or that are shared with you, appear here." %}</p>
     {% endif %}
 </div>
+{% if query.view == "map" and places.places %}
+<script src="{{ public }}vendor/leaflet-1.9.4/dist/leaflet.js"></script>
+{% endif %}
 <script src="{{ public }}layers.js"></script>
+{% if query.view == "map" and places.places %}<script src="{{ public }}footprints.js"></script>{% endif %}
 <script src="{{ public }}explorer.js"></script>
 {% endblock %}

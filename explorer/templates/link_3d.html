@@ -48,6 +48,7 @@
             </button>
             {% endfor %}
         </div>
+        {% if downloads or webodm %}<div class="explorer-viewer-tools">{% include viewer_tools_template %}</div>{% endif %}
     </div>
     <div class="explorer-status theme-secondary theme-border-secondary-07" role="status" hidden></div>
     <div class="explorer-scene"></div>

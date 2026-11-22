@@ -10,7 +10,7 @@
     var helpers = node ? require("./linkpage.js") : window.ExplorerLinkPage;
     var Layers = node ? require("./layers.js") : window.ExplorerLayers;
     var TILE_SIZE = 512;
-    var BASEMAP_KEY = "explorer-basemap";
+    var BASEMAP_KEY = Layers.BASEMAP_KEY;
     var UNITS_KEY = "explorer-units-";
 
     // Browser storage can be missing or refuse (private windows, blocked site data): a preference is then not kept
@@ -25,22 +25,6 @@
     // [west, south, east, north] to Leaflet's [[south, west], [north, east]]
     function boundsLatLng(value) {
         return [[value[1], value[0]], [value[3], value[2]]];
-    }
-
-    // A basemap as WebODM stores it (Basemap.get_cached_basemaps) to a Leaflet layer, kept under the task's layer
-    function basemapLayer(L, basemap) {
-        var options = {
-            attribution: basemap.attribution || "", minZoom: basemap.minzoom || 0,
-            maxNativeZoom: basemap.maxzoom || 19, maxZoom: 24
-        };
-        if (basemap.subdomains) options.subdomains = basemap.subdomains;
-        if (basemap.type === "wms") {
-            options.layers = basemap.layers || "";
-            options.format = basemap.format || "image/jpeg";
-            if (basemap.styles) options.styles = basemap.styles;
-            return L.tileLayer.wms(basemap.url, options);
-        }
-        return L.tileLayer(basemap.url, options);
     }
 
     // The value layers' legend: the colour ramp between the stretched range, in a unit the visitor can switch
@@ -145,7 +129,7 @@
             if (picker) picker.value = chosen ? chosen.label : "";
             if (!chosen) return;
             // A provider that fails leaves the layer on the page's background: its tiles are not the page's errors
-            basemap = basemapLayer(L, chosen);
+            basemap = Layers.basemapLayer(L, chosen);
             basemap.addTo(map);
             if (basemap.bringToBack) basemap.bringToBack();
         }
@@ -198,10 +182,7 @@
         }
 
         if (basemaps.length) {
-            var saved = remembered(BASEMAP_KEY);
-            var fallback = (basemaps.filter(function (b) { return b.default; })[0] || basemaps[0]).label;
-            var offered = saved === "" || basemaps.some(function (b) { return b.label === saved; });
-            pickBasemap(saved !== null && offered ? saved : fallback);
+            pickBasemap(Layers.chosenBasemap(basemaps, remembered(BASEMAP_KEY)));
             if (picker) {
                 picker.addEventListener("change", function () {
                     remember(BASEMAP_KEY, picker.value);
@@ -216,7 +197,7 @@
     }
 
     if (node) {
-        module.exports = {start: start, boundsLatLng: boundsLatLng, basemapLayer: basemapLayer};
+        module.exports = {start: start, boundsLatLng: boundsLatLng, basemapLayer: Layers.basemapLayer};
     } else {
         var page = document.querySelector("[data-explorer-map]");
         if (page) start(page, window.L);

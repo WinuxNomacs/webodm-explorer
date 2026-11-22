@@ -1,0 +1,26 @@
+{% load i18n %}{# The map and 3D pages' Download menu (a link that allows downloads, or a signed-in user) and Open in WebODM (signed-in users, for WebODM's measurement tools) #}
+{% if downloads %}
+<div class="btn-group">
+    <button type="button" class="btn btn-default btn-sm dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+        <i class="fa fa-download"></i> {% trans "Download" %} <span class="caret"></span>
+    </button>
+    <ul class="dropdown-menu dropdown-menu-right">
+        {% for file in downloads %}
+        <li><a href="{{ file.url }}" download><i class="{{ file.icon }} fa-fw"></i> {{ file.label }}</a></li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
+{% if webodm %}
+<div class="btn-group">
+    <button type="button" class="btn btn-default btn-sm dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+            title="{% trans "WebODM's own pages, with its measurement tools" %}">
+        <i class="fa fa-external-link-alt"></i> {% trans "Open in WebODM" %} <span class="caret"></span>
+    </button>
+    <ul class="dropdown-menu dropdown-menu-right">
+        {% for page in webodm %}
+        <li><a href="{{ page.url }}"><i class="{{ page.icon }} fa-fw"></i> {{ page.label }}</a></li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}

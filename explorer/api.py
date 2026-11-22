@@ -120,7 +120,7 @@ def prepare_tiles(project):
     try:
         store = tiles.Tiles.current()
         if store:
-            store.prepare(card[0] for card in pages.explorable_tasks([project]))
+            store.prepare(card["task"] for card in pages.explorable_tasks([project]))
     except Exception as e:  # noqa: BLE001
         logger.warning(f"Explorer: could not queue the mesh tiles of project {project.id}: {e}")
 

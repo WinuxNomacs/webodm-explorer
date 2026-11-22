@@ -90,12 +90,14 @@ class ExplorerTestCase(BootTestCase):
     def test_the_share_field_keeps_the_page_path_for_the_script(self):
         self.assertContains(self.page(), f'data-path="/plugins/explorer/project/{self.project.id}/"')
 
-    def test_the_project_list_counts_tasks_with_outputs_and_uses_an_orthophoto_for_its_thumbnail(self):
+    def test_the_project_list_counts_outputs_per_type_and_uses_an_orthophoto_for_its_thumbnail(self):
+        self.task("Older Ortho", ["orthophoto.tif"])
         task = self.task("With Ortho", ["orthophoto.tif"])
         self.task("Point Cloud Only", ["georeferenced_model.laz"])
         self.task("Running", ["orthophoto.tif"], status=status_codes.RUNNING)
         response = self.client_for("testuser").get("/plugins/explorer/")
-        self.assertContains(response, "2 tasks with outputs")
+        self.assertContains(response, '<i class="fa fa-globe"></i> 2<span class="sr-only"> Map</span>')
+        self.assertContains(response, '<i class="fa fa-pointcloud"></i> 1<span class="sr-only"> Point Cloud</span>')
         self.assertContains(response, f"/api/projects/{self.project.id}/tasks/{task.id}/thumbnail?size=512")
 
     def test_a_project_page_without_view_permission_is_not_found(self):
@@ -136,8 +138,9 @@ class ExplorerTestCase(BootTestCase):
         response = self.page()
         self.assertContains(response, "(DSM)")
         self.assertContains(response, f"/3d/project/{self.project.id}/task/{task.id}/?t=cloud")
-        # The 3D page needs textured_model.zip for its mesh view and splats.rad for splats (ModelView.jsx).
-        self.assertNotContains(response, "?t=mesh")
+        # WebODM's 3D page needs textured_model.zip for its mesh view (ModelView.jsx); Explorer's opens the GLB
+        self.assertNotContains(response, f"/3d/project/{self.project.id}/task/{task.id}/?t=mesh")
+        self.assertContains(response, f"/plugins/explorer/project/{self.project.id}/3d/{task.id}/?t=mesh")
         self.assertNotContains(response, "?t=splats")
         self.assertNotContains(response, f"/tasks/{task.id}/thumbnail")
 

@@ -1,7 +1,8 @@
 {% load i18n %}<div class="explorer-grid">
-    {% for task, outputs, downloads, picture in cards %}
+    {% for card in cards %}{% with task=card.task picture=card.picture %}
     <div class="explorer-card theme-border-secondary-07">
-        {# WebODM's thumbnail of the orthophoto; a layer drawn from tiles where it can't make one (explorer.js) #}
+        {# WebODM's thumbnail of the orthophoto; a layer drawn from tiles where it can't make one (explorer.js). It opens the task's first view, as the title does. #}
+        <a class="explorer-thumbnail-link" href="{{ card.open }}" tabindex="-1" aria-hidden="true">
         {% if picture.webodm %}
         <img class="explorer-thumbnail" loading="lazy" alt="" data-placeholder-icon="fa fa-cube"
              src="{{ thumbnails }}{{ task.id }}/thumbnail?size=512"{% if picture.draw %}
@@ -10,22 +11,45 @@
         <div class="explorer-thumbnail explorer-no-thumbnail theme-border-secondary-07"{% if picture.draw %}
              data-draw="{{ picture.draw }}" data-api="{{ thumbnails }}{{ task.id }}/"{% if task.crop %} data-crop="1"{% endif %}{% endif %}><i class="fa fa-cube"></i></div>
         {% endif %}
+        </a>
         <div class="explorer-card-body">
-            <div class="explorer-card-title">{% if task.name %}{{ task.name }}{% else %}{% trans "Unnamed Task" %}{% endif %}</div>
-            <div class="explorer-card-text">{{ task.created_at|date:"SHORT_DATETIME_FORMAT" }}</div>
+            <div class="explorer-card-heading">
+                <a class="explorer-card-title explorer-title-link" href="{{ card.open }}">{% if task.name %}{{ task.name }}{% else %}{% trans "Unnamed Task" %}{% endif %}</a>
+                {% if signed_in %}
+                <div class="btn-group">
+                    <button type="button" class="btn btn-link btn-xs dropdown-toggle explorer-more" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                            title="{% trans "More" %}" aria-label="{% trans "More" %}"><i class="fa fa-ellipsis-h"></i></button>
+                    <ul class="dropdown-menu dropdown-menu-right">
+                        <li class="dropdown-header">{% trans "Open in WebODM" %}</li>
+                        {% for page in card.webodm %}
+                        <li><a href="{{ page.url }}"><i class="{{ page.icon }} fa-fw"></i> {{ page.label }}{% if page.detail %} <span class="explorer-output-detail">({{ page.detail }})</span>{% endif %}</a></li>
+                        {% endfor %}
+                        {% if card.downloads %}
+                        <li role="separator" class="divider"></li>
+                        <li class="dropdown-header">{% trans "Download" %}</li>
+                        {% for file in card.downloads %}
+                        <li><a href="{{ file.url }}" download><i class="{{ file.icon }} fa-fw"></i> {{ file.label }}</a></li>
+                        {% endfor %}
+                        {% endif %}
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
+            <div class="explorer-card-text">{{ task.created_at|date:"SHORT_DATETIME_FORMAT" }}{% for fact in card.facts %} &middot; {{ fact }}{% endfor %}</div>
+            {% if card.tags %}<div class="explorer-tags">{% for tag in card.tags %}<span class="explorer-tag theme-border-secondary-07">{{ tag }}</span>{% endfor %}</div>{% endif %}
             <div class="explorer-outputs">
-                {% for output in outputs %}
-                <a class="btn btn-primary btn-sm" href="{{ output.url }}"{% if output.detail %} title="{{ output.detail }}"{% endif %}>
-                    <i class="{{ output.icon }}"></i> {{ output.label }}{% if output.detail %} <span class="explorer-output-detail">({{ output.detail }})</span>{% endif %}
+                {% for output in card.outputs %}
+                <a class="btn {% if forloop.first %}btn-primary{% else %}btn-default{% endif %} btn-sm explorer-chip" href="{{ output.url }}"{% if output.detail %} title="{{ output.detail }}"{% endif %}>
+                    <i class="{{ output.icon }}"></i> {{ output.label }}
                 </a>
                 {% endfor %}
-                {% if downloads %}
+                {% if card.downloads and not signed_in %}
                 <div class="btn-group">
                     <button type="button" class="btn btn-default btn-sm dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                         <i class="fa fa-download"></i> {% trans "Download" %} <span class="caret"></span>
                     </button>
                     <ul class="dropdown-menu">
-                        {% for file in downloads %}
+                        {% for file in card.downloads %}
                         <li><a href="{{ file.url }}" download><i class="{{ file.icon }} fa-fw"></i> {{ file.label }}</a></li>
                         {% endfor %}
                     </ul>
@@ -34,5 +58,5 @@
             </div>
         </div>
     </div>
-    {% endfor %}
+    {% endwith %}{% endfor %}
 </div>

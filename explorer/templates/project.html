@@ -1,7 +1,8 @@
 {% extends "app/plugins/templates/base.html" %}
 {% load i18n %}
 
-{% block extra-headers %}<link rel="stylesheet" href="{{ public }}explorer.css">{% endblock %}
+{% block extra-headers %}{% if footprints %}<link rel="stylesheet" href="{{ public }}vendor/leaflet-1.9.4/dist/leaflet.css">
+{% endif %}<link rel="stylesheet" href="{{ public }}explorer.css">{% endblock %}
 
 {% block content %}
 <div class="explorer">
@@ -9,15 +10,25 @@
         <h3><a href="{{ public }}">{% trans "Explorer" %}</a> / {{ project.name }}</h3>
         <div class="explorer-actions">
             {% if cards %}
-            <a class="btn btn-default btn-sm" href="/map/project/{{ project.id }}/"><i class="fa fa-globe"></i> {% trans "View All on Map" %}</a>
-            {% endif %}
-            {% if cards %}
-            <a class="btn btn-default btn-sm" href="{{ preview_path }}" title="{% trans "See the project as anyone with a link sees it" %}"><i class="fa fa-eye"></i> {% trans "Preview" %}</a>
+            <a class="btn btn-default btn-sm" href="{{ preview_path }}" title="{% trans "See the project as anyone with a link sees it" %}"><i class="fa fa-eye"></i> {% trans "View as Visitor" %}</a>
             {% endif %}
             <button type="button" class="btn btn-primary btn-sm" data-explorer-share aria-expanded="false" aria-controls="explorer-share">
-                <i class="fa fa-share-alt"></i> {% trans "Share" %}
+                <i class="fa fa-share-alt"></i> {% trans "Share" %}{% if links.count %} <span class="badge" title="{% blocktrans count count=links.count %}{{ count }} active link{% plural %}{{ count }} active links{% endblocktrans %}">{{ links.count }}</span>{% endif %}
             </button>
+            <div class="btn-group">
+                <button type="button" class="btn btn-default btn-sm dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                        title="{% trans "More" %}" aria-label="{% trans "More" %}"><i class="fa fa-ellipsis-h"></i></button>
+                <ul class="dropdown-menu dropdown-menu-right">
+                    <li><a href="/dashboard/?project_task_open={{ project.id }}"><i class="fa fa-tasks fa-fw"></i> {% trans "Open in Dashboard" %}</a></li>
+                    {% if cards %}<li><a href="/map/project/{{ project.id }}/"><i class="fa fa-globe fa-fw"></i> {% trans "View All on Map" %}</a></li>{% endif %}
+                </ul>
+            </div>
         </div>
+    </div>
+    <div class="explorer-card-text explorer-project-meta">
+        {% if owner %}<span><i class="fa fa-user"></i> {{ owner.username }}</span>{% endif %}
+        <span>{% blocktrans count count=cards|length %}{{ count }} task with outputs{% plural %}{{ count }} tasks with outputs{% endblocktrans %}</span>
+        {% if tags %}<span class="explorer-tags">{% for tag in tags %}<span class="explorer-tag theme-border-secondary-07">{{ tag }}</span>{% endfor %}</span>{% endif %}
     </div>
     {% if project.description %}<p>{{ project.description }}</p>{% endif %}
 
@@ -63,11 +74,22 @@
     </div>
 
     {% if cards %}
+    {% if footprints %}
+    {# Folded away for a single task: its card shows the same #}
+    <details class="explorer-overview"{% if cards|length > 1 %} open{% endif %}>
+        <summary>{% trans "Overview Map" %}</summary>
+        <div class="explorer-footprint-map theme-border-secondary-07" data-explorer-footprints="tasks"></div>
+    </details>
+    {{ footprints|json_script:"explorer-footprints" }}
+    {{ basemaps|json_script:"explorer-basemaps" }}
+    {% endif %}
     {% include cards_template %}
     {% else %}
     <p>{% trans "No completed tasks with outputs yet. Tasks appear here once they finish processing." %}</p>
     {% endif %}
 </div>
+{% if footprints %}<script src="{{ public }}vendor/leaflet-1.9.4/dist/leaflet.js"></script>{% endif %}
 <script src="{{ public }}layers.js"></script>
+{% if footprints %}<script src="{{ public }}footprints.js"></script>{% endif %}
 <script src="{{ public }}explorer.js"></script>
 {% endblock %}
