@@ -2,7 +2,10 @@
 
 ## Phases (current and upcoming)
 
-Up next: nothing planned; new requests go in `new.md`.
+Up next: **Explorer UX: the project hub** (the request 2026-11-21, plan below; decisions open: basemap on link maps).
+Its steps, each a phase: 1. defects (single-band colours and legend, thumbnail fallback, 3D framing); 2. navigation
+hub (home and project pages); 3. Explorer's viewer for signed-in users, with Open in WebODM; 4. viewer polish;
+5. showcase (link landing page, embed).
 
 Later: COPC point clouds and a Range/caching asset endpoint (only if EPT through WebODM proves too slow);
 docs site (VitePress on GitHub Pages, as TweakUI) and screenshots, once there are features to show.
@@ -367,6 +370,32 @@ Checked in WebODM v4.0.1's code:
   plain ES5 scripts) or a JSX build (`build_jsx_components`, marked experimental, needs webpack where the plugin
   is installed).
 
+### The request: Explorer UX, the project hub (2026-11-21)
+
+Explorer becomes the project navigation and interactive browsing hub for WebODM users and admins: browsing,
+viewing and showcasing results. Claude's UX review (2026-11-21, every page on the dev data at 1440 and 390 wide):
+
+- Home: project cards show a name and a task count only; no search, sort, filter, dates, output types or share
+  status. Admins see only projects shared with them (`pages.viewable_projects`, `accept_global_perms=False`).
+- Project page: up to four equal blue buttons per task card, thumbnail not clickable, no task facts; active links
+  visible only inside Share. Signed-in users leave for WebODM's pages and nothing leads back.
+- Link and Preview pages: single-band layers (the thermal Roof Sample, DSMs) render grey with no colour ramp or
+  legend (WebODM's map shows magma and a legend); the thermal task's thumbnail answers 404 from WebODM, so its cards
+  show the placeholder; no basemap; 3D views lack fullscreen, reset, controls help and previous/next task; framing
+  includes stray fragments (the house sits low on HomerunObliqueRGB); on a phone the view buttons take two rows and
+  the Preview bar three lines.
+- Showcase: a link opens on the same grid of buttons; no cover, featured view or landing page; WebODM's navbar
+  shows a stray unit menu.
+
+The user's answers (2026-11-21):
+
+- **An additional UI in the plugin's own space, not a replacement for WebODM's**: Explorer's viewer may serve
+  signed-in users too (revises D2); WebODM's pages stay as they are.
+- **Admins see every project** in Explorer.
+- **"Editing" means Open in WebODM**: where sensible, each view offers Open in WebODM 2D or 3D for its tools
+  (measurement and the rest); no editing in Explorer.
+- **Basemap on link maps:** open, the user asked for the risks of always showing one (answered 2026-11-21).
+
 ## Done
 
 - **Preview without a link** (the user, 2026-11-21): **Preview** in the project page's header opens the link pages
@@ -511,7 +540,8 @@ Checked in WebODM v4.0.1's code:
   approved for this use; tests import those classes so a WebODM release that changes them fails loudly.
 - **D2: WebODM's viewers first** (the user, 2026-11-21): the project page links to WebODM's map and 3D views;
   Explorer's own viewer serves links. Signed-in users keep WebODM's 3D page, also once meshes are tiled (the user,
-  2026-11-21).
+  2026-11-21). Revised (the user, 2026-11-21): Explorer may offer its own viewer to signed-in users as an additional
+  UI with Open in WebODM; WebODM's pages are not replaced.
 - **D3: Obj2Tiles bundled in the zip** (the user, 2026-11-21): v1.10.3 (2026-11-17) release zips are 10-11 MB
   each for Linux x64/arm64 and macOS, 21-22 MB for Windows x64/arm64. Platforms: Linux x64 and arm64 only (Docker
   installs only, decided 2026-11-21). AGPL-3.0, like the plugin. Widened (the user, 2026-11-21) to gltfpack 1.3.0
