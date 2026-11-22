@@ -3,7 +3,7 @@
 ## Phases (current and upcoming)
 
 Up next: **Explorer UX: the project hub** (the request 2026-11-21, plan below). Steps 1 and 2 built (see "Done");
-step 3 to plan next. Its steps, each a phase: 1. defects (single-band colours and legend, thumbnail fallback, 3D
+step 3 decided (plan below), to build next. Its steps, each a phase: 1. defects (single-band colours and legend, thumbnail fallback, 3D
 framing; done); 2. navigation hub (home and project pages, with Explorer's viewer for signed-in users and Open in
 WebODM; done); 3. viewer polish; 4. showcase (link landing page, embed).
 
@@ -456,6 +456,44 @@ The user's answers (2026-11-21): all three as recommended.
    tools); View as Visitor keeps the visitor's version. Recommended: yes, the hub then keeps users in Explorer.
 2. The Explorer home's Map view of all projects. Recommended: yes.
 3. The project page's overview map of task footprints. Recommended: yes, folded away when a project has one task.
+
+### Plan: UX step 3, viewer polish (decided 2026-11-22)
+
+Explorer's map and 3D pages (the visitor's link pages, View as Visitor and the signed-in viewer share them). Checked
+in the code: the 3D page has OrbitControls with damping and nothing else (no fullscreen, reset, help or way to the
+next task); the map page has Leaflet's zoom buttons, the layer switch, the basemap picker and the legend; neither
+page knows the project's other tasks. The stray unit menu on link pages in the dev stack comes from the DJI Thermal
+plugin installed there (its scripts load on every page), not from WebODM or Explorer: left alone.
+
+- **Both pages:**
+  - **Fullscreen** (the browser's Fullscreen API on the viewer, shortcut F; the button left out where the browser
+    has no element fullscreen, as iPhone Safari, from training knowledge, to check live);
+  - **Reset View** (shortcut R): the 3D page re-frames the model, the map fits the layer again;
+  - **Previous / Next task** in the bar: the project's other tasks in the cards' order (newest first), keeping the
+    view type where the next task has it, else its first view; the page title and address follow, so Back works;
+  - **phone width:** one row of controls (view buttons as icons with their names in titles), the View as Visitor bar
+    on one line.
+- **3D page:**
+  - **Controls help** ("?"): mouse, touch and keys for orbit, pan, zoom and the shortcuts;
+  - **double-click (double-tap) to focus**: the camera turns to orbit the point clicked (a raycast on the shown
+    model; the point cloud's nearest point on screen);
+  - point cloud **Point Size** and **Colour by Elevation** (with a legend of the elevation range, in the unit chosen
+    on the map's legend).
+- **Map page:** a **layer opacity** slider (to see the basemap under the layer), a **scale bar** in the legend's
+  unit system (metric or imperial).
+- **Thumbnails:** the faint seams between the tiles of a drawn thumbnail (step 1) removed.
+- **Smoothness:** no new work per frame except what a control turns on; focus raycasts only on double-click, on
+  the shown tiles or the points already on screen; fullscreen and resizes go through the existing ResizeObserver.
+  The live check measures frame times while orbiting before and after, on the real GPU.
+- What can fail: fullscreen refused (the button stays, nothing happens, no error shown); a double-click on empty
+  space (nothing happens); the next task removed meanwhile (its page answers as a link page does for a task it
+  doesn't open); a link whose project has one task (no Previous / Next).
+
+The user's answers (2026-11-22), both as recommended:
+
+1. Previous / Next on every page, visitors' link pages included (they browse a shared project the same way).
+2. Point cloud options: both Point Size and Colour by Elevation (elevation colour helps read terrain and buildings
+   when RGB is flat or missing).
 
 ## Done
 
