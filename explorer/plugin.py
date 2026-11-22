@@ -77,7 +77,7 @@ class Plugin(PluginBase):
             query = pages.home_query(request.GET)
             context = {
                 "title": _("Explorer"),
-                "public": public,
+                "public": public, "v": pages.asset_version(),
                 "query": query,
                 "scopes": [("all", _("All")), ("mine", _("Mine")), ("shared", _("Shared with Me"))],
                 "sorts": [("activity", _("Recent Activity")), ("name", _("Name")), ("created", _("Created"))],
@@ -113,7 +113,7 @@ class Plugin(PluginBase):
             can_share = request.user.has_perm("app.change_project", project)
             return render(request, self.template_path("project.html"), {
                 "title": project.name,
-                "public": public,
+                "public": public, "v": pages.asset_version(),
                 "project": project,
                 "tags": pages.user_tags(project.tags),
                 "owner": project.owner if project.owner_id != request.user.id else None,
@@ -133,7 +133,7 @@ class Plugin(PluginBase):
         def invalid_link(request):
             # One page for an unknown, revoked or expired link, and for a task the link doesn't open
             return link_headers(render(request, self.template_path("link_invalid.html"),
-                                       {"title": _("Link Not Valid"), "public": public}, status=404))
+                                       {"title": _("Link Not Valid"), "public": public, "v": pages.asset_version()}, status=404))
 
         def link_viewer(token):
             """The link's pages: Explorer's token views. None for a link that doesn't open anything."""
@@ -168,7 +168,7 @@ class Plugin(PluginBase):
                                 downloads=True, preview=False, signed_in=True)
 
         def viewer_context(viewer, task=None, **extra):
-            context = {"public": public, "project": viewer.project, "link_path": viewer.path, "api": viewer.api,
+            context = {"public": public, "v": pages.asset_version(), "project": viewer.project, "link_path": viewer.path, "api": viewer.api,
                        "tiles_api": viewer.tiles_api, "thumbnails": viewer.api, "preview": viewer.preview,
                        "signed_in": viewer.signed_in, "task": task,
                        "back": f"{public}project/{viewer.project.id}/",

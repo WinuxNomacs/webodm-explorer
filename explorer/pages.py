@@ -4,8 +4,10 @@ and which buttons each card gets. The cards open Explorer's own map and 3D pages
 the project for signed-in users, whose cards also offer WebODM's own pages ("Open in WebODM", decision D2 revised in
 upcoming-changes.md).
 """
+import hashlib
 import logging
 import math
+import os
 from typing import NamedTuple
 from urllib.parse import urlencode
 
@@ -310,6 +312,28 @@ def viewer_types(task):
     if "splats.rad" in assets:
         types.append(("splats", _("Gaussian Splats"), "fa fa-splat"))
     return types
+
+
+PUBLIC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "public")
+
+
+def asset_version(folder=PUBLIC):
+    """
+    A token that changes whenever one of Explorer's own browser files does, added to their URLs (?v=) so a browser
+    never runs a cached copy beside a newer one (the files are served without cache headers, and a module imported by
+    another isn't revalidated on reload). The vendored libraries carry their versions in their paths.
+    """
+    digest = hashlib.sha1()
+    for sub in ("", "viewer"):
+        try:
+            entries = sorted(os.scandir(os.path.join(folder, sub)), key=lambda entry: entry.name)
+        except OSError:
+            continue
+        for entry in entries:
+            if entry.is_file():
+                stat = entry.stat()
+                digest.update(f"{sub}/{entry.name}:{stat.st_mtime_ns}:{stat.st_size}".encode())
+    return digest.hexdigest()[:12]
 
 
 def model_offset(task):

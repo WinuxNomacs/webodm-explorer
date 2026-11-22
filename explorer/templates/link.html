@@ -4,7 +4,7 @@
 {% block extra-headers %}<meta name="robots" content="noindex, nofollow">
 {% include meta_template %}
 {% if footprints %}<link rel="stylesheet" href="{{ public }}vendor/leaflet-1.9.4/dist/leaflet.css">
-{% endif %}<link rel="stylesheet" href="{{ public }}explorer.css">{% endblock %}
+{% endif %}<link rel="stylesheet" href="{{ public }}explorer.css?v={{ v }}">{% endblock %}
 
 {% block content %}
 {% if preview %}{% include preview_template %}{% endif %}
@@ -69,7 +69,7 @@
     {% endif %}
 </div>
 {% if footprints %}<script src="{{ public }}vendor/leaflet-1.9.4/dist/leaflet.js"></script>{% endif %}
-<script src="{{ public }}layers.js"></script>
-{% if footprints %}<script src="{{ public }}footprints.js"></script>{% endif %}
-<script src="{{ public }}explorer.js"></script>
+<script src="{{ public }}layers.js?v={{ v }}"></script>
+{% if footprints %}<script src="{{ public }}footprints.js?v={{ v }}"></script>{% endif %}
+<script src="{{ public }}explorer.js?v={{ v }}"></script>
 {% endblock %}

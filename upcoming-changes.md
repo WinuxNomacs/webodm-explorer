@@ -573,6 +573,14 @@ keeps the camera. Without a readable offset each view is framed as before. Reset
 
 ## Done
 
+- **Fix: the point cloud drew nothing after an update** (reported by the user 2026-11-22, branch `fix-stale-scripts`):
+  Explorer's files were served without cache headers, and a module imported by another isn't revalidated on reload,
+  so a browser ran the new `scene.js` (the cloud moved onto WebODM's offset) with a cached `ept.js` that culled in
+  the old coordinates: every node out of view. Every page now asks for Explorer's own scripts and stylesheet with
+  `?v=` (`explorer/pages.py` `asset_version`: a hash of the files' names, times and sizes), and the 3D page's import
+  map maps `viewer/ept.js` and `viewer/backdrop.js` to their versioned URLs, so an update (or a plugin upgrade)
+  can't mix old and new files. Tests: `explorer/tests/test_polish.py` `AssetVersionTests`. Live check: task 89d7617e
+  (HomerunObliqueRGB) renders its cloud, its modules requested with `?v=`.
 - **Keep the camera across 3D views; Space without the purple** (2026-11-22, branch `viewer-keep-camera`):
   - Code: `explorer/pages.py` `model_offset` (coords.txt's second line, None unless two finite numbers),
     `explorer/plugin.py` and `explorer/templates/link_3d.html` (`data-offset`), `explorer/public/viewer/scene.js`
