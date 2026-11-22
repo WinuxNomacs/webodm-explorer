@@ -8,8 +8,9 @@ large model starts showing at once and sharpens as you look closer.
 - **Previous** and **Next** step through the project's tasks in the order of its page. The next task opens on the
   same view where it has it (its map from a map, its point cloud from a point cloud), and on its first view
   otherwise.
-- On the 3D page, **Point Cloud**, **Textured Model** and **Gaussian Splats** switch between the task's 3D views,
-  keeping the camera where you left it, so you compare the same spot.
+- **Map**, **Point Cloud**, **Textured Model** and **Gaussian Splats**, on both pages, switch between the task's
+  views (as far as it has them). The map is 2D: to tilt and rotate, open a 3D view. Between the 3D views the camera
+  stays where you left it, so you compare the same spot.
 - **Reset View** (R) frames the whole task again. **Fullscreen** (F) fills the screen, where the browser allows it.
 
 ## The map

@@ -114,6 +114,27 @@ class ViewerControlTests(LinkTestMixin, BootTestCase):
         preview = client.get(f"{self.own}preview/map/{self.full.id}/").content.decode()
         self.assertNotIn("data-opacity", preview)  # as a link shows it
 
+    def test_the_map_and_3d_pages_switch_between_the_tasks_map_and_its_3d_views(self):
+        client = self.client_for("testuser")
+        html = client.get(f"{self.own}map/{self.full.id}/").content.decode()
+        self.assertIn(f'href="{self.own}map/{self.full.id}/" aria-current="page"', html)
+        for kind in ("cloud", "mesh", "splats"):
+            self.assertIn(f'href="{self.own}3d/{self.full.id}/?t={kind}"', html)
+        html = client.get(f"{self.own}3d/{self.full.id}/").content.decode()
+        self.assertIn(f'href="{self.own}map/{self.full.id}/" title="Map"', html)
+        token = self.link()["token"]
+        link = f"/plugins/explorer/s/{token}/"
+        html = Client().get(f"{link}map/{self.full.id}/?embed=1").content.decode()
+        self.assertIn(f'href="{link}3d/{self.full.id}/?t=mesh&amp;embed=1"', html)  # an embed stays an embed
+        html = Client().get(f"{link}3d/{self.full.id}/?embed=1").content.decode()
+        self.assertIn(f'href="{link}map/{self.full.id}/?embed=1"', html)
+
+    def test_a_task_without_a_map_or_3d_views_has_no_switch_to_them(self):
+        no_map = self.task("3D only", ["georeferenced_model.laz"])
+        self.assertNotIn('title="Map"', self.client_for("testuser").get(f"{self.own}3d/{no_map.id}/").content.decode())
+        flat = self.task("Map only", ["orthophoto.tif"])
+        self.assertNotIn("explorer-types", self.client_for("testuser").get(f"{self.own}map/{flat.id}/").content.decode())
+
     def test_the_visitor_bar_keeps_its_long_half_for_wide_screens(self):
         html = self.client_for("testuser").get(f"{self.own}preview/").content.decode()
         self.assertIn('Viewing as a visitor<span class="explorer-wide">', html)

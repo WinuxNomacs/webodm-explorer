@@ -46,6 +46,9 @@
         <div class="explorer-viewer-tools">
         {% if not embed %}{% include neighbours_template %}{% endif %}
         <div class="btn-group explorer-types" role="group" aria-label="{% trans "View" %}">
+            {# The task's map: a 2D page of its own (an embed stays an embed) #}
+            {% if map_view %}<a class="btn btn-default btn-sm" href="{{ map_view }}{% if embed %}?embed=1{% endif %}" title="{% trans "Map" %}">
+                <i class="fa fa-globe"></i> <span class="explorer-label">{% trans "Map" %}</span></a>{% endif %}
             {% for type in types %}
             {% if type.type == "mesh" %}
             {# The tiles once built, WebODM's GLB as their fallback; the GLB alone until then #}

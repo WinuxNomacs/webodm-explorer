@@ -179,6 +179,12 @@ class Plugin(PluginBase):
                        "neighbours_template": self.template_path("neighbours.html"),
                        "meta_template": self.template_path("meta.html"), **extra}
             if task is not None:
+                # The view switch on the map and 3D pages: the task's map, then its 3D views (its own pages; the 3D
+                # page switches between its 3D views in place)
+                context["map_view"] = f"{viewer.path}map/{task.id}/" if pages.map_layers(task) else None
+                context["views_3d"] = [{"type": kind, "label": label, "icon": icon,
+                                        "url": f"{viewer.path}3d/{task.id}/?t={kind}"}
+                                       for kind, label, icon in pages.viewer_types(task)]
                 context["downloads"] = pages.link_downloads(task, viewer.api) if viewer.downloads else []
                 if viewer.signed_in:
                     context["webodm"] = pages.task_outputs(task)

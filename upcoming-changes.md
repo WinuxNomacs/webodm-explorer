@@ -708,6 +708,17 @@ processing wants 16 GB and more).
 
 ## Done
 
+- **Fix: no way from a task's map to its 3D views** (reported by the user 2026-11-22: on a link's map, the right
+  button opened the context menu and the view couldn't tilt; branch `view-switch`): the map page is 2D (Leaflet:
+  left drag pans, no tilt) and had no buttons to the 3D views, nor the 3D page one back to the map. Both pages now
+  have one switch, **Map | Point Cloud | Textured Model | Gaussian Splats** as far as the task has them (the user's
+  choice): on the 3D page the 3D views switch in place, Map is a link; on the map page each is a link; an embed stays
+  an embed (`plugin.py` `viewer_context`: `map_view`, `views_3d`; `link_map.html`, `link_3d.html`). Checked first that
+  the 3D views were fine: in Chromium and WebKit a left drag orbits and tilts, a right drag pans and the context
+  menu is blocked (as WebODM's own Potree view maps them). Tests `test_polish.py` (2 new); docs `viewers.md`,
+  README. Live on the reported task (25cdbf17, project 2): Map, Point Cloud and Textured Model on both pages, there
+  and back, a left drag orbits on the 3D page, icons only at 390 px with no sideways scroll, no script errors.
+
 - **Docs step 2: the Linode guide and its script** (the request 2026-11-22, plan above, branch `docs-linode`):
   `docs/public/linode/setup.sh` (served by the site; run as root or pasted as user data) and `docs/hosting/linode.md`
   (in the sidebar under Hosting; Getting Started and the README link to it). Explorer gained **Public Address**
