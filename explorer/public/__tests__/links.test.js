@@ -11,13 +11,13 @@ function json(status, body) {
 // Lets every pending promise callback run
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-function render(responses) {
+function render(responses, origin) {
     window.fetch = jest.fn(() => responses.shift());
     document.body.innerHTML = `
         <div id="explorer-share">
             <input id="explorer-share-link" readonly value="/plugins/explorer/project/7/">
             <button type="button" data-explorer-copy data-copied="Copied">Copy</button>
-            <div class="explorer-links" data-links-api="${API}" data-copy="Copy" data-copied="Copied" data-revoke="Revoke"
+            <div class="explorer-links" data-links-api="${API}"${origin ? ` data-origin="${origin}"` : ""} data-copy="Copy" data-copied="Copied" data-revoke="Revoke"
                  data-confirm-revoke="Revoke?" data-untitled="Untitled Link" data-never="Never expires"
                  data-expires="Expires %(date)s" data-none="No links yet." data-downloads="Allow Downloads"
                  data-open="Open" data-open-title="Open the link as visitors see it"
@@ -170,4 +170,10 @@ test("users who cannot change the project get no link list", () => {
     document.body.innerHTML = `<div id="explorer-share"><input id="explorer-share-link" value="/x/"><button data-explorer-copy></button></div>`;
     init(document);
     expect(window.fetch).not.toHaveBeenCalled();
+});
+
+test("with a Public Address set, the links are copied with it instead of the browser's address", async () => {
+    render([json(200, [LINK])], "https://maps.example.com");
+    await settle();
+    expect(document.querySelector(".explorer-link-address").value).toBe("https://maps.example.com" + LINK.path);
 });

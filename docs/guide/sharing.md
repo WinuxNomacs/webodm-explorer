@@ -23,7 +23,8 @@ To create one:
 
 Each link in the list has:
 
-- **Copy**, to copy it again at any time.
+- **Copy**, to copy it again at any time. Links start with the browser's address, or with the **Public Address**
+  an admin set ([Administration](/guide/administration)).
 - **Open**, to open it as visitors see it.
 - **Allow Downloads**, to turn downloads on or off later.
 - **Embed**, for code that shows the link's views in another website (below).

@@ -26,6 +26,11 @@
     margin: 8px 0 0;
 }
 
+/* A setting after another one's description, in the home's Settings panel */
+.explorer-share p + .form-group {
+    margin: 16px 0 0;
+}
+
 .explorer-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));

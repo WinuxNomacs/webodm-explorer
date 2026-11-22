@@ -57,17 +57,32 @@ class IsSuperuser(BasePermission):
 
 
 class Settings(APIView):
-    """Explorer's settings: GET them, PATCH {"basemaps_on_links": true|false}."""
+    """Explorer's settings: GET them, PATCH any of {"basemaps_on_links": true|false, "public_address": "https://..."}."""
     permission_classes = (IsSuperuser,)
 
     def get(self, request):
         return Response(options.all_settings())
 
     def patch(self, request):
-        value = request.data.get("basemaps_on_links")
-        if not isinstance(value, bool):
+        data = request.data if isinstance(request.data, dict) else {}
+        if "basemaps_on_links" not in data and "public_address" not in data:
+            raise exceptions.ValidationError({"detail": _("Nothing to change.")})
+        basemaps, address = data.get("basemaps_on_links"), data.get("public_address")
+        if "basemaps_on_links" in data and not isinstance(basemaps, bool):
             raise exceptions.ValidationError({"basemaps_on_links": _("Expected true or false.")})
-        options.set_basemaps_on_links(value)
+        if "public_address" in data:
+            try:
+                if not isinstance(address, str):
+                    raise TypeError("not text")
+                address = options.clean_public_address(address)
+            except (TypeError, ValueError):
+                raise exceptions.ValidationError(
+                    {"public_address": _("Expected an address such as https://maps.example.com, or nothing.")}) from None
+        # Both checked before either is saved
+        if "basemaps_on_links" in data:
+            options.set_basemaps_on_links(basemaps)
+        if "public_address" in data:
+            options.set_public_address(address)
         return Response(options.all_settings())
 
 

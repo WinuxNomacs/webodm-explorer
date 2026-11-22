@@ -13,12 +13,17 @@
 
 **Settings**, on Explorer's home, is shown to WebODM's admins.
 
-![The Settings panel with Basemaps on Links ticked](/images/settings.png)
+![The Settings panel: Basemaps on Links ticked, Public Address set to https://maps.example.com](/images/settings.png)
 
 - **Basemaps on Links** (on by default): maps opened from links and with **View as Visitor** show the basemaps set
   in WebODM's Administration, Basemaps. Each visitor's browser then loads the basemap's tiles from its provider (such
   as Google, Esri or OpenStreetMap), which sees the visitor's address and the area viewed. Turn it off where that
   matters: link maps then show the layer alone, without **Layer Opacity**, and a link's page has no **Overview Map**.
+
+- **Public Address** (empty by default): links and embed code copied from the Share panel start with this address
+  instead of the browser's. Set it when you reach WebODM through an internal address or an SSH tunnel, while
+  visitors reach the links at a public one (for example `https://maps.example.com`). It takes a scheme and a host,
+  with a port if needed, and nothing after them. The **Link for WebODM Users** keeps the browser's address.
 
 Signed-in users' maps (Explorer's home, project pages and task maps) always show WebODM's basemaps, as WebODM's own
 map does.

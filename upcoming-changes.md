@@ -3,8 +3,8 @@
 ## Phases (current and upcoming)
 
 Up next: **Documentation site** (the request 2026-11-22, plan below; decided). Its steps, each a phase:
-1. the site and its pages (Getting Started, usage guides; done); 2. the Linode hosting guide and its script (next;
-plan the test environment first, decision 4); 3. publishing to GitHub Pages (once the repo is public).
+1. the site and its pages (Getting Started, usage guides; done); 2. the Linode hosting guide and its script (building;
+plan below); 3. publishing to GitHub Pages (once the repo is public).
 
 Built just before: **Keep the camera across 3D views** and **Space without the purple** (the request
 2026-11-22, below) and **3D backgrounds** are built (see "Done").
@@ -649,6 +649,63 @@ processing wants 16 GB and more).
 4. **Testing:** in a local Ubuntu 24.04 VM or a Docker container that is easily recreated and destroyed; a live
    throwaway Linode later only if needed. Which one (and shellcheck for lint) is vetted and proposed when step 2 is
    planned, and installed only with the user's approval.
+
+### Plan: docs step 2, the Linode guide and its script (decided 2026-11-22)
+
+**Facts checked (2026-11-22):**
+
+- What a link's pages request (dev stack, a "Live check" link on project 1 with downloads, every view and the embed,
+  revoked afterwards): `/plugins/explorer/s/...` (pages), `/api/plugins/explorer/s/...` (tasks, tiles, nodes, splats,
+  thumbnails, downloads), Explorer's files under `/plugins/explorer/` (scripts, CSS, vendor, wasm), WebODM's
+  `/static/...`, `/jsi18n/` and its logo `/media/CACHE/images/settings/...`, and every installed plugin's scripts
+  and CSS (`/plugins/<name>/*.js|css`, WebODM adds them to every page; one plugin, dji-thermal, also calls its API,
+  which can stay blocked).
+- WebODM v4.0.1: `docker-compose.yml` publishes `"${WO_PORT}:8000"`, and `webodm.sh --port` exports `WO_PORT` as
+  given, so `--port 127.0.0.1:8000` should bind to localhost only (to check in the VM): ports Docker publishes skip
+  ufw. `ALLOWED_HOSTS = ['*']`, `SECURE_PROXY_SSL_HEADER` is `X-Forwarded-Proto`, secure cookies only with
+  `WO_SSL=YES` (left off: the tunnel is plain HTTP to localhost). WebODM's first visit creates the admin account, so
+  it must not be reachable from the internet before that (the proxy blocks it; the admin creates it through the
+  tunnel).
+- Linode US list prices (Akamai's pricing page, 2026-11-22): Shared 2 GB $12/month (1 CPU), 4 GB $24/month
+  (2 CPUs); regions differ. WebODM alone runs in 1-2 GB (its docs); the tile builds' memory isn't measured yet:
+  measured in the VM before the guide recommends a size.
+- Tools (GitHub releases, 2026-11-22): Caddy v2.11.9 (2026-11-05, Apache-2.0, active); Multipass v1.17.2
+  (2026-11-18, GPL-3.0, Canonical); ShellCheck v0.11.0 (2025-08-04, GPL-3.0, commits this week), run from its
+  Docker image (`koalaman/shellcheck:v0.11.0`), nothing installed.
+
+**Decisions (the user, 2026-11-22):**
+
+1. **Link address:** an Explorer setting, **Public Address** (Settings on Explorer's home, admins), used by the
+   Share panel's link copies and embed code instead of the browser's address; empty means the browser's address.
+   The **Link for WebODM Users** keeps the browser's address. The tunnel stays a plain `ssh -L`.
+2. **Proxy:** Caddy, from its own signed apt repository (added to unattended upgrades), certificates by itself;
+   `tls internal` for the VM test.
+3. **Test environment:** a Multipass VM (installed by the user: `brew install --cask multipass`), launched with
+   the script as cloud-init user data; ShellCheck from its Docker image.
+
+**Design:**
+
+- The script `docs/public/linode/setup.sh` (served by the site for download; one script, run once as root or pasted
+  as user data), variables at the top (`DOMAIN`, `EMAIL`, `ADMIN_USER`, `WEBODM_VERSION`, `TLS`), idempotent, every
+  step named and logged to `/var/log/explorer-setup.log`, `set -euo pipefail` and a trap that names the failed step:
+  - checks: root, Ubuntu 24.04, the variables, and an SSH key for root to hand on (refuses rather than lock out);
+  - updates, then a sudo user with root's SSH keys (no password, sudo without one, as Ubuntu's cloud images do); SSH:
+    no root, no passwords, only that user (`sshd -t` before reload);
+  - ufw (SSH rate-limited, 80, 443 TCP and UDP), fail2ban for SSH, unattended upgrades (with Docker's and Caddy's
+    repositories), 2 GB swap when there is none;
+  - Docker from Docker's apt repository, logs rotated; WebODM cloned at the pinned tag in `/opt/WebODM`, started by
+    a systemd unit with `--port 127.0.0.1:8000 --default-nodes 0`;
+  - Caddy: the domain over HTTPS, only GET and HEAD on the paths above, `robots.txt` disallowing all, 404 for
+    everything else (WebODM's sign-in, admin and API included), HSTS;
+  - prints the tunnel command and the next steps.
+- The guide `docs/hosting/linode.md`: what you get (diagram of what is public), costs, create the Linode and a DNS
+  record, the Cloud Firewall, run the script (user data or SSH), first sign-in through the tunnel, install Explorer
+  and set Public Address, import tasks processed elsewhere, share; updates, backups, troubleshooting; what stays
+  exposed (SSH with keys only, the link paths).
+- Failures the script handles (unattended under cloud-init): apt locked by another update (waits, with a deadline),
+  a download failing (retries, then stops naming the step), DNS not yet pointing at the Linode (Caddy keeps retrying
+  the certificate; the script says so instead of failing), a rerun (each step checks before changing), no SSH key
+  (stops before touching SSH).
 
 ## Done
 
