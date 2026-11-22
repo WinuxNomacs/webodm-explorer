@@ -262,7 +262,9 @@ Checked in WebODM v4.0.1's code unless marked otherwise.
 - **Viewer**: 3DTilesRendererJS 0.5.4 (vetted 2026-11-21: Apache-2.0, imports only `three` and `three/addons`, which
   the import map already serves; `TilesFadePlugin` for LOD changes without popping, `UpdateOnChangePlugin` so idle
   views cost nothing), its parse queue limited per frame so tiles never cause long tasks, memory cache smaller on
-  phones (as the point budget).
+  phones (as the point budget). As built: no `UpdateOnChangePlugin` (fading needs an update every frame) and the
+  renderer's own queues; meshopt decoding runs in workers and KTX2 transcoding in the loader's; measured, the longest
+  task while tiles load is 79 ms (the GLB's: 543 ms).
 - **Failures** (the build runs unattended):
   - The binary missing, not executable or for another platform: no build, the GLB stays; the reason is logged.
   - Obj2Tiles exits non-zero or reports `{"stage":"error"}`: the build is marked failed with its message, the
