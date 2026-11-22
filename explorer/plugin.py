@@ -4,7 +4,7 @@ from app.models import Project, Task
 from app.plugins import Menu, MountPoint, PluginBase, signals
 from django.contrib.auth.decorators import login_required
 from django.dispatch import receiver
-from django.http import Http404
+from django.http import Http404, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, render
 from django.utils.translation import gettext as _
 
@@ -15,6 +15,24 @@ logger = logging.getLogger("app.logger")
 TOKEN = rf"(?P<token>{links.TOKEN_PATTERN})"
 TASK = r"(?P<pk>[0-9a-fA-F-]{36})"
 TILE_TYPE = r"(?P<tile_type>orthophoto|dsm|dtm)"
+
+
+def with_and_without_slash(pages):
+    """
+    The pages' mount points, each also reached without its trailing slash (a redirect, as Django's APPEND_SLASH does:
+    WebODM's plugin routing doesn't, and serves the plugin's public files for any path no mount point matches).
+    pages: (pattern ending in "/", view) pairs.
+    """
+    def add_slash(request, **kwargs):
+        query = request.META.get("QUERY_STRING", "")
+        return HttpResponseRedirect(request.path + "/" + ("?" + query if query else ""))
+
+    mounts = []
+    for pattern, view in pages:
+        mounts.append(MountPoint(pattern + "$", view))
+        if pattern:
+            mounts.append(MountPoint(pattern[:-1] + "$", add_slash))
+    return mounts
 
 
 def link_headers(response):
@@ -113,13 +131,13 @@ class Plugin(PluginBase):
                 types=[{"type": kind, "label": label, "icon": icon} for kind, label, icon in types],
                 initial=initial, mesh_build=mesh_build, preparing=preparing)))
 
-        return [
-            MountPoint("$", project_list),
-            MountPoint(r"project/(?P<project_pk>[0-9]+)/$", project_page),
-            MountPoint(rf"s/{TOKEN}/$", link_page),
-            MountPoint(rf"s/{TOKEN}/map/{TASK}/$", link_map),
-            MountPoint(rf"s/{TOKEN}/3d/{TASK}/$", link_3d),
-        ]
+        return with_and_without_slash([
+            ("", project_list),
+            (r"project/(?P<project_pk>[0-9]+)/", project_page),
+            (rf"s/{TOKEN}/", link_page),
+            (rf"s/{TOKEN}/map/{TASK}/", link_map),
+            (rf"s/{TOKEN}/3d/{TASK}/", link_3d),
+        ])
 
     def api_mount_points(self):
         base = rf"s/{TOKEN}/tasks/{TASK}/"

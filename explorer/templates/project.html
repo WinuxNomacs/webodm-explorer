@@ -21,7 +21,8 @@
     <div id="explorer-share" class="explorer-share theme-border-secondary-07" hidden>
         <label for="explorer-share-link">{% trans "Link for WebODM Users" %}</label>
         <div class="input-group">
-            <input id="explorer-share-link" class="form-control" type="text" readonly value="{{ request.path }}">
+            <input id="explorer-share-link" class="form-control" type="text" readonly autocomplete="off"
+                   data-path="{{ request.path }}" value="{{ request.path }}">
             <span class="input-group-btn">
                 <button type="button" class="btn btn-default" data-explorer-copy data-copied="{% trans "Copied" %}">
                     <i class="fa fa-copy"></i> {% trans "Copy" %}
@@ -36,6 +37,7 @@
              data-untitled="{% trans "Untitled Link" %}" data-never="{% trans "Never expires" %}"
              data-expires="{% trans "Expires %(date)s" %}" data-none="{% trans "No links yet." %}"
              data-downloads="{% trans "Allow Downloads" %}"
+             data-open="{% trans "Open" %}" data-open-title="{% trans "Open the link as visitors see it" %}"
              data-error="{% trans "Something went wrong. Try again." %}">
             <h4>{% trans "Anyone with the Link" %}</h4>
             <p class="explorer-card-text">{% trans "Anyone with one of these links can open this project's maps and 3D views without signing in, until the link expires or is revoked. With Allow Downloads, they can also download the orthophoto, elevation models, point cloud and textured model." %}</p>

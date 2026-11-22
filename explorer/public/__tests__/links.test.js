@@ -20,6 +20,7 @@ function render(responses) {
             <div class="explorer-links" data-links-api="${API}" data-copy="Copy" data-copied="Copied" data-revoke="Revoke"
                  data-confirm-revoke="Revoke?" data-untitled="Untitled Link" data-never="Never expires"
                  data-expires="Expires %(date)s" data-none="No links yet." data-downloads="Allow Downloads"
+                 data-open="Open" data-open-title="Open the link as visitors see it"
                  data-error="Something went wrong.">
                 <div class="explorer-links-list"></div>
                 <form class="explorer-link-form">
@@ -55,6 +56,16 @@ test("the panel lists the project's links with their full address and expiry", a
     expect(rows[0].textContent).toContain("Expires ");
     expect(rows[1].textContent).toContain("Untitled Link");
     expect(rows[1].textContent).toContain("Never expires");
+});
+
+test("each link opens in a new tab as visitors see it", async () => {
+    const { list } = render([json(200, [LINK])]);
+    await settle();
+    const open = list.querySelector(".explorer-link a");
+    expect(open.textContent).toBe("Open");
+    expect(open.getAttribute("href")).toBe(LINK.path);
+    expect(open.target).toBe("_blank");
+    expect(open.rel).toBe("noopener noreferrer");
 });
 
 test("a project without links says so", async () => {

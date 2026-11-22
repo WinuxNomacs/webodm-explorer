@@ -26,6 +26,18 @@ test("the link shown is the page's full address", () => {
     expect(input.value).toBe(window.location.origin + "/plugins/explorer/project/7/");
 });
 
+test("a field the browser restored with the full address doesn't get the origin twice", () => {
+    document.body.innerHTML = `
+        <button type="button" data-explorer-share aria-expanded="false">Share</button>
+        <div id="explorer-share" hidden>
+            <input type="text" readonly data-path="/plugins/explorer/project/7/"
+                   value="${window.location.origin}/plugins/explorer/project/7/">
+            <button type="button" data-explorer-copy data-copied="Copied">Copy</button>
+        </div>`;
+    init(document);
+    expect(document.querySelector("input").value).toBe(window.location.origin + "/plugins/explorer/project/7/");
+});
+
 test("the Share button opens and closes the panel and says whether it is open", () => {
     const { share, panel } = render();
     share.click();

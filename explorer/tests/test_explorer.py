@@ -73,6 +73,23 @@ class ExplorerTestCase(BootTestCase):
         self.assertContains(response, f'href="/plugins/explorer/project/{self.other_project.id}/"')
         self.assertEqual(self.page(self.other_project).status_code, 200)
 
+    def test_a_page_address_without_its_trailing_slash_redirects_to_it(self):
+        client = self.client_for("testuser")
+        response = client.get(f"/plugins/explorer/project/{self.project.id}")
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], f"/plugins/explorer/project/{self.project.id}/")
+        token = "A" * 43
+        task = "358acbe0-a940-46c7-95f3-bbc53f3c2620"
+        for path in (f"s/{token}", f"s/{token}/map/{task}", f"s/{token}/3d/{task}"):
+            response = client.get(f"/plugins/explorer/{path}?t=mesh")
+            self.assertEqual(response.status_code, 302, path)
+            self.assertEqual(response["Location"], f"/plugins/explorer/{path}/?t=mesh")
+        # The plugin's public files are still served (their paths have no trailing slash)
+        self.assertEqual(client.get("/plugins/explorer/explorer.js").status_code, 200)
+
+    def test_the_share_field_keeps_the_page_path_for_the_script(self):
+        self.assertContains(self.page(), f'data-path="/plugins/explorer/project/{self.project.id}/"')
+
     def test_the_project_list_counts_tasks_with_outputs_and_uses_an_orthophoto_for_its_thumbnail(self):
         task = self.task("With Ortho", ["orthophoto.tif"])
         self.task("Point Cloud Only", ["georeferenced_model.laz"])

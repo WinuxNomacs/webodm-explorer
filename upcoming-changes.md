@@ -369,6 +369,16 @@ Checked in WebODM v4.0.1's code:
 
 ## Done
 
+- **Fixes the user reported** (2026-11-21): the Share panel's Link for WebODM Users showed the origin twice
+  (`explorer.js` prepended it to the field's value, which a browser restoring the field on reload or back already
+  holds: now from a `data-path` attribute, with `autocomplete="off"`; the doubling itself was not reproduced in
+  headless Chromium); a page address without its trailing slash answered 404 (WebODM's plugin routing has no
+  APPEND_SLASH and falls through to the public files: every page now also has a slashless mount point that
+  redirects, keeping the query string, `plugin.py` `with_and_without_slash`). Added at the user's request: **Open**
+  on each link in the Share panel opens the link page in a new tab, as visitors see it. Tests:
+  `explorer/tests/test_explorer.py`, `explorer/public/__tests__/{explorer,links}.test.js`; checked live (reload,
+  back, slashless project and link pages, Open).
+
 - **On-demand mesh tiling and 3D Tiles** (2026-11-21):
   - Code: `explorer/tiles_build.py` (the worker's build: Obj2Tiles, then gltfpack on every tile with the root
     simplified to a quarter; one build at a time, at the lowest CPU priority, with a deadline, a stall limit,
