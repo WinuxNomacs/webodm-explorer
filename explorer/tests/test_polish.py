@@ -6,6 +6,7 @@ docker exec -w /webodm ex-webapp python manage.py test --noinput coreplugins.exp
 import os
 import re
 import shutil
+import tempfile
 from datetime import timedelta
 
 from app.tests.classes import BootTestCase
@@ -162,3 +163,38 @@ class KeepCameraTests(LinkTestMixin, BootTestCase):
             self.coords(text)
             self.assertIsNone(pages.model_offset(self.full), text)
             self.assertNotIn("data-offset", self.page(), text)
+
+
+class AssetVersionTests(LinkTestMixin, BootTestCase):
+    """Explorer's own scripts carry ?v=, so a browser never runs a cached module beside a newer one."""
+    def test_every_page_asks_for_explorers_own_files_with_the_current_version(self):
+        full = self.task("Full")
+        own = f"/plugins/explorer/project/{self.project.id}/"
+        token = self.link()["token"]
+        version = pages.asset_version()
+        client = self.client_for("testuser")
+        for path, viewer in (("/plugins/explorer/", client), (own, client), (f"{own}3d/{full.id}/", client),
+                             (f"{own}map/{full.id}/", client), (f"/plugins/explorer/s/{token}/", Client()),
+                             (f"/plugins/explorer/s/{'A' * 43}/", Client())):
+            html = viewer.get(path).content.decode()
+            # Script and stylesheet URLs (not the import map's keys, which name the bare URLs)
+            files = re.findall(r'"/plugins/explorer/((?:viewer/)?[a-z-]+\.(?:js|css))(\?v=\w+)?"(?!:)', html)
+            self.assertTrue(files, path)
+            self.assertEqual({suffix for _name, suffix in files}, {f"?v={version}"}, path)
+        html = client.get(f"{own}3d/{full.id}/").content.decode()
+        # The viewer's own module imports, through the import map
+        self.assertIn(f'"/plugins/explorer/viewer/ept.js": "/plugins/explorer/viewer/ept.js?v={version}"', html)
+        self.assertIn(f'"/plugins/explorer/viewer/backdrop.js": "/plugins/explorer/viewer/backdrop.js?v={version}"', html)
+
+    def test_the_version_changes_when_a_file_does(self):
+        with tempfile.TemporaryDirectory() as folder:
+            os.makedirs(os.path.join(folder, "viewer"))
+            module = os.path.join(folder, "viewer", "ept.js")
+            with open(module, "w") as f:
+                f.write("old")
+            before = pages.asset_version(folder)
+            self.assertEqual(pages.asset_version(folder), before)
+            with open(module, "w") as f:
+                f.write("newer")
+            self.assertNotEqual(pages.asset_version(folder), before)
+        self.assertTrue(pages.asset_version("/no/such/folder"))

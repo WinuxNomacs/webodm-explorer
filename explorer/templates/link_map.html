@@ -4,7 +4,7 @@
 {% block extra-headers %}<meta name="robots" content="noindex, nofollow">
 {% include meta_template %}
 <link rel="stylesheet" href="{{ public }}vendor/leaflet-1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="{{ public }}explorer.css">{% endblock %}
+<link rel="stylesheet" href="{{ public }}explorer.css?v={{ v }}">{% endblock %}
 
 {% block content %}
 {% if preview %}{% include preview_template %}{% endif %}
@@ -59,8 +59,8 @@
 {{ bands|json_script:"explorer-bands" }}
 {{ basemaps|json_script:"explorer-basemaps" }}
 <script src="{{ public }}vendor/leaflet-1.9.4/dist/leaflet.js"></script>
-<script src="{{ public }}linkpage.js"></script>
-<script src="{{ public }}layers.js"></script>
-<script src="{{ public }}viewer-controls.js"></script>
-<script src="{{ public }}map.js"></script>
+<script src="{{ public }}linkpage.js?v={{ v }}"></script>
+<script src="{{ public }}layers.js?v={{ v }}"></script>
+<script src="{{ public }}viewer-controls.js?v={{ v }}"></script>
+<script src="{{ public }}map.js?v={{ v }}"></script>
 {% endblock %}

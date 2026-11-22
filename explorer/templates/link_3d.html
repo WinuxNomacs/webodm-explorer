@@ -3,15 +3,17 @@
 
 {% block extra-headers %}<meta name="robots" content="noindex, nofollow">
 {% include meta_template %}
-<link rel="stylesheet" href="{{ public }}explorer.css">
-{# Before any module script. The versions match dev/vendor.sh. #}
+<link rel="stylesheet" href="{{ public }}explorer.css?v={{ v }}">
+{# Before any module script. The versions match dev/vendor.sh; Explorer's own modules carry ?v= (pages.asset_version). #}
 <script type="importmap">
 {"imports": {
     "three": "{{ public }}vendor/three-0.187.0/build/three.module.js",
     "three/addons/": "{{ public }}vendor/three-0.187.0/examples/jsm/",
     "@sparkjsdev/spark": "{{ public }}vendor/spark-2.4.0/dist/spark.module.min.js",
     "3d-tiles-renderer/three": "{{ public }}vendor/3d-tiles-renderer-0.5.4/build/index.three.js",
-    "3d-tiles-renderer/three/plugins": "{{ public }}vendor/3d-tiles-renderer-0.5.4/build/index.three-plugins.js"
+    "3d-tiles-renderer/three/plugins": "{{ public }}vendor/3d-tiles-renderer-0.5.4/build/index.three-plugins.js",
+    "{{ public }}viewer/ept.js": "{{ public }}viewer/ept.js?v={{ v }}",
+    "{{ public }}viewer/backdrop.js": "{{ public }}viewer/backdrop.js?v={{ v }}"
 }}
 </script>{% endblock %}
 
@@ -20,7 +22,7 @@
 <div class="explorer-viewer-page theme-secondary{% if embed %} explorer-embedded{% endif %}" data-explorer-viewer data-initial="{{ initial }}" data-link="{{ link_path }}"
      data-draco="{{ public }}vendor/three-0.187.0/examples/jsm/libs/draco/gltf/"
      data-basis="{{ public }}vendor/three-0.187.0/examples/jsm/libs/basis/"
-     data-ept-worker="{{ public }}ept-worker.js" data-ept-decode="{{ public }}ept-decode.js"
+     data-ept-worker="{{ public }}ept-worker.js?v={{ v }}" data-ept-decode="{{ public }}ept-decode.js?v={{ v }}"
      data-lazperf="{{ public }}vendor/laz-perf-0.0.7/lib/worker/laz-perf.js"
      data-lazperf-wasm="{{ public }}vendor/laz-perf-0.0.7/lib/worker/laz-perf.wasm"
      {% if offset %}data-offset="{{ offset }}"{% endif %}
@@ -104,11 +106,11 @@
         </div>
     </div>
 </div>
-<script src="{{ public }}linkpage.js"></script>
-<script src="{{ public }}layers.js"></script>
-<script src="{{ public }}viewer-controls.js"></script>
-<script src="{{ public }}viewer-ui.js"></script>
-<script src="{{ public }}ept-tree.js"></script>
-<script src="{{ public }}frame.js"></script>
-<script type="module" src="{{ public }}viewer/scene.js"></script>
+<script src="{{ public }}linkpage.js?v={{ v }}"></script>
+<script src="{{ public }}layers.js?v={{ v }}"></script>
+<script src="{{ public }}viewer-controls.js?v={{ v }}"></script>
+<script src="{{ public }}viewer-ui.js?v={{ v }}"></script>
+<script src="{{ public }}ept-tree.js?v={{ v }}"></script>
+<script src="{{ public }}frame.js?v={{ v }}"></script>
+<script type="module" src="{{ public }}viewer/scene.js?v={{ v }}"></script>
 {% endblock %}
