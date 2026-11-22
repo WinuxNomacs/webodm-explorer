@@ -33,7 +33,7 @@ from concurrent.futures import ThreadPoolExecutor
 logger = logging.getLogger("app.logger")
 
 # Bumped when the tools or their options change: a new build id, so no browser keeps tiles of the old build
-PIPELINE = 1
+PIPELINE = 3
 # Octree tiles, decimated levels of detail with textures halved per coarser level, KTX2 textures, unlit (the
 # textures are baked photographs), local coordinates (the OBJ's, as WebODM's GLB), machine-readable progress
 OBJ2TILES_ARGS = ["--preset", "standard", "--local", "--glb", "--unlit", "--progress", "--texture-format", "Ktx2"]
@@ -137,8 +137,8 @@ def decide(state, fp, now, built=lambda build: True):
     age = now - state["updated"]
     if state["state"] == "ready":
         build = state.get("build")
-        return ("ready", build) if same and isinstance(build, str) and BUILD_ID.match(build) and built(build) \
-            else ("queue", None)
+        # A build of an older pipeline is replaced too
+        return ("ready", build) if same and build == build_id(fp) and built(build) else ("queue", None)
     if state["state"] == "queued":
         return ("building", None) if same and age < QUEUE_STALE else ("queue", None)
     if state["state"] == "building":
@@ -309,7 +309,8 @@ def run(root, task_id, obj_path, tools_dir, now=time.time):
     with task_lock(root, task_id):
         state = read_state(root, task_id)
         if state and state["fingerprint"] == fp and (
-                (state["state"] == "ready" and os.path.isfile(os.path.join(folder, str(state.get("build")), "tileset.json")))
+                (state["state"] == "ready" and state.get("build") == build
+                 and os.path.isfile(os.path.join(folder, build, "tileset.json")))
                 or (state["state"] == "building" and now() - state.get("heartbeat", 0) < HEARTBEAT_STALE)):
             return {"state": state["state"], "skipped": True}
         write_state(root, task_id, {"state": "building", "fingerprint": fp, "updated": now(), "heartbeat": now()})

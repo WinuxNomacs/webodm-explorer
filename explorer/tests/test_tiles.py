@@ -231,6 +231,12 @@ class StateTests(unittest.TestCase):
         queued = {"state": "queued", "fingerprint": "1-1", "updated": now - build.QUEUE_STALE - 1}
         self.assertEqual(build.decide(queued, "1-1", now), ("queue", None))
 
+    def test_a_build_of_an_older_pipeline_is_replaced(self):
+        old = {"state": "ready", "fingerprint": "1-1", "updated": time.time(), "build": "0123456789abcdef"}
+        self.assertEqual(build.decide(old, "1-1", time.time()), ("queue", None))
+        current = dict(old, build=build.build_id("1-1"))
+        self.assertEqual(build.decide(current, "1-1", time.time()), ("ready", build.build_id("1-1")))
+
     def test_a_ready_build_whose_folder_is_gone_is_built_again(self):
         state = {"state": "ready", "fingerprint": "1-1", "updated": time.time(), "build": "0123456789abcdef"}
         build.write_state(self.root, self.task, state)

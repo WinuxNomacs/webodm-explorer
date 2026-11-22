@@ -176,6 +176,10 @@ function createScene(container, options) {
         opened.lruCache.minBytesSize = options.tiles.memory * 0.75;
         opened.setCamera(camera);
         opened.setResolutionFromRenderer(camera, renderer);
+        // Obj2Tiles 1.10.3 --local keeps the OBJ's Z-up coordinates in its glTF tiles, and writes bounding volumes that
+        // match them once turned as glTF's Y-up is: the renderer turns both, so turning the group back puts the model
+        // Z-up as WebODM's GLB, with tiles and their bounds still agreeing (checked on the user's meshes, 2026-11-21)
+        opened.group.rotation.x = -Math.PI / 2;
         return new Promise((resolve, reject) => {
             let shown = false;
             const timer = setTimeout(() => fail(new Error("the mesh tiles took too long")), TILES_TIMEOUT_MS);
@@ -185,13 +189,30 @@ function createScene(container, options) {
                 scene.remove(opened.group);
                 reject(error);
             }
+            // Frame on the tileset's bounds first: tiles outside the camera's view are never loaded, the root included
+            let bounds = null;
+            opened.addEventListener("load-root-tileset", () => {
+                const box = new THREE.Box3();
+                opened.group.updateMatrixWorld(true);
+                if (opened.getBoundingBox(box)) {
+                    bounds = box.applyMatrix4(opened.group.matrixWorld);
+                    frame(bounds);
+                }
+            });
             opened.addEventListener("load-model", (event) => {
                 if (shown) return;
                 shown = true;
                 clearTimeout(timer);
                 tiles = opened;
                 opened.group.updateMatrixWorld(true);
-                resolve({ object: opened.group, box: meshFrameBox(event.scene) });
+                // Then on the root tile's points, as the GLB (stray fragments ignored); any other tile is a corner only
+                const root = /\/root\.glb$/.test(event.url || "");
+                if (!root && bounds) return resolve({ object: opened.group, box: bounds });
+                // The tile may not be in the (turned) group yet: its box then needs the group's turn added
+                const box = meshFrameBox(event.scene);
+                let attached = false;
+                for (let node = event.scene.parent; node; node = node.parent) attached = attached || node === opened.group;
+                resolve({ object: opened.group, box: attached ? box : box.applyMatrix4(opened.group.matrixWorld) });
             });
             opened.addEventListener("load-error", (event) => {
                 const status = event.error instanceof HttpError ? event.error.status : null;
@@ -280,7 +301,8 @@ function createScene(container, options) {
         if (current === "mesh" && tiles) {
             const s = tiles.stats;
             return { tiles: true, visible: tiles.visibleTiles.size, loaded: s.loaded, downloading: s.downloading,
-                parsing: s.parsing, failed: s.failed, bytes: tiles.lruCache.cachedBytes };
+                parsing: s.parsing, failed: s.failed, bytes: tiles.lruCache.cachedBytes,
+                camera: camera.position.toArray().map(Math.round), target: controls.target.toArray().map(Math.round) };
         }
         return cloud ? { ...cloud.shown, loaded: cloud.loaded.size, failed: cloud.failed.size } : null;
     }
