@@ -2,7 +2,7 @@
  * The 3D scene of a link's 3D page: three.js with orbit controls, the EPT point cloud streamed by ept.js, the textured
  * model as 3D Tiles streamed by 3DTilesRendererJS once Explorer has built them (tiles_build.py) or else WebODM's Draco
  * GLB, and its Gaussian splats with Spark (paged, as WebODM's own 3D page loads them). One type shows at a time,
- * framed to fit. viewer-ui.js owns the page around it.
+ * framed to fit, over the background chosen (backdrop.js). viewer-ui.js owns the page around it.
  */
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
@@ -13,6 +13,7 @@ import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 import { SparkRenderer, SplatMesh } from "@sparkjsdev/spark";
 import { TilesRenderer } from "3d-tiles-renderer/three";
 import { GLTFExtensionsPlugin, TilesFadePlugin } from "3d-tiles-renderer/three/plugins";
+import { createBackdrop } from "./backdrop.js";
 import { EptCloud, FETCH_TIMEOUT_MS, HttpError, withRetry } from "./ept.js";
 
 // A paged splat file's bounds fill in as its first pages arrive
@@ -102,7 +103,7 @@ function tilesFetch(url, options) {
 }
 
 // options: {draco (the decoder's folder), basis (the KTX2 transcoder's folder), cloud: {scripts, budget} for ept.js,
-// tiles: {memory (bytes of tiles kept)}}
+// tiles: {memory (bytes of tiles kept)}, small: a phone}
 function createScene(container, options) {
     // Throws where WebGL 2 is unavailable (three.js needs it)
     const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true });
@@ -116,6 +117,7 @@ function createScene(container, options) {
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     scene.add(new SparkRenderer({ renderer }));
+    const backdrop = createBackdrop(scene, renderer, camera, { small: options.small });
 
     const dracoLoader = new DRACOLoader().setDecoderPath(options.draco);
     const gltfLoader = new GLTFLoader().setDRACOLoader(dracoLoader);
@@ -156,6 +158,7 @@ function createScene(container, options) {
         camera.updateProjectionMatrix();
         controls.target.copy(center);
         controls.update();
+        backdrop.fit(box);
     }
 
     // Reset View: the shown view framed again
@@ -364,6 +367,7 @@ function createScene(container, options) {
             camera.updateMatrixWorld();
             tiles.update();
         }
+        backdrop.update();
         renderer.render(scene, camera);
     });
 
@@ -388,7 +392,7 @@ function createScene(container, options) {
         return cloud ? cloud.elevationRange() : null;
     }
 
-    return { show, resize, stats, reset, setCloudStyle, cloudRange, pick };
+    return { show, resize, stats, reset, setCloudStyle, cloudRange, pick, setBackground: backdrop.set };
 }
 
 const page = document.querySelector("[data-explorer-viewer]");
@@ -399,6 +403,7 @@ if (page && window.ExplorerViewer) {
             draco: page.getAttribute("data-draco"),
             basis: page.getAttribute("data-basis"),
             tiles: { memory: window.ExplorerViewer.tilesMemory },
+            small: window.ExplorerViewer.small,
             cloud: {
                 budget: window.ExplorerViewer.pointBudget,
                 scripts: {

@@ -88,7 +88,7 @@ test("Previous / Next follow the view shown, falling back to the other task's fi
 function fakeScene(range) {
     const calls = [];
     return {
-        calls, resize: jest.fn(), reset: jest.fn(), setCloudStyle: jest.fn(), cloudRange: () => range,
+        calls, resize: jest.fn(), reset: jest.fn(), setCloudStyle: jest.fn(), setBackground: jest.fn(), cloudRange: () => range,
         show: jest.fn((type) => new Promise((resolve, reject) => calls.push({type, resolve, reject}))),
     };
 }

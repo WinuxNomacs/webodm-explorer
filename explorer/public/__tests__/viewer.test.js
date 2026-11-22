@@ -19,6 +19,7 @@ function fakeScene() {
     return {
         calls,
         resize: jest.fn(),
+        setBackground: jest.fn(),
         show: jest.fn((type, url, onProgress, onFailure, fallback) => new Promise((resolve, reject) => {
             calls.push({type, url, onProgress, onFailure, fallback, resolve, reject});
         })),

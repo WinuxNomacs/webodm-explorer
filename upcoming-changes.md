@@ -2,7 +2,7 @@
 
 ## Phases (current and upcoming)
 
-Up next: **3D backgrounds** (the request 2026-11-22, plan below): Grid, Sky or Space behind the 3D views.
+Up next: nothing planned. **3D backgrounds** (the request 2026-11-22) is built (see "Done").
 
 Built: **Explorer UX: the project hub** (the request 2026-11-21, plan below) is built, all four
 steps (see "Done"). Its steps, each a phase: 1. defects (single-band colours and legend, thumbnail fallback, 3D
@@ -538,7 +538,7 @@ Builds on the 3D page (`explorer/templates/link_3d.html`, `explorer/public/viewe
 View as Visitor and the signed-in viewer. Today the canvas is transparent (`alpha: true`), so the page's theme colour
 (white in WebODM's default theme) shows behind the model. The 2D map page is not affected (its basemap fills it).
 
-### Plan: 3D backgrounds (decided 2026-11-22)
+### Plan: 3D backgrounds (decided 2026-11-22, built: see "Done")
 
 - **Where:** a Background button (picture icon) in the 3D page's bar, in the View Controls group beside Reset View,
   Fullscreen and Controls; it opens a small menu: Grid, Sky, Space, Plain (today's look: the page's theme colour). Each visitor's choice is
@@ -559,6 +559,22 @@ View as Visitor and the signed-in viewer. Today the canvas is transparent (`alph
   as they are.
 
 ## Done
+
+- **3D backgrounds** (2026-11-22, branch `viewer-backgrounds`):
+  - Code: `explorer/public/viewer/backdrop.js` (new: the grid's shader plane fitted under the framed box, with its
+    spacing from the model's width and its line positions taken from the centre's remainder so projected coordinates
+    keep their precision; Sky and Space baked once into a half-float cube texture, 512 per face, 256 on phones; the
+    stars as points drawn first, around the camera), `explorer/public/viewer/scene.js` (`setBackground`, the grid
+    fitted in `frame`), `explorer/public/viewer-ui.js` (`backgroundMenu`, `backgroundChoice`, remembered as
+    `explorer-background`), `explorer/public/viewer-controls.js` (`keys`: more shortcuts, B here),
+    `explorer/templates/link_3d.html` (the Background menu, B in the Controls help).
+  - Tests: `explorer/tests/test_polish.py` `BackgroundMenuTests` (Django: every 3D page, the embed included, and none
+    on the map), `explorer/public/__tests__/background.test.js` (Jest: the default, picking and remembering, B).
+  - Live check (headless Chromium on Metal, the user's task 358acbe0, signed in and View as Visitor): each background
+    on the point cloud, the mesh tiles and the splats; frames steady at 16.7 ms (p95 16.8, max 16.8) with every
+    background on every view, as with Plain; the splats draw over the grid and the model hides it; at phone width
+    the menu opens in the bar, B steps through the choices, the visitor's bar stays one row, no sideways scroll. Not
+    checked: a real phone's GPU.
 
 - **UX step 4: showcase** (2026-11-22, branch `ux-showcase`):
   - Code: `explorer/plugin.py` (`no_framing` and `signed_in_page`: `X-Frame-Options: SAMEORIGIN` and
