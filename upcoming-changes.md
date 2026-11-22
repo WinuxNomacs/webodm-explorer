@@ -2,7 +2,7 @@
 
 ## Phases (current and upcoming)
 
-Up next: **Explorer UX: the project hub** (the request 2026-11-21, plan below; decisions open: basemap on link maps).
+Up next: **Explorer UX: the project hub** (the request 2026-11-21, plan below). Building step 1 (branch `ux-defects`).
 Its steps, each a phase: 1. defects (single-band colours and legend, thumbnail fallback, 3D framing); 2. navigation
 hub (home and project pages); 3. Explorer's viewer for signed-in users, with Open in WebODM; 4. viewer polish;
 5. showcase (link landing page, embed).
@@ -394,7 +394,30 @@ The user's answers (2026-11-21):
 - **Admins see every project** in Explorer.
 - **"Editing" means Open in WebODM**: where sensible, each view offers Open in WebODM 2D or 3D for its tools
   (measurement and the rest); no editing in Explorer.
-- **Basemap on link maps:** open, the user asked for the risks of always showing one (answered 2026-11-21).
+- **Basemap on link maps** (the user, 2026-11-21, Claude's recommendation after the risks: visitors' IP and the
+  site's location go to the provider, providers' terms, offline installs, misalignment): on by default with a
+  Basemap switch and the providers' credits, from the basemaps the admin configured in WebODM (Administration,
+  Basemaps; WebODM ships Google Maps Hybrid as default, ESRI Satellite, OpenStreetMap), and an admin setting in
+  Explorer that turns basemaps off on links. **Approved WebODM internal:** `app.models.Basemap.get_cached_basemaps()`
+  (no API exposes the list); a test imports it.
+
+### Plan: UX step 1, defects and the basemap (decided 2026-11-21)
+
+- **Thermal layer and legends.** An orthophoto with two bands (one value and alpha, as WebODM's Map.jsx tests it)
+  gets a Thermal layer as WebODM draws it (`formula=Celsius`, `bands=L`, `color_map=magma`). DSM, DTM and Thermal
+  get a legend: the colour ramp from the metadata's `color_maps` and the stretched range, with a unit switch
+  (m/ft, °C/°F) remembered in the browser.
+- **Thumbnail fallback.** WebODM's thumbnail API answers 404 for an orthophoto of fewer than three bands
+  (`TaskThumbnail`). A card whose thumbnail fails draws one from the task's tiles instead (the Thermal or DSM
+  colours, up to four 256 px tiles on a canvas, off the critical path), else keeps the placeholder icon. Same on the
+  Explorer home's project cards.
+- **3D framing.** The 2 % per-axis trim still frames the stray fragments of HomerunObliqueRGB. Frame on the median
+  centre and the radius holding most of the sampled points instead; checked on the user's meshes, splats and clouds.
+- **Basemap.** As decided above: the link and Preview map pages get the admin's basemaps (TMS and WMS) under the
+  layer, a Basemap switch with None, credits, and the default basemap on; an admin-only Settings panel on the
+  Explorer home holds "Basemaps on Links" (on), stored in the plugin's `GlobalDataStore`.
+- What fails, and what happens: a basemap provider down or blocked shows the layer on grey (tile errors are not
+  page errors); metadata for the legend failing hides the legend only; a tile failing in a thumbnail keeps the icon.
 
 ## Done
 

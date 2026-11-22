@@ -18,9 +18,10 @@ public: nothing private, nothing true only on one machine. Keep it short; edit i
     in `app/static/app/js/classes/plugins/` (`App.ready`, `Dashboard.*`, `Map.*`, `ModelView.addActionButton`,
     `SharePopup.addLinkControl`, `Workers.*`). No Django models or migrations (data goes in the plugin's data
     stores, `GlobalDataStore` and `UserDataStore`, which store it unencrypted).
-  - One approved exception: share-link views subclass WebODM's tile, asset, safe textured model and download API
+  - Approved exceptions: share-link views subclass WebODM's tile, asset, safe textured model and download API
     views (`app/api/tiler.py`, `app/api/tasks.py`) and override only `get_and_check_task` with the link's token check (`upcoming-changes.md`,
-    decision D1). Tests import those classes, so a WebODM release that changes them fails the tests. No other
+    decision D1). A second: the link map's basemaps come from `app.models.Basemap.get_cached_basemaps()`
+    (the user, 2026-11-21). Tests import those classes, so a WebODM release that changes them fails the tests. No other
     WebODM internals without the user's approval.
   - **No changes to WebODM itself; avoid pull requests to it.** A feature that needs a hook WebODM lacks is
     reported to the user first, with the ways to do without it; a pull request to WebODM is made only after the
