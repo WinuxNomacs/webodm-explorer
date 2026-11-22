@@ -2,19 +2,74 @@
 {% load i18n %}
 
 {% block extra-headers %}<meta name="robots" content="noindex, nofollow">
-<link rel="stylesheet" href="{{ public }}explorer.css">{% endblock %}
+{% include meta_template %}
+{% if footprints %}<link rel="stylesheet" href="{{ public }}vendor/leaflet-1.9.4/dist/leaflet.css">
+{% endif %}<link rel="stylesheet" href="{{ public }}explorer.css">{% endblock %}
 
 {% block content %}
 {% if preview %}{% include preview_template %}{% endif %}
-<div class="explorer explorer-public">
+<div class="explorer explorer-public{% if embed %} explorer-embedded{% endif %}">
+    {% if cover %}{% with task=cover.task picture=cover.picture %}
+    {# The landing page's cover: the newest task's picture and its views, the project's name, description and facts #}
+    <div class="explorer-cover theme-border-secondary-07">
+        <a class="explorer-cover-picture" href="{{ cover.open }}" tabindex="-1" aria-hidden="true">
+        {% if picture.webodm %}
+        <img class="explorer-thumbnail" fetchpriority="high" alt="" data-placeholder-icon="fa fa-cube"
+             src="{{ thumbnails }}{{ task.id }}/thumbnail?size=1024"{% if picture.draw %}
+             data-draw="{{ picture.draw }}" data-api="{{ thumbnails }}{{ task.id }}/"{% if task.crop %} data-crop="1"{% endif %}{% endif %}>
+        {% else %}
+        <div class="explorer-thumbnail explorer-no-thumbnail theme-border-secondary-07"{% if picture.draw %}
+             data-draw="{{ picture.draw }}" data-api="{{ thumbnails }}{{ task.id }}/"{% if task.crop %} data-crop="1"{% endif %}{% endif %}><i class="fa fa-cube"></i></div>
+        {% endif %}
+        </a>
+        <div class="explorer-cover-body">
+            <h2 class="explorer-cover-title">{{ project.name }}</h2>
+            {% if project.description %}<p class="explorer-cover-text">{{ project.description }}</p>{% endif %}
+            <p class="explorer-card-text">
+                {% blocktrans count count=facts.tasks %}{{ count }} task{% plural %}{{ count }} tasks{% endblocktrans %}{% if facts.images %} &middot; {% blocktrans count count=facts.images %}{{ count }} image{% plural %}{{ count }} images{% endblocktrans %}{% endif %}
+                &middot; {% blocktrans with date=facts.updated|date:"DATE_FORMAT" %}Updated {{ date }}{% endblocktrans %}
+            </p>
+            <div class="explorer-card-text explorer-cover-task">{% if task.name %}{{ task.name }}{% else %}{% trans "Unnamed Task" %}{% endif %} &middot; {{ task.created_at|date:"DATE_FORMAT" }}</div>
+            <div class="explorer-outputs">
+                {% for output in cover.outputs %}
+                <a class="btn {% if forloop.first %}btn-primary{% else %}btn-default{% endif %}" href="{{ output.url }}"{% if output.detail %} title="{{ output.detail }}"{% endif %}><i class="{{ output.icon }}"></i> {{ output.label }}</a>
+                {% endfor %}
+                {% if cover.downloads %}
+                <div class="btn-group">
+                    <button type="button" class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <i class="fa fa-download"></i> {% trans "Download" %} <span class="caret"></span>
+                    </button>
+                    <ul class="dropdown-menu">
+                        {% for file in cover.downloads %}
+                        <li><a href="{{ file.url }}" download><i class="{{ file.icon }} fa-fw"></i> {{ file.label }}</a></li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endwith %}
+    {% if footprints %}
+    <details class="explorer-overview" open>
+        <summary>{% trans "Overview Map" %}</summary>
+        <div class="explorer-footprint-map theme-border-secondary-07" data-explorer-footprints="tasks"></div>
+    </details>
+    {{ footprints|json_script:"explorer-footprints" }}
+    {{ basemaps|json_script:"explorer-basemaps" }}
+    {% endif %}
+    {% if cards %}
+    <h4 class="explorer-more-tasks">{% trans "More Tasks" %}</h4>
+    {% include cards_template %}
+    {% endif %}
+    {% else %}
     <h3>{{ project.name }}</h3>
     {% if project.description %}<p>{{ project.description }}</p>{% endif %}
-    {% if cards %}
-    {% include cards_template %}
-    {% else %}
     <p>{% trans "Nothing to show here yet." %}</p>
     {% endif %}
 </div>
+{% if footprints %}<script src="{{ public }}vendor/leaflet-1.9.4/dist/leaflet.js"></script>{% endif %}
 <script src="{{ public }}layers.js"></script>
+{% if footprints %}<script src="{{ public }}footprints.js"></script>{% endif %}
 <script src="{{ public }}explorer.js"></script>
 {% endblock %}

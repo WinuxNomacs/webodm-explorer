@@ -2,12 +2,13 @@
 {% load i18n %}
 
 {% block extra-headers %}<meta name="robots" content="noindex, nofollow">
+{% include meta_template %}
 <link rel="stylesheet" href="{{ public }}vendor/leaflet-1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="{{ public }}explorer.css">{% endblock %}
 
 {% block content %}
 {% if preview %}{% include preview_template %}{% endif %}
-<div class="explorer-viewer-page theme-secondary" data-explorer-map data-api="{{ api }}{{ task.id }}/" data-link="{{ link_path }}"
+<div class="explorer-viewer-page theme-secondary{% if embed %} explorer-embedded{% endif %}" data-explorer-map data-api="{{ api }}{{ task.id }}/" data-link="{{ link_path }}"
      data-crop="{{ crop|yesno:"1," }}"
      data-loading="{% trans "Loading..." %}"
      data-invalid="{% trans "This link is no longer valid." %}"
@@ -15,11 +16,17 @@
      data-unit-switch="{% trans "Switch units" %}">
     <div class="explorer-viewer-bar">
         <div class="explorer-viewer-title">
+            {% if embed %}
+            {# An embed: the link's own page in a new tab, out of the host site #}
+            <a href="{{ link_path }}" target="_blank" rel="noopener">{{ project.name }} / {% if task.name %}{{ task.name }}{% else %}{% trans "Unnamed Task" %}{% endif %}
+                <i class="fa fa-external-link-alt" title="{% trans "Open Full View" %}"></i><span class="sr-only"> {% trans "Open Full View" %}</span></a>
+            {% else %}
             <a href="{{ link_path }}"><i class="fa fa-arrow-left"></i> {{ project.name }}</a> /
             {% if task.name %}{{ task.name }}{% else %}{% trans "Unnamed Task" %}{% endif %}
+            {% endif %}
         </div>
         <div class="explorer-viewer-tools">
-        {% include neighbours_template %}
+        {% if not embed %}{% include neighbours_template %}{% endif %}
         {% if layers|length > 1 %}
         <div class="btn-group" role="group" aria-label="{% trans "Layer" %}">
             {% for layer in layers %}

@@ -2,6 +2,7 @@
 {% load i18n %}
 
 {% block extra-headers %}<meta name="robots" content="noindex, nofollow">
+{% include meta_template %}
 <link rel="stylesheet" href="{{ public }}explorer.css">
 {# Before any module script. The versions match dev/vendor.sh. #}
 <script type="importmap">
@@ -16,7 +17,7 @@
 
 {% block content %}
 {% if preview %}{% include preview_template %}{% endif %}
-<div class="explorer-viewer-page theme-secondary" data-explorer-viewer data-initial="{{ initial }}" data-link="{{ link_path }}"
+<div class="explorer-viewer-page theme-secondary{% if embed %} explorer-embedded{% endif %}" data-explorer-viewer data-initial="{{ initial }}" data-link="{{ link_path }}"
      data-draco="{{ public }}vendor/three-0.187.0/examples/jsm/libs/draco/gltf/"
      data-basis="{{ public }}vendor/three-0.187.0/examples/jsm/libs/basis/"
      data-ept-worker="{{ public }}ept-worker.js" data-ept-decode="{{ public }}ept-decode.js"
@@ -30,11 +31,17 @@
      data-unit-switch="{% trans "Switch units" %}">
     <div class="explorer-viewer-bar">
         <div class="explorer-viewer-title">
+            {% if embed %}
+            {# An embed: the link's own page in a new tab, out of the host site #}
+            <a href="{{ link_path }}" target="_blank" rel="noopener">{{ project.name }} / {% if task.name %}{{ task.name }}{% else %}{% trans "Unnamed Task" %}{% endif %}
+                <i class="fa fa-external-link-alt" title="{% trans "Open Full View" %}"></i><span class="sr-only"> {% trans "Open Full View" %}</span></a>
+            {% else %}
             <a href="{{ link_path }}"><i class="fa fa-arrow-left"></i> {{ project.name }}</a> /
             {% if task.name %}{{ task.name }}{% else %}{% trans "Unnamed Task" %}{% endif %}
+            {% endif %}
         </div>
         <div class="explorer-viewer-tools">
-        {% include neighbours_template %}
+        {% if not embed %}{% include neighbours_template %}{% endif %}
         <div class="btn-group explorer-types" role="group" aria-label="{% trans "View" %}">
             {% for type in types %}
             {% if type.type == "mesh" %}

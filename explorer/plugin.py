@@ -43,6 +43,26 @@ def link_headers(response):
     return response
 
 
+def no_framing(response):
+    """
+    Signed-in pages: only WebODM's own pages may frame them. WebODM sets no frame headers and sends its session cookie
+    in third-party frames, so another site could frame the project page and trick an owner into Create Link or Revoke
+    (clickjacking). Link pages stay frameable: they change nothing, and embedding them is a feature.
+    """
+    response["X-Frame-Options"] = "SAMEORIGIN"
+    response["Content-Security-Policy"] = "frame-ancestors 'self'"
+    return response
+
+
+def signed_in_page(view):
+    """A page for signed-in users only: login required, and not framed by other sites."""
+    @login_required
+    def page(request, *args, **kwargs):
+        return no_framing(view(request, *args, **kwargs))
+    page.__name__ = view.__name__
+    return page
+
+
 class Plugin(PluginBase):
     """The Explorer plugin: a page per project listing its tasks' outputs, and "anyone with the link" shares."""
 
@@ -52,7 +72,7 @@ class Plugin(PluginBase):
     def app_mount_points(self):
         public = self.public_url("")
 
-        @login_required
+        @signed_in_page
         def project_list(request):
             query = pages.home_query(request.GET)
             context = {
@@ -84,7 +104,7 @@ class Plugin(PluginBase):
                 raise Http404()
             return project
 
-        @login_required
+        @signed_in_page
         def project_page(request, project_pk):
             viewer = own_viewer(request, project_pk)
             project = viewer.project
@@ -107,6 +127,7 @@ class Plugin(PluginBase):
                 "links": pages.link_summaries(request.user, [project.id]).get(project.id) if can_share else None,
                 "links_api": f"/api/plugins/{links.NAMESPACE}/projects/{project.id}/links/",
                 "preview_path": f"{public}project/{project.id}/preview/",
+                "embed_views": pages.embed_views(cards),
             })
 
         def invalid_link(request):
@@ -154,12 +175,30 @@ class Plugin(PluginBase):
                        "cards_template": self.template_path("cards.html"),
                        "preview_template": self.template_path("preview_bar.html"),
                        "viewer_tools_template": self.template_path("viewer_tools.html"),
-                       "neighbours_template": self.template_path("neighbours.html"), **extra}
+                       "neighbours_template": self.template_path("neighbours.html"),
+                       "meta_template": self.template_path("meta.html"), **extra}
             if task is not None:
                 context["downloads"] = pages.link_downloads(task, viewer.api) if viewer.downloads else []
                 if viewer.signed_in:
                     context["webodm"] = pages.task_outputs(task)
             return context
+
+        def embedded(request, viewer):
+            """A link page asked for as an embed (?embed=1): no WebODM header, back link or Previous / Next."""
+            return request.GET.get("embed") == "1" and not viewer.preview and not viewer.signed_in
+
+        def preview_meta(request, viewer, title, picture_task=None, picture=None):
+            """
+            A link page's preview in chat apps and social sites (Open Graph and Twitter card tags): its title, the
+            project's description and the task's picture through the link (WebODM's thumbnail; none for a picture
+            drawn from tiles). None on View as Visitor and the signed-in pages, which no one unfurls.
+            """
+            if viewer.preview or viewer.signed_in:
+                return None
+            image = None
+            if picture_task is not None and picture and picture["webodm"]:
+                image = request.build_absolute_uri(f"{viewer.api}{picture_task.id}/thumbnail?size=1024")
+            return {"title": title, "description": (viewer.project.description or "")[:300], "image": image}
 
         def list_page(request, viewer):
             if viewer is None:
@@ -167,16 +206,27 @@ class Plugin(PluginBase):
             cards = pages.explorable_tasks([viewer.project], lambda task: pages.link_outputs(task, viewer.path),
                                            (lambda task: pages.link_downloads(task, viewer.api)) if viewer.downloads
                                            else None)
-            return link_headers(render(request, self.template_path("link.html"),
-                                       viewer_context(viewer, title=viewer.project.name, cards=cards)))
+            # The landing page's cover: the newest task with outputs, its picture and buttons; the Overview Map only
+            # over a basemap (outlines alone say little)
+            cover = cards[0] if cards else None
+            basemaps = options.link_basemaps()
+            footprints = pages.link_footprints(cards) if basemaps and len(cards) > 1 else []
+            return link_headers(render(request, self.template_path("link.html"), viewer_context(
+                viewer, title=viewer.project.name, cards=cards[1:] if cover else [], cover=cover,
+                facts=pages.cover_facts(cards), footprints=footprints, basemaps=basemaps,
+                embed=embedded(request, viewer),
+                meta=preview_meta(request, viewer, viewer.project.name, cover and cover["task"],
+                                  cover and cover["picture"]))))
 
         def map_page(request, viewer, pk):
             task = pages.explorable_task(viewer.project, pk) if viewer else None
             layers = pages.map_layers(task) if task else []
             if not layers:
                 return invalid_link(request)
+            title = task.name or viewer.project.name
             return link_headers(render(request, self.template_path("link_map.html"), viewer_context(
-                viewer, title=task.name or viewer.project.name, task=task,
+                viewer, title=title, task=task, embed=embedded(request, viewer),
+                meta=preview_meta(request, viewer, f"{title} - {viewer.project.name}", task, pages.thumbnail(task)),
                 neighbours=pages.neighbours(viewer.project, task, viewer.path, "map"),
                 layers=[{"type": kind, "label": label} for kind, label in layers],
                 bands=task.orthophoto_bands or [], crop=task.crop is not None,
@@ -194,8 +244,10 @@ class Plugin(PluginBase):
             if "mesh" in kinds:
                 store = tiles.Tiles.current()
                 mesh_build, preparing = store.tileset(task) if store else (None, False)
+            title = task.name or viewer.project.name
             return link_headers(render(request, self.template_path("link_3d.html"), viewer_context(
-                viewer, title=task.name or viewer.project.name, task=task,
+                viewer, title=title, task=task, embed=embedded(request, viewer),
+                meta=preview_meta(request, viewer, f"{title} - {viewer.project.name}", task, pages.thumbnail(task)),
                 neighbours=pages.neighbours(viewer.project, task, viewer.path, initial),
                 types=[{"type": kind, "label": label, "icon": icon} for kind, label, icon in types],
                 initial=initial, mesh_build=mesh_build, preparing=preparing)))
@@ -209,23 +261,23 @@ class Plugin(PluginBase):
         def link_3d(request, token, pk):
             return page_3d(request, link_viewer(token), pk)
 
-        @login_required
+        @signed_in_page
         def preview_page(request, project_pk):
             return list_page(request, preview_viewer(request, project_pk))
 
-        @login_required
+        @signed_in_page
         def preview_map(request, project_pk, pk):
             return map_page(request, preview_viewer(request, project_pk), pk)
 
-        @login_required
+        @signed_in_page
         def preview_3d(request, project_pk, pk):
             return page_3d(request, preview_viewer(request, project_pk), pk)
 
-        @login_required
+        @signed_in_page
         def own_map(request, project_pk, pk):
             return map_page(request, own_viewer(request, project_pk), pk)
 
-        @login_required
+        @signed_in_page
         def own_3d(request, project_pk, pk):
             return page_3d(request, own_viewer(request, project_pk), pk)
 

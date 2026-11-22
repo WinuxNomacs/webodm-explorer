@@ -2,10 +2,10 @@
 
 ## Phases (current and upcoming)
 
-Up next: **Explorer UX: the project hub** (the request 2026-11-21, plan below). Steps 1 to 3 built (see "Done");
-step 4 decided (plan below), to build next, with a clickjacking fix first. Its steps, each a phase: 1. defects (single-band colours and legend, thumbnail fallback, 3D
+Up next: nothing planned. **Explorer UX: the project hub** (the request 2026-11-21, plan below) is built, all four
+steps (see "Done"). Its steps, each a phase: 1. defects (single-band colours and legend, thumbnail fallback, 3D
 framing; done); 2. navigation hub (home and project pages, with Explorer's viewer for signed-in users and Open in
-WebODM; done); 3. viewer polish (done); 4. showcase (link landing page, embed).
+WebODM; done); 3. viewer polish (done); 4. showcase (link landing page, embed; done).
 
 Later: COPC point clouds and a Range/caching asset endpoint (only if EPT through WebODM proves too slow);
 docs site (VitePress on GitHub Pages, as TweakUI) and screenshots, once there are features to show.
@@ -528,6 +528,23 @@ The user's answers (2026-11-22):
    and the newest task's picture, through the link; pages stay `noindex` for search engines.
 
 ## Done
+
+- **UX step 4: showcase** (2026-11-22, branch `ux-showcase`):
+  - Code: `explorer/plugin.py` (`no_framing` and `signed_in_page`: `X-Frame-Options: SAMEORIGIN` and
+    `frame-ancestors 'self'` on the home, project page, own viewer and View as Visitor; `embedded`, `preview_meta`;
+    the landing page's cover, facts and Overview Map in `list_page`), `explorer/pages.py` (`link_footprints`,
+    `cover_facts`, `embed_views`), templates `link.html` (the cover), `meta.html` (Open Graph and Twitter tags, the
+    embed's header hidden), `link_map.html`, `link_3d.html` (embed layout: Open Full View, no Previous / Next),
+    `project.html` (the views to embed), `explorer/public/explorer.js` (Embed in the Share panel, `embedCode` with
+    attributes escaped), `explorer.css`.
+  - Tests: `explorer/tests/test_showcase.py` (Django), `explorer/public/__tests__/embed.test.js` (Jest; a project name
+    trying to break out of the iframe's attributes).
+  - Live check (headless Chromium, the user's project 1, a "Live check" link revoked after): the cover's picture in
+    0.3 s, the preview image answering 200 through the link, the Share panel's Embed, the embedded point cloud inside
+    another page (header hidden, no Previous / Next, Fullscreen offered, steady 16.7 ms frames), desktop and phone.
+    The signed-in project page answers with both frame headers. Framed from another page in Chrome over plain http, it
+    showed the login page: Chrome doesn't send WebODM's `SameSite=None` session cookie without `Secure`. On an https
+    WebODM the cookie is sent, and the headers are what stop the frame.
 
 - **UX step 3: viewer polish** (2026-11-22, branch `ux-polish`):
   - Code: `explorer/pages.py` (`neighbours`: the tasks before and after in the cards' order, a URL per view each
