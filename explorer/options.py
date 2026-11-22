@@ -37,7 +37,7 @@ def link_basemaps():
 
 def signed_in_basemaps():
     """
-    The basemaps under the signed-in pages' maps (the home's and the project's): WebODM's own map shows them too
-    (approved by the user, 2026-11-22).
+    The basemaps under the signed-in pages' maps (the home's, the project's and the user's own task maps, whatever
+    Basemaps on Links says: the user, 2026-11-22): WebODM's own map shows them too (approved by the user, 2026-11-22).
     """
     return Basemap.get_cached_basemaps()
