@@ -3,7 +3,7 @@
 ## Phases (current and upcoming)
 
 Up next: **Explorer UX: the project hub** (the request 2026-11-21, plan below). Steps 1 to 3 built (see "Done");
-step 4 to plan next. Its steps, each a phase: 1. defects (single-band colours and legend, thumbnail fallback, 3D
+step 4 decided (plan below), to build next, with a clickjacking fix first. Its steps, each a phase: 1. defects (single-band colours and legend, thumbnail fallback, 3D
 framing; done); 2. navigation hub (home and project pages, with Explorer's viewer for signed-in users and Open in
 WebODM; done); 3. viewer polish (done); 4. showcase (link landing page, embed).
 
@@ -494,6 +494,38 @@ The user's answers (2026-11-22), both as recommended:
 1. Previous / Next on every page, visitors' link pages included (they browse a shared project the same way).
 2. Point cloud options: both Point Size and Colour by Elevation (elevation colour helps read terrain and buildings
    when RGB is flat or missing).
+
+### Plan: UX step 4, showcase (decided 2026-11-22)
+
+Facts checked in WebODM v4.0.1: no `XFrameOptionsMiddleware` and no frame headers (`webodm/settings.py`; a live
+response has no `X-Frame-Options`), so every page, Explorer's included, can be framed by any site; WebODM's own
+public share offers iframe code for its `/public/.../iframe/map/` and `/iframe/3d/` pages (SharePopup.jsx). The
+session cookie is sent in third-party frames (`SESSION_COOKIE_SAMESITE = None`). Explorer's link page today is the
+project name, description and the task cards.
+
+- **Security fix first (clickjacking):** a site framing Explorer's signed-in project page could trick a signed-in
+  owner into clicking Create Link or Revoke. Explorer's signed-in pages (home, project page, own viewer, View as
+  Visitor) get `X-Frame-Options: SAMEORIGIN` and `Content-Security-Policy: frame-ancestors 'self'`; link pages stay
+  frameable (they change nothing, and embedding is the point).
+- **The link landing page** (`/s/<token>/`): a cover with the project's name, description and the featured task's
+  picture with its **Open** buttons; a facts line (tasks, images, last update); the Overview Map of the tasks'
+  footprints when Basemaps on Links is on (outlines alone say little); then the task cards as today.
+- **Embeds:** in the Share panel, each link gets **Embed**: pick a task and a view (Map, Point Cloud, Textured
+  Model, Gaussian Splats) or the whole link page, then copy iframe code. The embedded page is the map or 3D page in
+  an embed layout (`?embed=1`): no WebODM header, no back link or Previous / Next, the view controls kept, and an
+  **Open Full View** link to the link's page in a new tab. Revoking the link stops the embed; anyone who can read
+  the host page can read the link in its code (said in the panel).
+- **Smoothness:** the landing page loads the cover picture first, the map and cards lazily as now; an embedded 3D
+  view loads like the link's own (no extra work), and the live check measures it inside a frame.
+- What can fail: a project without tasks (a plain cover, "Nothing to show here yet"); a revoked link in an embed (its "no longer valid" message); a browser blocking
+  third-party storage in the frame (preferences not kept, the page works).
+
+The user's answers (2026-11-22):
+
+1. The featured task is **the newest automatically** (not the recommendation of an owner's choice): nothing to set
+   or store; "the featured task removed or failed" above cannot happen.
+2. **Link previews: yes** (as recommended): Open Graph and Twitter card tags with the project's name, description
+   and the newest task's picture, through the link; pages stay `noindex` for search engines.
 
 ## Done
 
