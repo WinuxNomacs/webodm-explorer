@@ -8,6 +8,8 @@ Under development.
 - **Explorer** in the main menu lists the projects you can view. Each opens its Explorer page: a card per
   completed task with outputs, with a thumbnail and buttons that open WebODM's own views: **Map** (orthophoto, DSM,
   DTM), **Point Cloud**, **Textured Model** and **Gaussian Splats**. **View All on Map** shows the whole project.
+- **Preview** on a project's Explorer page shows the project as anyone with a link sees it (the link page, its maps
+  and 3D views, with tiled models), without creating a link, for any signed-in user who can view the project.
 - **Share** on a project's Explorer page shows and copies the page's link. It opens only for signed-in users the
   project is shared with (Dashboard: the project's Edit dialog, Permissions).
 - **Anyone with the Link**, in the Share panel for users who can change the project: links that open the project

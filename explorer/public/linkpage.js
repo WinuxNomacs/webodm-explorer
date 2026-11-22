@@ -9,7 +9,11 @@
     function fitHeight(element, onResize) {
         function fit() {
             var top = element.getBoundingClientRect().top + (window.pageYOffset || 0);
-            element.style.height = Math.max(240, window.innerHeight - top) + "px";
+            var height = Math.max(240, window.innerHeight - top);
+            element.style.height = height + "px";
+            // The page's own bottom padding would still scroll the window by a few pixels: take it off the view
+            var over = document.documentElement.scrollHeight - window.innerHeight;
+            if (over > 0) element.style.height = Math.max(240, height - over) + "px";
             if (onResize) onResize();
         }
         window.addEventListener("resize", fit);

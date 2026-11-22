@@ -6,6 +6,7 @@
 <link rel="stylesheet" href="{{ public }}explorer.css">{% endblock %}
 
 {% block content %}
+{% if preview %}{% include preview_template %}{% endif %}
 <div class="explorer-viewer-page" data-explorer-map data-api="{{ api }}{{ task.id }}/" data-link="{{ link_path }}"
      data-crop="{{ crop|yesno:"1," }}"
      data-loading="{% trans "Loading..." %}"

@@ -5,6 +5,7 @@
 <link rel="stylesheet" href="{{ public }}explorer.css">{% endblock %}
 
 {% block content %}
+{% if preview %}{% include preview_template %}{% endif %}
 <div class="explorer explorer-public">
     <h3>{{ project.name }}</h3>
     {% if project.description %}<p>{{ project.description }}</p>{% endif %}
