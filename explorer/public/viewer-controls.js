@@ -36,7 +36,8 @@
         return !(event.ctrlKey || event.metaKey || event.altKey);
     }
 
-    // options: {reset: function, resize: function (after fullscreen changes)}. Returns {setView(kind)}.
+    // options: {reset: function, resize: function (after fullscreen changes), keys: {key: function} (more shortcuts)}.
+    // Returns {setView(kind)}.
     function init(page, options) {
         var resetButton = page.querySelector("[data-reset]");
         var fullButton = page.querySelector("[data-fullscreen]");
@@ -74,6 +75,8 @@
                 toggleFullscreen(page);
             } else if (key === "escape" && help && !help.hidden) {
                 showHelp(false);
+            } else if (options.keys && Object.prototype.hasOwnProperty.call(options.keys, key)) {
+                options.keys[key]();
             } else {
                 return;
             }

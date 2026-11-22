@@ -63,6 +63,18 @@
             <button type="button" class="btn btn-default btn-sm" data-fullscreen hidden title="{% trans "Fullscreen (F)" %}" aria-label="{% trans "Fullscreen" %}"><i class="fa fa-expand"></i></button>
             <button type="button" class="btn btn-default btn-sm" data-help-toggle aria-expanded="false" aria-controls="explorer-help" title="{% trans "Controls" %}" aria-label="{% trans "Controls" %}"><i class="fa fa-question-circle"></i></button>
         </div>
+        <div class="btn-group">
+            <button type="button" class="btn btn-default btn-sm dropdown-toggle explorer-tool" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                    title="{% trans "Background (B)" %}" aria-label="{% trans "Background" %}">
+                <i class="fa fa-image"></i><span class="explorer-label"> {% trans "Background" %} <span class="caret"></span></span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-right" role="menu">
+                <li><a href="#" role="menuitemradio" aria-checked="false" data-background="grid"><i class="fa fa-border-all fa-fw"></i> {% trans "Grid" %}</a></li>
+                <li><a href="#" role="menuitemradio" aria-checked="false" data-background="sky"><i class="fa fa-cloud-sun fa-fw"></i> {% trans "Sky" %}</a></li>
+                <li><a href="#" role="menuitemradio" aria-checked="false" data-background="space"><i class="fa fa-star fa-fw"></i> {% trans "Space" %}</a></li>
+                <li><a href="#" role="menuitemradio" aria-checked="false" data-background="plain"><i class="fa fa-square fa-fw"></i> {% trans "Plain" %}</a></li>
+            </ul>
+        </div>
         {% include viewer_tools_template %}
         </div>
     </div>
@@ -73,7 +85,7 @@
             <tr><th>{% trans "Pan" %}</th><td>{% trans "Right drag, Shift and drag, or two fingers" %}</td></tr>
             <tr><th>{% trans "Zoom" %}</th><td>{% trans "Wheel, or pinch" %}</td></tr>
             <tr><th>{% trans "Focus" %}</th><td>{% trans "Double-click or double-tap a point to orbit around it" %}</td></tr>
-            <tr><th>{% trans "Keys" %}</th><td>{% trans "R resets the view, F turns fullscreen on and off" %}</td></tr>
+            <tr><th>{% trans "Keys" %}</th><td>{% trans "R resets the view, F turns fullscreen on and off, B changes the background" %}</td></tr>
         </table>
     </div>
     <div class="explorer-scene"></div>

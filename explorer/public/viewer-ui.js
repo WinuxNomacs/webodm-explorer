@@ -1,7 +1,8 @@
 /*
  * A link's 3D page, around the scene (viewer/scene.js, an ES module that calls ExplorerViewer.start once three.js
  * and Spark have loaded): the switch between the task's types, the loading status and the failure messages, the
- * bar's controls (viewer-controls.js), and the point cloud's Point Size and Colour by Elevation with its legend.
+ * bar's controls (viewer-controls.js), the Background menu, and the point cloud's Point Size and Colour by Elevation
+ * with its legend.
  */
 (function () {
     "use strict";
@@ -11,6 +12,9 @@
     var Layers = node ? require("./layers.js") : window.ExplorerLayers;
     var SIZE_KEY = "explorer-cloud-size";
     var COLOUR_KEY = "explorer-cloud-colour";
+    var BACKGROUND_KEY = "explorer-background";
+    // In the menu's order; the first is the default (the user, 2026-11-22)
+    var BACKGROUNDS = ["grid", "sky", "space", "plain"];
 
     function remembered(key) {
         try { return window.localStorage.getItem(key); } catch (e) { return null; }
@@ -71,6 +75,41 @@
                 panel.hidden = !on;
                 if (on) drawLegend();
             }
+        };
+    }
+
+    function backgroundChoice(saved) {
+        return BACKGROUNDS.indexOf(saved) >= 0 ? saved : BACKGROUNDS[0];
+    }
+
+    // The Background menu: Grid, Sky, Space or Plain behind the model, remembered in the browser. Returns {next()},
+    // for the B key.
+    function backgroundMenu(page, scene) {
+        var items = page.querySelectorAll("[data-background]");
+        var chosen = backgroundChoice(remembered(BACKGROUND_KEY));
+
+        function choose(kind) {
+            chosen = kind;
+            scene.setBackground(kind);
+            for (var i = 0; i < items.length; i++) {
+                var on = items[i].getAttribute("data-background") === kind;
+                items[i].setAttribute("aria-checked", on ? "true" : "false");
+                items[i].parentNode.classList.toggle("active", on);
+            }
+        }
+        function pick(kind) {
+            remember(BACKGROUND_KEY, kind);
+            choose(kind);
+        }
+        for (var i = 0; i < items.length; i++) {
+            items[i].addEventListener("click", function (e) {
+                e.preventDefault();
+                pick(e.currentTarget.getAttribute("data-background"));
+            });
+        }
+        choose(chosen);
+        return {
+            next: function () { pick(BACKGROUNDS[(BACKGROUNDS.indexOf(chosen) + 1) % BACKGROUNDS.length]); }
         };
     }
 
@@ -141,7 +180,9 @@
             viewer.scene = scene;
             clearTimeout(timer);
             var fit = helpers.fitHeight(page.querySelector(".explorer-scene"), scene.resize);
-            var controls = Controls.init(page, {reset: function () { scene.reset(); }, resize: fit});
+            var background = backgroundMenu(page, scene);
+            var controls = Controls.init(page, {reset: function () { scene.reset(); }, resize: fit,
+                keys: {b: background.next}});
             var panel = cloudPanel(page, scene);
 
             function select(button) {
@@ -192,13 +233,14 @@
             line.show(page.getAttribute("data-no-webgl"));
         }
 
-        var viewer = {start: start, fail: fail, pointBudget: pointBudget(kind), tilesMemory: tilesMemory(kind), scene: null};
+        var viewer = {start: start, fail: fail, pointBudget: pointBudget(kind), tilesMemory: tilesMemory(kind), small: !!kind,
+            scene: null};
         return viewer;
     }
 
     if (node) {
         module.exports = {create: create, platform: platform, meshUrl: meshUrl, pointBudget: pointBudget,
-            tilesMemory: tilesMemory, keepType: keepType};
+            tilesMemory: tilesMemory, keepType: keepType, backgroundChoice: backgroundChoice, BACKGROUND_KEY: BACKGROUND_KEY};
     } else {
         var page = document.querySelector("[data-explorer-viewer]");
         if (page) {

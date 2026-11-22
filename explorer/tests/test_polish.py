@@ -3,6 +3,7 @@ Tests of UX step 3, viewer polish (upcoming-changes.md): Previous / Next task on
 controls those pages carry. Run inside the dev stack's web container:
 docker exec -w /webodm ex-webapp python manage.py test --noinput coreplugins.explorer.tests
 """
+import re
 from datetime import timedelta
 
 from app.tests.classes import BootTestCase
@@ -105,3 +106,26 @@ class ViewerControlTests(LinkTestMixin, BootTestCase):
     def test_the_visitor_bar_keeps_its_long_half_for_wide_screens(self):
         html = self.client_for("testuser").get(f"{self.own}preview/").content.decode()
         self.assertIn('Viewing as a visitor<span class="explorer-wide">', html)
+
+
+class BackgroundMenuTests(LinkTestMixin, BootTestCase):
+    def setUp(self):
+        super().setUp()
+        self.full = self.task("Full")
+
+    def test_every_3d_page_offers_grid_sky_space_and_plain_and_the_b_key(self):
+        own = f"/plugins/explorer/project/{self.project.id}/"
+        token = self.link()["token"]
+        client = self.client_for("testuser")
+        for path, viewer in ((f"{own}3d/{self.full.id}/", client), (f"{own}preview/3d/{self.full.id}/", client),
+                             (f"/plugins/explorer/s/{token}/3d/{self.full.id}/", Client()),
+                             (f"/plugins/explorer/s/{token}/3d/{self.full.id}/?embed=1", Client())):
+            html = viewer.get(path).content.decode()
+            found = re.findall(r'data-background="(\w+)"', html)
+            self.assertEqual(found, ["grid", "sky", "space", "plain"], path)
+            self.assertIn('title="Background (B)"', html, path)
+            self.assertIn("B changes the background", html, path)
+
+    def test_the_map_page_has_no_background_menu(self):
+        html = self.client_for("testuser").get(f"/plugins/explorer/project/{self.project.id}/map/{self.full.id}/").content.decode()
+        self.assertNotIn("data-background", html)

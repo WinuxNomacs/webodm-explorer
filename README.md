@@ -41,8 +41,9 @@ Under development.
   through the project's tasks, keeping the view where the next task has it, **Reset View** (R) and **Fullscreen**
   (F, where the browser allows it). The 3D page explains its controls ("?"), turns to orbit a point you double-click
   or double-tap, and gives the point cloud a **Point Size** and **Colour by Elevation** with a legend. The map has a
-  **layer opacity** slider over the basemap and a scale bar in the legend's units. Size, colour, opacity and units
-  are remembered in the browser.
+  **layer opacity** slider over the basemap and a scale bar in the legend's units. The 3D page's **Background** menu
+  (B) draws a dark **Grid** floor under the model (the default), a **Sky**, **Space** with stars, or **Plain** (the
+  page's own colour). Size, colour, background, opacity and units are remembered in the browser.
 - **A link's page** opens on a cover: the project's name, description and facts beside its newest task's picture
   and views, then an **Overview Map** of the tasks (over a basemap) and the other tasks. Pasted into a chat app or a
   social site, a link shows a preview with the project's name, description and that picture (search engines are
