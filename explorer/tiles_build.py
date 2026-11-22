@@ -51,10 +51,11 @@ DEADLINE_PER_FACE = 0.002
 PACK_TIMEOUT = 120  # one gltfpack run (0.3 s measured for the biggest root)
 PACK_WORKERS = 4
 HEARTBEAT_EVERY = 10
-HEARTBEAT_STALE = 600  # a build whose heartbeat is older was abandoned (the worker restarted)
-QUEUE_STALE = 6 * 3600  # a build queued this long never started
+HEARTBEAT_STALE = STALL_SECONDS + 120  # a build whose heartbeat is older was abandoned (the worker restarted)
+# A build queued this long is queued again: its job may have been lost (a worker restart, the broker flushed). Queuing
+# again is harmless: a job that finds another build running leaves its task queued and ends at once.
+QUEUE_STALE = 15 * 60
 RETRY_FAILED = 24 * 3600
-BUSY_WAIT = QUEUE_STALE  # waiting for another build to finish
 SPACE_FACTOR = 2  # free space needed: this times the OBJ's folder
 
 STATES = ("queued", "building", "ready", "failed")
@@ -148,15 +149,21 @@ def decide(state, fp, now, built=lambda build: True):
     return ("failed", None) if same and age < retry else ("queue", None)
 
 
-def claim(root, task_id, fp, now=None):
-    """decide() under the task's lock; a "queue" answer is saved as queued, so only one caller queues the build."""
+def claim(root, task_id, fp, now=None, obj=None):
+    """
+    decide() under the task's lock; a "queue" answer is saved as queued, so only one caller queues the build. obj (the
+    mesh's path) is kept with it, so the build running when this one is queued can take it next (run()).
+    """
     now = time.time() if now is None else now
     folder = task_dir(root, task_id)
     with task_lock(root, task_id):
         action = decide(read_state(root, task_id), fp, now,
                         lambda build: os.path.isfile(os.path.join(folder, build, "tileset.json")))
         if action[0] == "queue":
-            write_state(root, task_id, {"state": "queued", "fingerprint": fp, "updated": now})
+            state = {"state": "queued", "fingerprint": fp, "updated": now}
+            if obj:
+                state["obj"] = obj
+            write_state(root, task_id, state)
         return action
 
 
@@ -298,7 +305,64 @@ def content_uris(tile):
 
 
 def run(root, task_id, obj_path, tools_dir, now=time.time):
-    """The build, as the worker runs it. Returns a JSON-serialisable summary; never raises for a build failure."""
+    """
+    A build job, as the worker runs it: one build at a time, and no job waits for another, so builds never hold
+    WebODM's worker slots (its processing and scheduled jobs share them). A job that finds a build running leaves its
+    task queued and ends; the running job builds every queued task before it ends, and looks again after letting go
+    of the lock, so a task queued meanwhile is never left behind. Returns a JSON-serialisable summary of the first
+    build; never raises for a build failure.
+    """
+    summary = None
+    job = (str(task_id), obj_path)
+    tried = set()
+    while True:
+        fd = try_build_lock(root)
+        if fd is None:
+            return summary or {"state": "queued", "deferred": True}
+        try:
+            while job:
+                tried.add(job[0])
+                result = build_one(root, job[0], job[1], tools_dir, now)
+                summary = summary or result
+                job = next_queued(root, tried)
+        finally:
+            os.close(fd)
+        job = next_queued(root, tried)
+        if job is None:
+            return summary
+
+
+def try_build_lock(root):
+    """<root>/.build.lock if no other build holds it, else None."""
+    os.makedirs(root, exist_ok=True)
+    fd = os.open(os.path.join(root, ".build.lock"), os.O_CREAT | os.O_RDWR, 0o644)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return fd
+    except BlockingIOError:
+        os.close(fd)
+        return None
+
+
+def next_queued(root, tried=()):
+    """The task queued longest whose mesh path was saved with it, as (task id, mesh path), or None."""
+    found = []
+    with contextlib.suppress(OSError):
+        for entry in os.listdir(root):
+            if not TASK_ID.match(entry) or entry in tried:
+                continue
+            with contextlib.suppress(OSError, ValueError):
+                state = read_state(root, entry)
+                if state and state["state"] == "queued" and isinstance(state.get("obj"), str):
+                    found.append((state["updated"], entry, state["obj"]))
+    if not found:
+        return None
+    _updated, entry, obj = min(found)
+    return entry, obj
+
+
+def build_one(root, task_id, obj_path, tools_dir, now=time.time):
+    """One task's build, with the build lock held."""
     folder = task_dir(root, task_id)
     try:
         fp = fingerprint(obj_path)
@@ -331,9 +395,7 @@ def run(root, task_id, obj_path, tools_dir, now=time.time):
             write_state(root, task_id, current)
 
     tmp = os.path.join(folder, ".tmp-" + build)
-    lock_fd = None
     try:
-        lock_fd = wait_for_turn(root, beat)
         started = time.monotonic()
         build_into(tmp, obj_path, tools_dir, root, beat)
         if not os.path.isfile(obj_path) or fingerprint(obj_path) != fp:
@@ -360,25 +422,6 @@ def run(root, task_id, obj_path, tools_dir, now=time.time):
         return {"state": "failed", "error": message}
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
-        if lock_fd is not None:
-            os.close(lock_fd)
-
-
-def wait_for_turn(root, beat, wait=BUSY_WAIT, poll=5):
-    """One build at a time: waits for <root>/.build.lock, keeping the heartbeat fresh; BuildError after `wait`."""
-    os.makedirs(root, exist_ok=True)
-    fd = os.open(os.path.join(root, ".build.lock"), os.O_CREAT | os.O_RDWR, 0o644)
-    until = time.monotonic() + wait
-    while True:
-        try:
-            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            return fd
-        except BlockingIOError:
-            if time.monotonic() > until:
-                os.close(fd)
-                raise BuildError("another mesh build took too long") from None
-            beat(force=True)
-            time.sleep(poll)
 
 
 def build_into(tmp, obj_path, tools_dir, root, beat):
@@ -406,6 +449,7 @@ def build_into(tmp, obj_path, tools_dir, root, beat):
     errors = []
 
     def progress(line):
+        beat()  # any output keeps the build alive (beat() writes at most every HEARTBEAT_EVERY)
         if not line.startswith("{"):
             return
         with contextlib.suppress(ValueError):

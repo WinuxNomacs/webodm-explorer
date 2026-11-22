@@ -2,7 +2,10 @@
 
 ## Phases (current and upcoming)
 
-Up next: **Documentation site** (the request 2026-11-22, plan below; decided). Its steps, each a phase:
+Up next: **Code review fixes** (the user's review request 2026-11-22, findings below), in four groups, each a
+branch: 1. high (done); 2. the Linode script and guide; 3. viewer medium; 4. pages and phones.
+
+Then: **Documentation site** (the request 2026-11-22, plan below; decided). Its steps, each a phase:
 1. the site and its pages (Getting Started, usage guides; done); 2. the Linode hosting guide and its script (done); 3. publishing to GitHub Pages (once the repo is public).
 
 Built just before: **Keep the camera across 3D views** and **Space without the purple** (the request
@@ -706,7 +709,42 @@ processing wants 16 GB and more).
   the certificate; the script says so instead of failing), a rerun (each step checks before changing), no SSH key
   (stops before touching SSH).
 
+### Code review findings (2026-11-22)
+
+Four reviewers (server, 3D viewer, pages, the Linode script), each finding checked against the code before fixing.
+The user chose to fix all four groups:
+
+1. **High:** footprint tooltips take names as HTML (Leaflet's string content is innerHTML: stored XSS for the owner,
+   admins and link visitors); each queued mesh build holds a Celery worker slot while it waits for the build lock, up
+   to 6 h (WebODM's worker autoscales to 2 x CPUs + 1: a project with 5+ meshes stalls WebODM's processing); the
+   splats are added visible while loading and stay over another view, and a failed load is never removed; a switch
+   away while the tiles load stops their updates, so the 60 s timeout falls back to the GLB, and the root tileset's
+   frame moves the camera off the shown view; `MaxAuthTries 3` refuses users with several agent keys, and fail2ban
+   then bans them.
+2. **Linode script and guide:** reruns keep the first run's settings (stored), set WebODM's .env before the fetch and
+   keep the user's own .env lines, copy root's keys only when the user is created (option lines kept); the guide
+   keeps the root password (LISH needs it); swap counted by size; the DNS check covers IPv6; the example-domain
+   check exact; the Caddyfile validated before it is installed; rerun steps for a failed first run.
+3. **Viewer medium:** tiles' resolution follows resizes; the Grid floor at the model's real bottom; the point pick
+   and the splats' framing without full passes on the main thread; failed nodes retried later; a message on a lost
+   WebGL context.
+4. **Pages and phones:** embeds stay embedded through cards, cover and footprints; the Share panel's link rows and
+   the viewer menus on phones; long names wrap; the Copy button's label; the map's stale status line; tiles kept out
+   of the plugin's folder (they survive upgrades).
+
 ## Done
+
+- **Code review fixes, group 1: high** (findings 2026-11-22, branch `review-high`): footprint tooltips are text
+  elements, never HTML (`footprints.js` `label`; Jest test with a script in a name). A mesh build no longer waits in
+  a worker slot: `tiles_build.run` takes the build lock without waiting; a job that finds it held leaves its task
+  queued (with its OBJ path in `state.json`) and ends at once, and the job holding the lock builds the queued tasks
+  oldest first before releasing it; a queued task whose mesh is gone is skipped; Obj2Tiles' progress lines count as
+  heartbeats (`test_tiles.py`: three tests). The 3D viewer keeps views still opening hidden unless chosen
+  (`scene.js` `opening`), removes splats that failed, keeps the tiles updating while another view is shown and frames
+  them only while the mesh is chosen. `MaxAuthTries 3` is out of the Linode script, and the guide says what to do on
+  "Too many authentication failures". Checked live: a switch to the cloud 150 ms into the tiles or the splats shows
+  only the cloud, with the camera left in place and no GLB downloaded; back on Textured Model the loaded tiles show
+  at once.
 
 - **Fix: no way from a task's map to its 3D views** (reported by the user 2026-11-22: on a link's map, the right
   button opened the context menu and the view couldn't tilt; branch `view-switch`): the map page is 2D (Leaflet:

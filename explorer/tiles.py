@@ -51,7 +51,7 @@ class Tiles:
         except OSError:
             return None, False
         try:
-            action, build_id = build.claim(self.root, task.id, fp)
+            action, build_id = build.claim(self.root, task.id, fp, obj=obj)
         except OSError as e:
             logger.warning(f"Explorer: the mesh tiles state of task {task.id} can't be read or written: {e}")
             return None, False
