@@ -3,8 +3,8 @@
 ## Phases (current and upcoming)
 
 Up next: **Documentation site** (the request 2026-11-22, plan below; decided). Its steps, each a phase:
-1. the site and its pages (Getting Started, usage guides); 2. the Linode hosting guide and its script; 3. publishing
-to GitHub Pages.
+1. the site and its pages (Getting Started, usage guides; done); 2. the Linode hosting guide and its script (next;
+plan the test environment first, decision 4); 3. publishing to GitHub Pages (once the repo is public).
 
 Built just before: **Keep the camera across 3D views** and **Space without the purple** (the request
 2026-11-22, below) and **3D backgrounds** are built (see "Done").
@@ -651,6 +651,24 @@ processing wants 16 GB and more).
    planned, and installed only with the user's approval.
 
 ## Done
+
+- **Docs step 1: the site and its pages** (the request 2026-11-22, branch `docs-site`): VitePress 1.6.4 (pinned, a
+  dev dependency; `npm run docs:build`, `docs:dev`, `docs:preview`) in `docs/`: the home (`index.md`), Getting
+  Started, guides to Explorer's home, a project's page, the viewers, sharing and administration, and Developing
+  (moved from the README, which now links to the pages). Screenshots, Explorer's interface only: the Share panel,
+  Embed and Settings (`docs/public/images/`, taken on a project named "Example Survey" with no tasks, created and
+  deleted by the check with its links; PNGs without metadata chunks). Checked: the build (no dead links), every page
+  rendered from the built files at 1280 and 390 px (no console errors, no 404s, no sideways scroll), ESLint, Jest
+  100, Ruff; no plugin code changed, so no Django run. Found while writing, from WebODM v4.0.1's code
+  (`app/admin.py`, `app/plugins/functions.py`): a plugin zip can't replace an installed plugin (delete it first;
+  only the plugin browser's Update replaces one), and the plugin's persistent path is its own code folder
+  (`media/plugins/explorer/`), so deleting or updating the plugin removes the built 3D Tiles (rebuilt on demand);
+  links and settings stay (data stores, no foreign key to the plugin). The Settings panel's text names maps from
+  links and View as Visitor, but the setting also covers signed-in users' task maps (`plugin.py` `map_page` with
+  `own_viewer`): asked the user which is meant. Also noted: VitePress 1.6.4 pulls Vite 5.4.21 and esbuild 0.21.5,
+  which `npm audit` flags (path traversal and cross-origin reads in the dev server, launch-editor on Windows; fixed
+  only in Vite 6.4.4+ and esbuild 0.25, which VitePress 1.x doesn't take); they affect the local dev server only,
+  not the built site.
 
 - **Fix: the point cloud drew nothing after an update** (reported by the user 2026-11-22, branch `fix-stale-scripts`):
   Explorer's files were served without cache headers, and a module imported by another isn't revalidated on reload,
