@@ -44,6 +44,9 @@ public: nothing private, nothing true only on one machine. Keep it short; edit i
   rate while streaming (decoding, parsing and building off the main thread, no long tasks on interaction), show
   something useful at once and refine it, and never block on a build or download the visitor didn't ask for. Each
   phase plans for it and its live check measures it (frame times and long tasks on a real GPU), not only the tests.
+- **No screenshots that show a model or a location** in the docs or the README (the user, 2026-11-22): no map,
+  orthophoto, mesh, point cloud or splat, and no place name or coordinates; screenshots show Explorer's interface
+  (panels, menus, settings) with neutral names only.
 - **Names in the UI are in Title Case**: headings, buttons, menu items and setting names; descriptions and messages
   are sentences.
 - Planned in `upcoming-changes.md`; new requests arrive in `new.md` (untracked).

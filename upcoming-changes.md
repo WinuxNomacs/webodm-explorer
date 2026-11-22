@@ -2,7 +2,11 @@
 
 ## Phases (current and upcoming)
 
-Up next: nothing planned. **Keep the camera across 3D views** and **Space without the purple** (the request
+Up next: **Documentation site** (the request 2026-11-22, plan below; decisions open). Its steps, each a phase:
+1. the site and its pages (Getting Started, usage guides); 2. the Linode hosting guide and its script; 3. publishing
+to GitHub Pages.
+
+Built just before: **Keep the camera across 3D views** and **Space without the purple** (the request
 2026-11-22, below) and **3D backgrounds** are built (see "Done").
 
 Built: **Explorer UX: the project hub** (the request 2026-11-21, plan below) is built, all four
@@ -11,7 +15,7 @@ framing; done); 2. navigation hub (home and project pages, with Explorer's viewe
 WebODM; done); 3. viewer polish (done); 4. showcase (link landing page, embed; done).
 
 Later: COPC point clouds and a Range/caching asset endpoint (only if EPT through WebODM proves too slow);
-docs site (VitePress on GitHub Pages, as TweakUI) and screenshots, once there are features to show.
+the docs site moved to Up next.
 
 ## Explorer: sharing streamed viewers of a project's outputs
 
@@ -570,6 +574,83 @@ relative to its centre, the mesh and the splats relative to WebODM's offset in `
 on task 358acbe0: the GLB's `CESIUM_RTC` centre is that offset, the tiles keep the OBJ's coordinates, and the splats
 line up with the mesh). The page now carries the offset, the cloud is moved by its origin minus it, and a switch
 keeps the camera. Without a readable offset each view is framed as before. Reset View still frames the shown view.
+
+### The request: documentation site (2026-11-22)
+
+"Setup a documentation phase that uses the repo's github pages. It needs to include getting started, usage guides and
+a guide (complete with script) for securely setting up a WebODM server on Linode to securely share explorer links
+publicly." And: "Do not add screenshots that include models or locations to the documentation" (saved in
+`CLAUDE.md`'s rules).
+
+**Builds on:** TweakUI's docs (`../webodm-tweakui`: VitePress 1.6.4 in `docs/`, `docs/.vitepress/config.mjs`,
+published by `.github/workflows/docs.yml` on a `v*` tag or by hand, Pages source "GitHub Actions"), the README,
+and WebODM's own install docs (`ignored/WebODM-Docs/src/content/docs/installation.md`: `./webodm.sh start --ssl
+--hostname <domain>` gets a Let's Encrypt certificate and needs a DNS name, not an IP; WebODM alone runs in 1-2 GB,
+processing wants 16 GB and more).
+
+**Facts checked (2026-11-22):**
+
+- The repo is **private** (`gh repo view`) and has no Pages site. GitHub Free serves Pages only from public repos
+  (GitHub's "About GitHub's plans"); whether Pro covers a private repo is unclear across GitHub's own doc versions
+  (older ones say Pro, newer ones point to Enterprise Cloud for private sites). A Pages site is public either way.
+  Actions minutes are billed while the repo is private, free once public.
+- VitePress (npm registry): latest stable 1.6.4, released 2025-08-05; 2.0 still alpha (2.0.0-alpha.21,
+  2026-10-25). The same version as TweakUI; 1.6.4 is pinned exactly.
+- Linode (Akamai docs): user data on create, read by cloud-init 23.3.1 and later through the Metadata service,
+  available in all regions; a `#!/bin/bash` script is valid user data for cloud-init. Cloud Firewall rules apply
+  per Linode. Akamai's CPU pricing page (undated) lists Shared 16 GB (6 CPUs, 320 GB) at $96.00/month; Dedicated
+  16 GB's current price not confirmed: check Cloud Manager before quoting a price in the guide.
+
+**Proposed design:**
+
+- `docs/` with VitePress, a page per topic, `npm run docs:dev` and `docs:build` (fails on a dead link), as TweakUI.
+  Pages:
+  - **Getting Started**: what Explorer is (an extra UI beside WebODM, not a replacement), requirements (WebODM
+    4.0.0+, Docker), installing the zip through Administration > Plugins, the first share link.
+  - **Usage guides**: Explorer's home (Cards and Map views), the project page (Overview Map, tasks), the map and 3D
+    viewers (types, Reset View, Fullscreen, Background, point cloud panel, keys), share links (anyone with the link
+    or WebODM users only, Allow Downloads, View as Visitor, embeds, revoking), settings for admins (basemaps on
+    links), and Open in WebODM for editing.
+  - **Hosting on Linode**: the guide and its script (below).
+  - **Developing**: the dev stack and checks, moved out of the README; the README keeps an overview and links.
+- **Screenshots**: Explorer's interface only (Share panel, link list, menus, settings) on a stack with neutral
+  project and task names; never a map, model, cloud or splat, never a place name or coordinates. Viewers are
+  described in words (and the controls table).
+- **The Linode guide**: create the Linode (Ubuntu 24.04 LTS, SSH key only), point a DNS name at it, run the script,
+  install Explorer, share. The script (`docs/hosting/linode-setup.sh`, also linked from the page) is idempotent, run as
+  root once, or pasted as user data at creation, and:
+  - creates a sudo user with the SSH key, turns off root and password SSH logins;
+  - turns on unattended security upgrades, a host firewall (ufw: SSH, 80, 443) to back the Cloud Firewall, and
+    fail2ban for SSH;
+  - installs Docker from Docker's own apt repository (pinned to the repo's signed key), clones WebODM at a pinned
+    tag, and starts it with `--ssl --hostname` (Let's Encrypt) as a systemd service that starts on boot;
+  - adds swap, and Docker log rotation so logs can't fill the disk;
+  - asks for the domain and email as variables at the top (no secrets in the script; the WebODM admin password is
+    set on first sign-in, over HTTPS);
+  - prints what it did and the checks to run (DNS, certificate, firewall).
+  The guide also covers backups (Linode Backups or WebODM's volume backup commands), updates (WebODM and the
+  plugin), and what a public link exposes (only what that link allows; revoke to stop it).
+- Every unattended part (the script under cloud-init) fails loudly: `set -euo pipefail`, each step logged, a
+  failed step stops the script with its name; the log is in `/var/log/cloud-init-output.log`.
+- **Publishing**: `.github/workflows/docs.yml` as TweakUI's (a `v*` tag or by hand only, actions pinned by hash),
+  `base: "/webodm-explorer/"`. The workflow isn't added until the repo can serve Pages (decision 1).
+
+**Open decisions (for the user):**
+
+1. **The repo is private.** Make it public before the docs go up (after a personal-data review of the whole
+   history, the user's rule), or keep it private and pay for a plan that serves Pages from a private repo?
+   Recommended: write the docs now, publish when the repo goes public.
+2. **What the Linode runs.** WebODM and processing on one 16 GB Linode, or a small Linode that serves WebODM and the
+   links while processing happens elsewhere (the user's own machine, then the task imported)? The script can do
+   both with one variable (`PROCESSING=yes|no`, adding a NodeODX node or not).
+3. **What the internet sees.** (a) WebODM and the links over HTTPS, WebODM's sign-in hardened (fail2ban on failed
+   logins, a strong admin password); or (b) only the share links and the files they load are public, and WebODM's own
+   pages (sign-in, admin, processing) answer only through an SSH tunnel (`ssh -L`), through a small reverse proxy in
+   front of WebODM. Recommended: (b), the smallest exposure; the paths a link page loads are checked live before
+   the proxy rules are written.
+4. **How the script is tested.** On a real throwaway Linode (the user creates it, a few cents an hour, deleted
+   afterwards), or in a local Ubuntu 24.04 VM (needs a VM tool installed, which the user approves), with shellcheck
+   for lint (also a tool to install)?
 
 ## Done
 
