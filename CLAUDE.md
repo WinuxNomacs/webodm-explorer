@@ -96,6 +96,9 @@ The `test`, `live-check` and `release-check` skills in `.claude/skills` have the
   One run at a time: runs share the stack's test database.
 - Jest: `npm test` at the repo root (jsdom). ESLint: `npm run lint`.
 - Ruff: `.venv/bin/ruff check .`
+- The Linode setup script (`docs/public/linode/setup.sh`): ShellCheck from its Docker image
+  (`docker run --rm -v "$PWD:/mnt:ro" koalaman/shellcheck:v0.11.0 /mnt/docs/public/linode/setup.sh`), then the
+  `linode-vm` skill (a Multipass VM run as cloud-init user data, `dev/linode-vm/`).
 - Docs: `npm run docs:build` (fails on a dead link). `docs:dev` and `docs:preview` open a local server: VitePress
   1.x pins Vite 5, whose dev server has open advisories (all dev-server only), so check rendered pages from the built
   files instead (a Playwright route that answers from `docs/.vitepress/dist`).

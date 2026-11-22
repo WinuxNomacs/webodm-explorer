@@ -133,3 +133,37 @@ test("the admins' Settings panel saves a change at once and undoes it when savin
     expect(form.querySelector(".explorer-settings-error").hidden).toBe(false);
     expect(box.disabled).toBe(false);
 });
+
+test("the Public Address is saved when left or on Enter, shown as the server cleaned it, and put back when refused", async () => {
+    document.body.innerHTML = `
+        <button type="button" data-explorer-settings-toggle aria-expanded="false">Settings</button>
+        <form data-settings-api="/api/plugins/explorer/settings/" data-error="Not saved." hidden>
+            <input type="hidden" name="csrfmiddlewaretoken" value="CSRF">
+            <input type="checkbox" name="basemaps_on_links" checked>
+            <input type="url" name="public_address" value="">
+            <div class="explorer-settings-error" hidden></div>
+        </form>`;
+    window.fetch = jest.fn(() => ok({basemaps_on_links: true, public_address: "https://maps.example.com"}));
+    init(document);
+    const form = document.querySelector("form");
+    const address = form.elements.public_address;
+    address.value = " https://Maps.Example.com/ ";
+    address.dispatchEvent(new Event("change"));
+    await settle(); await settle();
+    expect(JSON.parse(window.fetch.mock.calls[0][1].body)).toEqual({public_address: "https://Maps.Example.com/"});
+    expect(address.value).toBe("https://maps.example.com");
+
+    // Enter submits the form: saved the same way, the page not reloaded; an unchanged value isn't sent again
+    window.fetch = jest.fn(() => Promise.resolve({ok: false, status: 400}));
+    const submit = new Event("submit", {cancelable: true});
+    form.dispatchEvent(submit);
+    expect(submit.defaultPrevented).toBe(true);
+    expect(window.fetch).not.toHaveBeenCalled();
+    address.value = "maps.example.com";
+    form.dispatchEvent(new Event("submit", {cancelable: true}));
+    await settle(); await settle(); await settle();
+    expect(window.fetch).toHaveBeenCalledTimes(1);
+    expect(address.value).toBe("https://maps.example.com");
+    expect(form.querySelector(".explorer-settings-error").hidden).toBe(false);
+    expect(address.disabled).toBe(false);
+});

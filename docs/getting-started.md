@@ -48,6 +48,6 @@ asks for a restart, restart it (`./webodm.sh restart`).
 
 ::: warning Your server must be reachable
 A link works for people outside your network only if your WebODM is reachable from the internet, ideally over
-HTTPS. A WebODM on your own computer or office network is not. A guide to hosting WebODM so that only the links are
-public is planned.
+HTTPS. A WebODM on your own computer or office network is not. [Hosting on Linode](/hosting/linode) sets up a server
+where only the links are public.
 :::

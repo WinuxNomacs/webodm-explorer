@@ -93,7 +93,7 @@ class BasemapAndSettingsTests(LinkTestMixin, BootTestCase):
         self.assertIn(Client().get(SETTINGS_API).status_code, (401, 403))
         self.assertEqual(self.client_for("testuser").get(SETTINGS_API).status_code, 403)
         admin = self.client_for("testsuperuser", enforce_csrf_checks=True)
-        self.assertEqual(admin.get(SETTINGS_API).json(), {"basemaps_on_links": True})
+        self.assertEqual(admin.get(SETTINGS_API).json(), {"basemaps_on_links": True, "public_address": ""})
         # WebODM's CSRF check applies to the plugin's API
         self.assertEqual(admin.patch(SETTINGS_API, {"basemaps_on_links": False},
                                      content_type="application/json").status_code, 403)
@@ -101,13 +101,45 @@ class BasemapAndSettingsTests(LinkTestMixin, BootTestCase):
         csrf = admin.cookies["csrftoken"].value
         response = admin.patch(SETTINGS_API, {"basemaps_on_links": False}, content_type="application/json",
                                HTTP_X_CSRFTOKEN=csrf)
-        self.assertEqual(response.json(), {"basemaps_on_links": False})
+        self.assertEqual(response.json(), {"basemaps_on_links": False, "public_address": ""})
         self.assertFalse(options.basemaps_on_links())
         self.assertEqual(admin.patch(SETTINGS_API, {"basemaps_on_links": "no"}, content_type="application/json",
                                      HTTP_X_CSRFTOKEN=csrf).status_code, 400)
         user = self.client_for("testuser")
         self.assertEqual(user.patch(SETTINGS_API, {"basemaps_on_links": True},
                                     content_type="application/json").status_code, 403)
+
+    def test_the_public_address_is_kept_as_scheme_and_host_and_anything_else_is_refused(self):
+        admin = self.client_for("testsuperuser")
+        def patch(value):
+            return admin.patch(SETTINGS_API, {"public_address": value}, content_type="application/json")
+        for typed, kept in (("https://Maps.Example.com/", "https://maps.example.com"),
+                            ("  http://10.0.0.5:8000 ", "http://10.0.0.5:8000"),
+                            ("https://[2001:db8::1]:8443", "https://[2001:db8::1]:8443"), ("", "")):
+            response = patch(typed)
+            self.assertEqual(response.status_code, 200, typed)
+            self.assertEqual(response.json()["public_address"], kept, typed)
+            self.assertEqual(options.public_address(), kept)
+        options.set_public_address("https://maps.example.com")
+        for bad in ("maps.example.com", "ftp://maps.example.com", "https://user:pw@maps.example.com",
+                    "https://maps.example.com/webodm", "https://maps.example.com/?a=1", "https://maps.example.com/#x",
+                    "https://", "https://maps.example.com:port", "javascript:alert(1)", 42, None):
+            self.assertEqual(patch(bad).status_code, 400, bad)
+        self.assertEqual(options.public_address(), "https://maps.example.com")  # unchanged by a refusal
+        # A refused value saves nothing else from the same request
+        self.assertEqual(admin.patch(SETTINGS_API, {"basemaps_on_links": False, "public_address": "nope"},
+                                     content_type="application/json").status_code, 400)
+        self.assertTrue(options.basemaps_on_links())
+        self.assertEqual(admin.patch(SETTINGS_API, {}, content_type="application/json").status_code, 400)
+
+    def test_the_share_panel_copies_links_with_the_public_address_for_users_who_can_share(self):
+        own = f"/plugins/explorer/project/{self.project.id}/"
+        self.assertNotIn("data-origin", self.client_for("testuser").get(own).content.decode())
+        options.set_public_address("https://maps.example.com")
+        self.assertIn('data-origin="https://maps.example.com"', self.client_for("testuser").get(own).content.decode())
+        html = self.client_for("testsuperuser").get("/plugins/explorer/").content.decode()
+        self.assertIn('name="public_address"', html)
+        self.assertIn('value="https://maps.example.com"', html)
 
     def test_the_settings_panel_shows_on_the_explorer_home_for_admins_only(self):
         self.assertIn("data-settings-api", self.client_for("testsuperuser").get("/plugins/explorer/").content.decode())

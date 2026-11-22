@@ -45,7 +45,7 @@
         </div>
         <p class="explorer-card-text">{% trans "Only signed-in users this project is shared with can open it. To share it with someone, add them in the Dashboard: the project's Edit dialog, Permissions." %}</p>
         {% if can_share %}
-        <div class="explorer-links" data-links-api="{{ links_api }}"
+        <div class="explorer-links" data-links-api="{{ links_api }}"{% if public_address %} data-origin="{{ public_address }}"{% endif %}
              data-copy="{% trans "Copy" %}" data-copied="{% trans "Copied" %}" data-revoke="{% trans "Revoke" %}"
              data-confirm-revoke="{% trans "Revoke this link? Anyone using it loses access at once." %}"
              data-untitled="{% trans "Untitled Link" %}" data-never="{% trans "Never expires" %}"

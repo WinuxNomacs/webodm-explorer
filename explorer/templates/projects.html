@@ -24,6 +24,12 @@
             <label><input type="checkbox" name="basemaps_on_links"{% if settings.basemaps_on_links %} checked{% endif %}> {% trans "Basemaps on Links" %}</label>
         </div>
         <p class="explorer-card-text">{% trans "Maps opened from links and with View as Visitor show the basemaps set in Administration, Basemaps. Each visitor's browser then loads them from their provider, which sees the visitor's address and the area viewed." %}</p>
+        <div class="form-group">
+            <label for="explorer-public-address">{% trans "Public Address" %}</label>
+            <input id="explorer-public-address" class="form-control input-sm" type="url" name="public_address" maxlength="200"
+                   value="{{ settings.public_address }}" placeholder="https://maps.example.com" autocomplete="off" spellcheck="false">
+        </div>
+        <p class="explorer-card-text">{% trans "Links and embed code copied from the Share panel start with this address instead of the browser's, for a WebODM reached through an internal address or an SSH tunnel. Leave it empty to use the browser's address." %}</p>
         <div class="explorer-settings-error alert alert-warning" role="alert" hidden></div>
     </form>
     {% endif %}

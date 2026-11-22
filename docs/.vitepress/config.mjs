@@ -11,10 +11,13 @@ export default defineConfig({
   base: "/webodm-explorer/",
   cleanUrls: true,
   lastUpdated: false,
+  // The setup script is a file in docs/public, not a page
+  ignoreDeadLinks: [/^\/webodm-explorer\/linode\/setup\.sh$/],
   themeConfig: {
     nav: [
       { text: "Getting Started", link: "/getting-started" },
       { text: "Guides", link: "/guide/projects" },
+      { text: "Hosting", link: "/hosting/linode" },
       { text: "Developing", link: "/developing" },
     ],
     sidebar: [
@@ -34,6 +37,10 @@ export default defineConfig({
           { text: "Sharing", link: "/guide/sharing" },
           { text: "Administration", link: "/guide/administration" },
         ],
+      },
+      {
+        text: "Hosting",
+        items: [{ text: "Hosting on Linode", link: "/hosting/linode" }],
       },
       {
         text: "More",

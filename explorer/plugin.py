@@ -126,6 +126,7 @@ class Plugin(PluginBase):
                 "can_share": can_share,
                 "links": pages.link_summaries(request.user, [project.id]).get(project.id) if can_share else None,
                 "links_api": f"/api/plugins/{links.NAMESPACE}/projects/{project.id}/links/",
+                "public_address": options.public_address() if can_share else "",
                 "preview_path": f"{public}project/{project.id}/preview/",
                 "embed_views": pages.embed_views(cards),
             })

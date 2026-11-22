@@ -146,26 +146,45 @@
             form.hidden = !form.hidden;
             toggle.setAttribute("aria-expanded", form.hidden ? "false" : "true");
         });
-        var box = form.elements.basemaps_on_links;
-        box.addEventListener("change", function () {
-            var wanted = box.checked;
-            box.disabled = true;
+        function save(field, change, apply, undo) {
+            field.disabled = true;
             error.hidden = true;
             window.fetch(form.getAttribute("data-settings-api"), {
                 method: "PATCH", credentials: "same-origin",
                 headers: {"Content-Type": "application/json", "X-CSRFToken": form.elements.csrfmiddlewaretoken.value},
-                body: JSON.stringify({basemaps_on_links: wanted})
+                body: JSON.stringify(change)
             }).then(function (response) {
                 if (!response.ok) throw new Error(response.status);
                 return response.json();
-            }).then(function (saved) {
-                box.checked = saved.basemaps_on_links;
-            }, function () {
-                box.checked = !wanted;
+            }).then(apply, function () {
+                undo();
                 error.textContent = form.getAttribute("data-error");
                 error.hidden = false;
-            }).then(function () { box.disabled = false; });
+            }).then(function () { field.disabled = false; });
+        }
+        var box = form.elements.basemaps_on_links;
+        box.addEventListener("change", function () {
+            var wanted = box.checked;
+            save(box, {basemaps_on_links: wanted},
+                function (saved) { box.checked = saved.basemaps_on_links; },
+                function () { box.checked = !wanted; });
         });
+        // The address is saved when the field is left or Enter is pressed, shown as the server cleaned it
+        var address = form.elements.public_address;
+        if (address) {
+            var savedAddress = address.value;
+            var saveAddress = function () {
+                if (address.value.trim() === savedAddress) return;
+                save(address, {public_address: address.value.trim()},
+                    function (saved) { savedAddress = address.value = saved.public_address; },
+                    function () { address.value = savedAddress; });
+            };
+            address.addEventListener("change", saveAddress);
+            form.addEventListener("submit", function (event) {
+                event.preventDefault();
+                saveAddress();
+            });
+        }
     }
 
     // The home's toolbar is a plain GET form; a changed scope, sort or filter applies at once. Empty and default values
@@ -267,6 +286,9 @@
             return box.getAttribute("data-" + name);
         }
 
+        // Explorer's Public Address where the admin set one (WebODM reached through a tunnel), else the browser's
+        var origin = text("origin") || window.location.origin;
+
         function showError(message) {
             errorBox.textContent = message || "";
             errorBox.hidden = !message;
@@ -335,7 +357,7 @@
             panel.appendChild(group);
             panel.appendChild(element("p", "explorer-card-text", text("embed-note")));
             function update() {
-                code.value = embedCode(window.location.origin + link.path, select.value, text("project-name") || "");
+                code.value = embedCode(origin + link.path, select.value, text("project-name") || "");
             }
             select.addEventListener("change", update);
             update();
@@ -357,7 +379,7 @@
             var input = element("input", "form-control explorer-link-address");
             input.type = "text";
             input.readOnly = true;
-            input.value = window.location.origin + link.path;
+            input.value = origin + link.path;
             input.setAttribute("aria-label", link.label || text("untitled"));
             group.appendChild(input);
             var buttons = element("span", "input-group-btn");
