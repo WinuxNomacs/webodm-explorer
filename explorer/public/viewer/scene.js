@@ -139,6 +139,12 @@ function createScene(container, options) {
 
     // Whether the visitor has moved the camera since it was last framed: a late, better frame then doesn't jump
     let moved = false;
+    // Whether a view has been shown (and the camera placed), and whether the view opening keeps that camera
+    let placed = false;
+    let keeping = false;
+    let shownBox = null;
+    // WebODM's offset for the task (the mesh's and the splats' origin in the model's coordinates), or null
+    const offset = options.offset ? new THREE.Vector3(...options.offset) : null;
     controls.addEventListener("start", () => { moved = true; });
 
     function frame(box) {
@@ -158,6 +164,14 @@ function createScene(container, options) {
         camera.updateProjectionMatrix();
         controls.target.copy(center);
         controls.update();
+        backdrop.fit(box);
+    }
+
+    // A switch to another view of the same model: the camera stays, the grid goes under the new view, and a late,
+    // better frame doesn't move it
+    function keep(box) {
+        if (!box || box.isEmpty()) return;
+        moved = true;
         backdrop.fit(box);
     }
 
@@ -258,7 +272,7 @@ function createScene(container, options) {
                 opened.group.updateMatrixWorld(true);
                 if (opened.getBoundingBox(box) && !framedOnRoot) {
                     view.box = box.applyMatrix4(opened.group.matrixWorld);
-                    frame(view.box);
+                    if (!keeping) frame(view.box);
                 }
             });
             // The view opens with its first tile, framed on the bounds; the root tile, which a smaller child tile can
@@ -333,8 +347,14 @@ function createScene(container, options) {
         }
         cloud = opened;
         opened.setStyle(cloudStyle);
+        // The cloud is drawn relative to its centre; WebODM's offset puts it where the mesh and the splats are
+        const box = cloudFrameBox(positions);
+        if (offset) {
+            opened.group.position.set(...opened.info.origin).sub(offset);
+            box.translate(opened.group.position);
+        }
         scene.add(opened.group);
-        return { object: opened.group, box: cloudFrameBox(positions) };
+        return { object: opened.group, box };
     }
 
     const loaders = { cloud: loadCloud, mesh: loadMesh, splats: loadSplats };
@@ -343,6 +363,8 @@ function createScene(container, options) {
     // fallback: for the mesh tiles, WebODM's GLB, shown if they can't load.
     async function show(type, url, onProgress, onFailure, fallback) {
         current = type;
+        // With WebODM's offset known, the views line up, so a switch keeps the camera where the visitor left it
+        keeping = Boolean(offset && placed);
         for (const [other, view] of Object.entries(views)) {
             if (other !== type) view.then((v) => { v.object.visible = current === other; }, () => {});
         }
@@ -352,7 +374,11 @@ function createScene(container, options) {
         }
         const view = await views[type];
         view.object.visible = current === type;
-        if (current === type) frame(view.box);
+        if (current !== type) return;
+        if (keeping) keep(view.box);
+        else frame(view.box);
+        placed = true;
+        shownBox = view.box;
     }
 
     renderer.setAnimationLoop(() => {
@@ -382,6 +408,13 @@ function createScene(container, options) {
         return cloud ? { ...cloud.shown, loaded: cloud.loaded.size, failed: cloud.failed.size } : null;
     }
 
+    // For live checks: the camera, what it orbits, and the centre of the shown view's frame, to 1 cm
+    function place() {
+        const round = (vector) => vector.toArray().map((v) => Math.round(v * 100) / 100);
+        return { camera: round(camera.position), target: round(controls.target),
+            frame: shownBox ? round(shownBox.getCenter(new THREE.Vector3())) : null };
+    }
+
     // The point cloud's Point Size and Colour (EptCloud.setStyle), kept for a cloud still opening
     let cloudStyle = {};
     function setCloudStyle(style) {
@@ -392,7 +425,13 @@ function createScene(container, options) {
         return cloud ? cloud.elevationRange() : null;
     }
 
-    return { show, resize, stats, reset, setCloudStyle, cloudRange, pick, setBackground: backdrop.set };
+    return { show, resize, stats, place, reset, setCloudStyle, cloudRange, pick, setBackground: backdrop.set };
+}
+
+// "x y" (the page's data-offset) as [x, y, 0], or null
+export function offsetOf(text) {
+    const parts = (text || "").trim().split(/\s+/).map(Number);
+    return parts.length === 2 && parts.every(Number.isFinite) ? [parts[0], parts[1], 0] : null;
 }
 
 const page = document.querySelector("[data-explorer-viewer]");
@@ -404,6 +443,7 @@ if (page && window.ExplorerViewer) {
             basis: page.getAttribute("data-basis"),
             tiles: { memory: window.ExplorerViewer.tilesMemory },
             small: window.ExplorerViewer.small,
+            offset: offsetOf(page.getAttribute("data-offset")),
             cloud: {
                 budget: window.ExplorerViewer.pointBudget,
                 scripts: {

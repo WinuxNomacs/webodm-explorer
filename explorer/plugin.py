@@ -250,7 +250,7 @@ class Plugin(PluginBase):
                 meta=preview_meta(request, viewer, f"{title} - {viewer.project.name}", task, pages.thumbnail(task)),
                 neighbours=pages.neighbours(viewer.project, task, viewer.path, initial),
                 types=[{"type": kind, "label": label, "icon": icon} for kind, label, icon in types],
-                initial=initial, mesh_build=mesh_build, preparing=preparing)))
+                initial=initial, mesh_build=mesh_build, preparing=preparing, offset=pages.model_offset(task))))
 
         def link_page(request, token):
             return list_page(request, link_viewer(token))

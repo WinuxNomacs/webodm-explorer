@@ -318,11 +318,14 @@ export class EptCloud {
         this.lastHeight = size.y;
         this.dirty = false;
 
+        // The nodes' bounds are in the cloud's own coordinates: the group is moved (never turned) to line up with the
+        // other views (scene.js), so the camera is taken into the group's coordinates
+        this.group.updateMatrixWorld();
         this.frustum.setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix,
-            camera.matrixWorldInverse));
+            camera.matrixWorldInverse).multiply(this.group.matrixWorld));
         const ratio = renderer.getPixelRatio();
         const selection = Tree.select(this.tree, {
-            position: camera.position.toArray(), fov: camera.fov, height: size.y / ratio,
+            position: camera.position.clone().sub(this.group.position).toArray(), fov: camera.fov, height: size.y / ratio,
             budget: this.budget, minPixels: MIN_NODE_PIXELS,
             visible: (node) => {
                 const b = node.bounds;
