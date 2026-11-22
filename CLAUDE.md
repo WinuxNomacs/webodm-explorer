@@ -65,7 +65,14 @@ public: nothing private, nothing true only on one machine. Keep it short; edit i
   answers. The startup log then shows `Registered [coreplugins.explorer.plugin]`.
 - JSX components (`build_jsx_components`) are built by webpack inside the dev container; plain scripts in
   `explorer/public/*.js` are ES5 (ESLint enforces it).
-- Browser libraries (three.js, Spark, Leaflet, laz-perf) are vendored in `explorer/public/vendor/` by `dev/vendor.sh`,
+- **Mesh tiling tools** (Obj2Tiles for Linux x64 and arm64, gltfpack's WebAssembly build) are fetched by
+  `dev/tools.sh` (pinned versions and sha256) into `explorer/bin/`, which is git-ignored; `dev/package.sh` adds them
+  to the zip. The build (`explorer/tiles_build.py`) runs in the worker through `run_function_async`, which sends
+  only a function's source: it is standard library only, loaded by its file path, and the worker needs no restart to
+  pick up a change. Builds and their state live in the plugin's persistent path
+  (`app/media/plugins/explorer/tiles/<task id>/`, `state.json` inside); bump `PIPELINE` when the tools or their
+  options change, so every mesh is rebuilt under a new build id.
+- Browser libraries (three.js, Spark, Leaflet, laz-perf, 3DTilesRendererJS) are vendored in `explorer/public/vendor/` by `dev/vendor.sh`,
   which pins their versions; the 3D page's import map and data attributes (`explorer/templates/link_3d.html`) and the
   map page's tags name the same versions. `explorer/public/viewer/` is ES modules (its own ESLint block); the rest of
   `explorer/public/` stays ES5, including the point cloud worker (`ept-worker.js`) and the logic Jest tests

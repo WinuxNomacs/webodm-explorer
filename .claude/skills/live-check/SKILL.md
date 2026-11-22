@@ -45,6 +45,11 @@ own (e.g. starting "Live check"), delete only that afterwards, and say what was 
   cloud on a link's 3D page, node counts as the camera zooms, switching type and back, phone width, a node
   answering 500, laz-perf's wasm missing, and a revoke while the cloud is open (the message shows once a node is
   refused: on a small cloud already fully loaded, none is). Creates one "Live check" link and revokes it.
+- `link-tiles.js` (same arguments as `link-cloud.js`): the mesh tiles on a link's 3D page (built tiles needed:
+  open the mesh once and wait for `state.json` to say ready), first view and tile counts as the camera zooms, phone
+  width, `tileset.json` answering 500 (the GLB shows instead), the finest tiles answering 500 (skipped, no message),
+  and a revoke while open. Creating its link queues the project's other meshes. Read the screenshots for the model's
+  orientation (Z-up, as the GLB) and framing.
 - `link-perf.js` (repo, user, password, then optional project id, task id prefix and types, default
   `cloud,mesh,splats`): smoothness on the real GPU (headless Chromium on Metal): time to the first view, then frame
   times (p50/p95/p99/max, frames over 33 and 100 ms) and long tasks while loading, orbiting and zooming, and idle.

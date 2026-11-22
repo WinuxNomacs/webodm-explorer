@@ -15,7 +15,10 @@ Under development.
   time. A link opens a page of the project's tasks, each with a **Map** (orthophoto, DSM, DTM; no basemap) and a 3D
   view of its **Point Cloud** (streamed node by node from WebODM's EPT, within the point budget WebODM's own 3D page
   uses: 10 million points on a computer, 2 million on a phone, 1 million on iOS), **Textured Model** and **Gaussian
-  Splats**. A link serves only what these views stream, unless it has
+  Splats**. The textured model streams as 3D Tiles (only what is on screen, finer close up), which Explorer builds
+  from the task's mesh in WebODM's worker the first time it is shared or opened (a minute or two per mesh, at low
+  priority, one at a time, kept in the plugin's folder in WebODM's media until the task is removed); until they are
+  ready, the link shows WebODM's own model. A link serves only what these views stream, unless it has
   **Allow Downloads** (ticked when creating it, or on the link later): its task cards then get a **Download** menu
   with the orthophoto, DSM, DTM, point cloud (LAZ) and textured model (zip and glTF), but not the report, camera
   positions or All Assets. Links are kept in plain text in WebODM's database (so they can be copied again), and
@@ -46,8 +49,12 @@ npm test
 docker exec -w /webodm ex-webapp python manage.py test --noinput coreplugins.explorer.tests
 ```
 
-`dev/vendor.sh` fetches the pinned browser libraries (three.js, Spark, Leaflet) from npm into
-`explorer/public/vendor/`. `dev/package.sh` builds the release zip `dist/explorer-X.Y.Z.zip` and prints its sha256.
+`dev/vendor.sh` fetches the pinned browser libraries (three.js, Spark, Leaflet, laz-perf, 3DTilesRendererJS) from
+npm into `explorer/public/vendor/`. `dev/tools.sh` fetches the mesh tiling tools ([Obj2Tiles](https://github.com/OpenDroneMap/Obj2Tiles)
+for Linux x64 and arm64, and [gltfpack](https://github.com/zeux/meshoptimizer), run by the Node.js in WebODM's
+image) into `explorer/bin/`, which is not committed: run it once before `dev/webodm.sh up` so the dev worker can
+build tiles. `dev/package.sh` runs it and builds the release zip `dist/explorer-X.Y.Z.zip` (about 27 MB, the tools
+included), and prints its sha256.
 
 ## Licence
 
