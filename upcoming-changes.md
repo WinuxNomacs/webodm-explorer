@@ -2,7 +2,7 @@
 
 ## Phases (current and upcoming)
 
-Up next: **Documentation site** (the request 2026-11-22, plan below; decisions open). Its steps, each a phase:
+Up next: **Documentation site** (the request 2026-11-22, plan below; decided). Its steps, each a phase:
 1. the site and its pages (Getting Started, usage guides); 2. the Linode hosting guide and its script; 3. publishing
 to GitHub Pages.
 
@@ -611,7 +611,7 @@ processing wants 16 GB and more).
     viewers (types, Reset View, Fullscreen, Background, point cloud panel, keys), share links (anyone with the link
     or WebODM users only, Allow Downloads, View as Visitor, embeds, revoking), settings for admins (basemaps on
     links), and Open in WebODM for editing.
-  - **Hosting on Linode**: the guide and its script (below).
+  - **Hosting on Linode**: the guide and its script (below, as decided).
   - **Developing**: the dev stack and checks, moved out of the README; the README keeps an overview and links.
 - **Screenshots**: Explorer's interface only (Share panel, link list, menus, settings) on a stack with neutral
   project and task names; never a map, model, cloud or splat, never a place name or coordinates. Viewers are
@@ -635,22 +635,20 @@ processing wants 16 GB and more).
 - **Publishing**: `.github/workflows/docs.yml` as TweakUI's (a `v*` tag or by hand only, actions pinned by hash),
   `base: "/webodm-explorer/"`. The workflow isn't added until the repo can serve Pages (decision 1).
 
-**Open decisions (for the user):**
+**Decisions (the user, 2026-11-22):**
 
-1. **The repo is private.** Make it public before the docs go up (after a personal-data review of the whole
-   history, the user's rule), or keep it private and pay for a plan that serves Pages from a private repo?
-   Recommended: write the docs now, publish when the repo goes public.
-2. **What the Linode runs.** WebODM and processing on one 16 GB Linode, or a small Linode that serves WebODM and the
-   links while processing happens elsewhere (the user's own machine, then the task imported)? The script can do
-   both with one variable (`PROCESSING=yes|no`, adding a NodeODX node or not).
-3. **What the internet sees.** (a) WebODM and the links over HTTPS, WebODM's sign-in hardened (fail2ban on failed
-   logins, a strong admin password); or (b) only the share links and the files they load are public, and WebODM's own
-   pages (sign-in, admin, processing) answer only through an SSH tunnel (`ssh -L`), through a small reverse proxy in
-   front of WebODM. Recommended: (b), the smallest exposure; the paths a link page loads are checked live before
-   the proxy rules are written.
-4. **How the script is tested.** On a real throwaway Linode (the user creates it, a few cents an hour, deleted
-   afterwards), or in a local Ubuntu 24.04 VM (needs a VM tool installed, which the user approves), with shellcheck
-   for lint (also a tool to install)?
+1. **Publishing:** write the docs now, publish when the repo goes public (after a personal-data review of the whole
+   history). Steps 1 and 2 build and check the site locally (`npm run docs:build`, `docs:preview`); step 3 (the
+   workflow, Settings > Pages) waits for the repo to go public.
+2. **The Linode serves only:** a small Linode runs WebODM and the links, with no processing node
+   (`--default-nodes 0`); tasks are processed elsewhere and imported. No `PROCESSING` variable.
+3. **Links only are public:** the share links and the files they load answer on the internet; WebODM's own pages
+   (sign-in, admin, processing, Explorer's signed-in pages) answer only through an SSH tunnel, behind a small
+   reverse proxy in front of WebODM. The paths a link page loads (`/plugins/explorer/s/...`, Explorer's API and
+   public files, WebODM's static files) are checked live before the rules are written.
+4. **Testing:** in a local Ubuntu 24.04 VM or a Docker container that is easily recreated and destroyed; a live
+   throwaway Linode later only if needed. Which one (and shellcheck for lint) is vetted and proposed when step 2 is
+   planned, and installed only with the user's approval.
 
 ## Done
 
