@@ -77,7 +77,9 @@ DOMAIN=maps.example.com EMAIL=you@example.com bash setup.sh
 `EMAIL` is for Let's Encrypt's expiry notices. The script takes 10 to 20 minutes, most of it downloading WebODM. It
 ends by printing the next steps.
 
-From now on, log in as `odm` (the script's user; set `ADMIN_USER` to choose another name), not root:
+From now on, log in as `odm` (the script's user; set `ADMIN_USER` to choose another name), not root. If SSH says
+"Too many authentication failures", your SSH agent offered other keys first: add `-o IdentitiesOnly=yes -i
+~/.ssh/<your key>` to the command (fail2ban bans an address for an hour after 5 failed attempts).
 
 ```bash
 ssh odm@maps.example.com

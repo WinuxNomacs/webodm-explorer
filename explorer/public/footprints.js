@@ -28,6 +28,13 @@
         if (chosen) Layers.basemapLayer(L, chosen).addTo(map);
     }
 
+    // Tooltips take an element: Leaflet puts a string in as HTML, and names are whatever users typed
+    function label(text) {
+        var span = document.createElement("span");
+        span.textContent = text;
+        return span;
+    }
+
     function link(L, url, text) {
         var a = document.createElement("a");
         a.href = url;
@@ -53,7 +60,7 @@
             popup.appendChild(document.createTextNode(count));
             L.rectangle(box, STYLE).bindPopup(popup).addTo(map);
             L.circleMarker(box.getCenter(), {className: STYLE.className, radius: 7, weight: 3, fillOpacity: 0.6})
-                .bindPopup(popup).bindTooltip(place.name).addTo(map);
+                .bindPopup(popup).bindTooltip(label(place.name)).addTo(map);
         });
         return all;
     }
@@ -62,7 +69,7 @@
         var all = L.latLngBounds([]);
         tasks.forEach(function (task) {
             var shape = L.geoJSON(task.geometry, {style: function () { return STYLE; }});
-            shape.bindTooltip(task.name, {sticky: true});
+            shape.bindTooltip(label(task.name), {sticky: true});
             shape.on("click", function () { api.navigate(task.url); });
             shape.addTo(map);
             all.extend(shape.getBounds());

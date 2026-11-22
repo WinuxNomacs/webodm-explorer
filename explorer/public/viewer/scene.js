@@ -126,6 +126,8 @@ function createScene(container, options) {
     let current = null;
     let cloud = null; // the EptCloud once open
     let tiles = null; // the TilesRenderer once its first tile shows
+    // Views still opening, by type: in the scene while they load, shown only while their type is the one chosen
+    const opening = new Map();
 
     function resize() {
         const width = container.clientWidth || 1;
@@ -260,6 +262,7 @@ function createScene(container, options) {
             const timer = setTimeout(() => fail(new Error("the mesh tiles took too long")), TILES_TIMEOUT_MS);
             function fail(error) {
                 clearTimeout(timer);
+                opening.delete("mesh");
                 opened.dispose();
                 scene.remove(opened.group);
                 reject(error);
@@ -272,7 +275,8 @@ function createScene(container, options) {
                 opened.group.updateMatrixWorld(true);
                 if (opened.getBoundingBox(box) && !framedOnRoot) {
                     view.box = box.applyMatrix4(opened.group.matrixWorld);
-                    if (!keeping) frame(view.box);
+                    // Not while another view is shown: the visitor switched away while the tiles opened
+                    if (!keeping && current === "mesh") frame(view.box);
                 }
             });
             // The view opens with its first tile, framed on the bounds; the root tile, which a smaller child tile can
@@ -292,6 +296,7 @@ function createScene(container, options) {
                 if (shown) return;
                 shown = true;
                 clearTimeout(timer);
+                opening.delete("mesh");
                 tiles = opened;
                 if (!view.box) view.box = new THREE.Box3().setFromObject(opened.group);
                 resolve(view);
@@ -301,8 +306,10 @@ function createScene(container, options) {
                 if (!shown) fail(event.error || new Error("the mesh tiles failed"));
                 else onFailure(status);
             });
+            opened.group.visible = current === "mesh";
+            opening.set("mesh", opened.group);
             scene.add(opened.group);
-            // Loading starts with the render loop's first update
+            // Loading starts with the render loop's first update, and goes on while another view is chosen
             tiles = opened;
         });
     }
@@ -321,11 +328,21 @@ function createScene(container, options) {
     }
 
     async function loadSplats(url, onProgress) {
+        let splats = null;
         const mesh = await new Promise((resolve, reject) => {
-            const splats = new SplatMesh({ url, paged: true, onProgress: progress(onProgress), onLoad: () => resolve(splats) });
+            splats = new SplatMesh({ url, paged: true, onProgress: progress(onProgress), onLoad: () => resolve(splats) });
             splats.initialized.catch(reject);
+            splats.visible = current === "splats";
+            opening.set("splats", splats);
             scene.add(splats);
-        });
+        }).catch((e) => {
+            // A failed load leaves nothing behind (opening Gaussian Splats again starts afresh)
+            if (splats) {
+                scene.remove(splats);
+                splats.dispose();
+            }
+            throw e;
+        }).finally(() => opening.delete("splats"));
         const until = performance.now() + BOUNDS_WAIT_MS;
         let box = mesh.getBoundingBox();
         while (box.isEmpty() && performance.now() < until) {
@@ -365,6 +382,7 @@ function createScene(container, options) {
         current = type;
         // With WebODM's offset known, the views line up, so a switch keeps the camera where the visitor left it
         keeping = Boolean(offset && placed);
+        for (const [other, object] of opening) object.visible = other === type;
         for (const [other, view] of Object.entries(views)) {
             if (other !== type) view.then((v) => { v.object.visible = current === other; }, () => {});
         }
@@ -372,7 +390,13 @@ function createScene(container, options) {
             views[type] = loaders[type](url, onProgress, onFailure || (() => {}), fallback);
             views[type].catch(() => { delete views[type]; });
         }
-        const view = await views[type];
+        let view;
+        try {
+            view = await views[type];
+        } catch (e) {
+            if (current !== type) return; // the visitor has moved on: not this view's failure to show
+            throw e;
+        }
         view.object.visible = current === type;
         if (current !== type) return;
         if (keeping) keep(view.box);
@@ -389,7 +413,7 @@ function createScene(container, options) {
         }
         controls.update();
         if (cloud && current === "cloud") cloud.update(camera, renderer);
-        if (tiles && current === "mesh") {
+        if (tiles && (current === "mesh" || opening.has("mesh"))) {
             camera.updateMatrixWorld();
             tiles.update();
         }

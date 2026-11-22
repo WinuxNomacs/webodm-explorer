@@ -201,15 +201,40 @@ class BuildTests(unittest.TestCase):
         self.assertEqual(result["state"], "gone")
         self.assertFalse(os.path.exists(self.folder()))
 
-    def test_one_build_at_a_time_and_a_wait_has_a_deadline(self):
-        fd = build.wait_for_turn(self.root, lambda **kw: None)
+    def second_mesh(self):
+        other = "89d7617e-3032-4c21-b0be-bbb82d113ddb"
+        obj = os.path.join(self.dir, "mesh2", "odm_textured_model_geo.obj")
+        os.makedirs(os.path.dirname(obj))
+        shutil.copy(self.obj, obj)
+        return other, obj
+
+    def test_a_job_finding_a_build_running_leaves_its_task_queued_and_ends_at_once(self):
+        other, obj = self.second_mesh()
+        build.claim(self.root, other, build.fingerprint(obj), obj=obj)
+        fd = build.try_build_lock(self.root)
         try:
-            beats = []
-            with self.assertRaisesRegex(build.BuildError, "another mesh build took too long"):
-                build.wait_for_turn(self.root, lambda **kw: beats.append(kw), wait=0.3, poll=0.1)
-            self.assertTrue(beats)  # the waiting build's heartbeat stays fresh
+            started = time.monotonic()
+            self.assertEqual(build.run(self.root, other, obj, self.tools), {"state": "queued", "deferred": True})
+            self.assertLess(time.monotonic() - started, 1)  # no worker slot held while another build runs
+            self.assertEqual(build.read_state(self.root, other)["state"], "queued")
         finally:
             os.close(fd)
+
+    def test_the_running_job_builds_the_tasks_queued_meanwhile_before_it_ends(self):
+        other, obj = self.second_mesh()
+        build.claim(self.root, other, build.fingerprint(obj), obj=obj)
+        build.claim(self.root, self.task, build.fingerprint(self.obj), obj=self.obj)
+        self.assertEqual(self.run_build()["state"], "ready")
+        self.assertEqual(self.state()["state"], "ready")
+        self.assertEqual(build.read_state(self.root, other)["state"], "ready")  # built by the same job
+        self.assertIsNotNone(build.try_build_lock(self.root))  # and the lock let go
+
+    def test_a_queued_task_whose_mesh_is_gone_does_not_stop_the_queue(self):
+        other, obj = self.second_mesh()
+        build.claim(self.root, other, build.fingerprint(obj), obj=obj)
+        os.remove(obj)
+        self.assertEqual(self.run_build()["state"], "ready")
+        self.assertIsNone(build.read_state(self.root, other))  # removed, as for a removed task
 
 
 class StateTests(unittest.TestCase):

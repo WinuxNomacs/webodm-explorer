@@ -61,7 +61,7 @@ test("the home's map puts each project in a box and a marker that open it, over 
     const popup = added[1].popup;
     expect(popup.querySelector("a").getAttribute("href")).toBe("/plugins/explorer/project/1/");
     expect(popup.textContent).toBe("Barn3 tasks");
-    expect(added[2].tooltip).toBe("Barn");
+    expect(added[2].tooltip.textContent).toBe("Barn");
     expect(added[1].style.className).toContain("theme-color-button-primary");
     expect(leafletMap.fitBounds).toHaveBeenCalled();
 });
@@ -95,7 +95,7 @@ test("the overview map draws each task's footprint, opening the task on a click"
     const navigate = jest.spyOn(footprints, "navigate").mockImplementation(() => {});
     footprints.init(document, L);
     expect(added).toHaveLength(1);
-    expect(added[0].tooltip).toBe("First");
+    expect(added[0].tooltip.textContent).toBe("First");
     added[0].handlers.click();
     expect(navigate).toHaveBeenCalledWith("/plugins/explorer/project/1/map/T/");
     navigate.mockRestore();
@@ -134,4 +134,13 @@ test("the chosen basemap is the remembered one while offered, else WebODM's defa
     expect(Layers.chosenBasemap(BASEMAPS, "Gone")).toBe("Google");
     expect(Layers.chosenBasemap([{label: "A"}, {label: "B"}], null)).toBe("A");
     expect(Layers.chosenBasemap([], "OSM")).toBe("");
+});
+
+test("names are shown as text, never as HTML", () => {
+    const name = '<img src=x onerror="window.pwned=1">';
+    page('<div data-explorer-footprints="tasks"></div>', [{name, url: "/t/", geometry: square(7, 46)}]);
+    const {L, added} = fakeLeaflet();
+    footprints.init(document, L);
+    expect(added[0].tooltip.textContent).toBe(name);
+    expect(added[0].tooltip.children).toHaveLength(0);
 });
