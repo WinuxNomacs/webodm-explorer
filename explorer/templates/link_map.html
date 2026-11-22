@@ -27,6 +27,17 @@
         </div>
         <div class="explorer-viewer-tools">
         {% if not embed %}{% include neighbours_template %}{% endif %}
+        {% if views_3d %}
+        {# The task's 3D views, which tilt and rotate (the map is 2D); an embed stays an embed #}
+        <div class="btn-group explorer-types" role="group" aria-label="{% trans "View" %}">
+            <a class="btn btn-default btn-sm active" href="{{ map_view }}{% if embed %}?embed=1{% endif %}" aria-current="page" title="{% trans "Map" %}">
+                <i class="fa fa-globe"></i> <span class="explorer-label">{% trans "Map" %}</span></a>
+            {% for view in views_3d %}
+            <a class="btn btn-default btn-sm" href="{{ view.url }}{% if embed %}&amp;embed=1{% endif %}" title="{{ view.label }}">
+                <i class="{{ view.icon }}"></i> <span class="explorer-label">{{ view.label }}</span></a>
+            {% endfor %}
+        </div>
+        {% endif %}
         {% if layers|length > 1 %}
         <div class="btn-group" role="group" aria-label="{% trans "Layer" %}">
             {% for layer in layers %}

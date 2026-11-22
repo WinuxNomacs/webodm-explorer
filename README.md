@@ -44,7 +44,8 @@ a server where only Explorer's links are public. It will be published to GitHub 
   positions or All Assets. Links are kept in plain text in WebODM's database (so they can be copied again), and
   revoking one, or unticking Allow Downloads, takes effect at once.
 - **Explorer's map and 3D pages** (for visitors and signed-in users alike) have **Previous** and **Next** to step
-  through the project's tasks, keeping the view where the next task has it, **Reset View** (R) and **Fullscreen**
+  through the project's tasks, keeping the view where the next task has it, a switch between the task's **Map** and
+  its 3D views, **Reset View** (R) and **Fullscreen**
   (F, where the browser allows it). Switching the 3D page between Point Cloud, Textured Model and Gaussian Splats
   keeps the camera where you left it. The 3D page explains its controls ("?"), turns to orbit a point you double-click
   or double-tap, and gives the point cloud a **Point Size** and **Colour by Elevation** with a legend. The map has a
