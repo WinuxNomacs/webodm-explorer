@@ -266,3 +266,186 @@ a.explorer-card-link:focus .explorer-card-title {
     justify-content: space-between;
     margin-top: 4px;
 }
+
+/* The Explorer home's toolbar: Search, then the scope, sort, filters and the Grid / Map switch in one row that wraps */
+.explorer-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    margin: 12px 0 4px;
+}
+
+.explorer-search {
+    flex: 1 1 240px;
+    max-width: 420px;
+}
+
+.explorer-toolbar-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+}
+
+.explorer-toolbar-row select {
+    width: auto;
+}
+
+.explorer-filter {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin: 0;
+    font-weight: normal;
+    white-space: nowrap;
+}
+
+.explorer-filter input {
+    margin: 0;
+}
+
+/* A card's title with its link badge or "..." menu beside it */
+.explorer-card-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 6px;
+}
+
+a.explorer-title-link,
+a.explorer-title-link:hover,
+a.explorer-title-link:focus {
+    color: inherit;
+}
+
+.explorer-thumbnail-link {
+    display: block;
+}
+
+.explorer-link-badge {
+    flex: none;
+    margin-top: 2px;
+    font-weight: normal;
+}
+
+.explorer-more {
+    color: inherit;
+    padding: 0 4px;
+}
+
+/* Two lines of a project's description */
+.explorer-description {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+}
+
+.explorer-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 6px;
+}
+
+.explorer-tag {
+    border-width: 1px;
+    border-style: solid;
+    border-radius: 10px;
+    padding: 0 8px;
+    font-size: 12px;
+    line-height: 18px;
+}
+
+.explorer-counts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    margin-top: 6px;
+}
+
+.explorer-card-meta {
+    margin-top: 6px;
+    font-size: 12px;
+}
+
+.explorer-pages {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin: 8px 0 24px;
+}
+
+/* The project page's owner, task count and tags under its title */
+.explorer-project-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 16px;
+    margin: 2px 0 10px;
+}
+
+.explorer-project-meta .explorer-tags {
+    margin: 0;
+}
+
+/* The footprint maps: the home's Map view and the project page's Overview Map */
+.explorer-footprint-map {
+    height: 320px;
+    border-width: 1px;
+    border-style: solid;
+    border-radius: 4px;
+    margin: 8px 0 0;
+}
+
+.explorer-home-map {
+    height: calc(100vh - 230px);
+    min-height: 320px;
+    margin: 12px 0 16px;
+}
+
+.explorer-overview {
+    margin: 12px 0 0;
+}
+
+.explorer-overview summary {
+    /* Bootstrap 3 makes it a block, which hides the arrow that says it folds */
+    display: list-item;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.explorer-map-note {
+    margin: 12px 0;
+}
+
+path.explorer-footprint {
+    cursor: pointer;
+    stroke: currentColor;
+    fill: currentColor;
+}
+
+@media (max-width: 600px) {
+    .explorer-search {
+        flex-basis: 100%;
+        max-width: none;
+    }
+
+    .explorer-footprint-map {
+        height: 240px;
+    }
+
+    .explorer-home-map {
+        height: calc(100vh - 300px);
+    }
+}
+
+/* A task card's outputs: compact, so the four types fit one row of a card */
+.explorer-outputs .explorer-chip {
+    padding: 3px 8px;
+    font-size: 12px;
+}

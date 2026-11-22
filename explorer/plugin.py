@@ -54,13 +54,28 @@ class Plugin(PluginBase):
 
         @login_required
         def project_list(request):
-            return render(request, self.template_path("projects.html"), {
+            query = pages.home_query(request.GET)
+            context = {
                 "title": _("Explorer"),
                 "public": public,
-                "projects": pages.project_cards(request.user),
+                "query": query,
+                "scopes": [("all", _("All")), ("mine", _("Mine")), ("shared", _("Shared with Me"))],
+                "sorts": [("activity", _("Recent Activity")), ("name", _("Name")), ("created", _("Created"))],
+                "grid_params": query.params(view="grid", page="1"),
+                "map_params": query.params(view="map", page="1"),
                 "settings": options.all_settings() if request.user.is_superuser else None,
                 "settings_api": f"/api/plugins/{links.NAMESPACE}/settings/",
-            })
+                "any_projects": pages.viewable_projects(request.user).exists(),
+            }
+            if query.view == "map":
+                context.update(places=pages.home_map(request.user, query, public),
+                               basemaps=options.signed_in_basemaps())
+            else:
+                page = pages.home_page(request.user, query)
+                context.update(page=page, projects=pages.project_summaries(request.user, list(page.object_list)),
+                               previous_params=query.params(page=str(page.number - 1)) if page.has_previous() else None,
+                               next_params=query.params(page=str(page.number + 1)) if page.has_next() else None)
+            return render(request, self.template_path("projects.html"), context)
 
         def viewable_project(request, project_pk):
             project = get_object_or_404(Project, pk=project_pk, deleting=False)
@@ -71,15 +86,25 @@ class Plugin(PluginBase):
 
         @login_required
         def project_page(request, project_pk):
-            project = viewable_project(request, project_pk)
+            viewer = own_viewer(request, project_pk)
+            project = viewer.project
+            cards = pages.explorable_tasks([project], lambda task: pages.link_outputs(task, viewer.path),
+                                           lambda task: pages.link_downloads(task, viewer.api), details=True)
+            can_share = request.user.has_perm("app.change_project", project)
             return render(request, self.template_path("project.html"), {
                 "title": project.name,
                 "public": public,
                 "project": project,
-                "cards": pages.explorable_tasks([project]),
+                "tags": pages.user_tags(project.tags),
+                "owner": project.owner if project.owner_id != request.user.id else None,
+                "cards": cards,
+                "signed_in": True,
+                "footprints": pages.task_footprints(cards),
+                "basemaps": options.signed_in_basemaps(),
                 "cards_template": self.template_path("cards.html"),
-                "thumbnails": f"/api/projects/{project.id}/tasks/",
-                "can_share": request.user.has_perm("app.change_project", project),
+                "thumbnails": viewer.api,
+                "can_share": can_share,
+                "links": pages.link_summaries(request.user, [project.id]).get(project.id) if can_share else None,
                 "links_api": f"/api/plugins/{links.NAMESPACE}/projects/{project.id}/links/",
                 "preview_path": f"{public}project/{project.id}/preview/",
             })
@@ -110,11 +135,30 @@ class Plugin(PluginBase):
                                 tiles_api=f"/api/plugins/{links.NAMESPACE}/projects/{project.id}/tasks/",
                                 downloads=False, preview=True)
 
-        def viewer_context(viewer, **extra):
-            return {"public": public, "project": viewer.project, "link_path": viewer.path, "api": viewer.api,
-                    "tiles_api": viewer.tiles_api, "thumbnails": viewer.api, "preview": viewer.preview,
-                    "back": f"{public}project/{viewer.project.id}/", "cards_template": self.template_path("cards.html"),
-                    "preview_template": self.template_path("preview_bar.html"), **extra}
+        def own_viewer(request, project_pk):
+            """
+            The signed-in user's own view, which the project page's cards open: the preview's API without its bar,
+            with WebODM's downloads (viewing a project is enough for them) and Open in WebODM.
+            """
+            project = viewable_project(request, project_pk)
+            return pages.Viewer(project=project, path=f"{public}project/{project.id}/",
+                                api=f"/api/projects/{project.id}/tasks/",
+                                tiles_api=f"/api/plugins/{links.NAMESPACE}/projects/{project.id}/tasks/",
+                                downloads=True, preview=False, signed_in=True)
+
+        def viewer_context(viewer, task=None, **extra):
+            context = {"public": public, "project": viewer.project, "link_path": viewer.path, "api": viewer.api,
+                       "tiles_api": viewer.tiles_api, "thumbnails": viewer.api, "preview": viewer.preview,
+                       "signed_in": viewer.signed_in, "task": task,
+                       "back": f"{public}project/{viewer.project.id}/",
+                       "cards_template": self.template_path("cards.html"),
+                       "preview_template": self.template_path("preview_bar.html"),
+                       "viewer_tools_template": self.template_path("viewer_tools.html"), **extra}
+            if task is not None:
+                context["downloads"] = pages.link_downloads(task, viewer.api) if viewer.downloads else []
+                if viewer.signed_in:
+                    context["webodm"] = pages.task_outputs(task)
+            return context
 
         def list_page(request, viewer):
             if viewer is None:
@@ -174,9 +218,19 @@ class Plugin(PluginBase):
         def preview_3d(request, project_pk, pk):
             return page_3d(request, preview_viewer(request, project_pk), pk)
 
+        @login_required
+        def own_map(request, project_pk, pk):
+            return map_page(request, own_viewer(request, project_pk), pk)
+
+        @login_required
+        def own_3d(request, project_pk, pk):
+            return page_3d(request, own_viewer(request, project_pk), pk)
+
         return with_and_without_slash([
             ("", project_list),
             (r"project/(?P<project_pk>[0-9]+)/", project_page),
+            (rf"project/(?P<project_pk>[0-9]+)/map/{TASK}/", own_map),
+            (rf"project/(?P<project_pk>[0-9]+)/3d/{TASK}/", own_3d),
             (r"project/(?P<project_pk>[0-9]+)/preview/", preview_page),
             (rf"project/(?P<project_pk>[0-9]+)/preview/map/{TASK}/", preview_map),
             (rf"project/(?P<project_pk>[0-9]+)/preview/3d/{TASK}/", preview_3d),

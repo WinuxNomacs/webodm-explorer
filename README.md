@@ -5,13 +5,23 @@ Under development.
 
 ## Features
 
-- **Explorer** in the main menu lists the projects you can view. Each opens its Explorer page: a card per
-  completed task with outputs, with a thumbnail and buttons that open WebODM's own views: **Map** (orthophoto, DSM,
-  DTM), **Point Cloud**, **Textured Model** and **Gaussian Splats**. **View All on Map** shows the whole project.
-  Where WebODM can't make a thumbnail (a thermal orthophoto, or a task with elevation models only), the card draws
-  one from the task's map tiles, in the colours of its map.
-- **Preview** on a project's Explorer page shows the project as anyone with a link sees it (the link page, its maps
-  and 3D views, with tiled models), without creating a link, for any signed-in user who can view the project.
+- **Explorer** in the main menu lists the projects you can view (WebODM's admins: every project), with **Search**
+  (names, descriptions and tags), **All**, **Mine** or **Shared with Me**, sorting by **Recent Activity**, **Name**
+  or **Created**, and **Has 3D** and **Shared by Link** filters, 24 projects to a page; the page's address keeps
+  them, so a view can be bookmarked. Each card shows the project's picture, description, tags, a count per output
+  type, its last activity, its owner when it isn't you, and its active links (marked when one expires within 7 days)
+  for users who can share it. **Map** shows the projects where their tasks were flown, over WebODM's basemap.
+- **A project's Explorer page** has the owner, tags and task count, an **Overview Map** of the tasks' footprints
+  (folded when there is one task; a footprint opens its task), and a card per completed task with outputs: its
+  thumbnail, date, images, size and processing time, tags, and buttons for its **Map** (orthophoto, DSM, DTM, thermal),
+  **Point Cloud**, **Textured Model** and **Gaussian Splats**. These open in Explorer's own viewer, with a
+  **Download** menu and **Open in WebODM** (WebODM's map and 3D pages, for their measurement tools); each card's
+  "..." menu has the same. The page's "..." menu has **Open in Dashboard** and **View All on Map**. Where WebODM
+  can't make a thumbnail (a thermal orthophoto, or a task with elevation models only), the card draws one from the
+  task's map tiles, in the colours of its map.
+- **View as Visitor** on a project's Explorer page shows the project as anyone with a link sees it (the link page,
+  its maps and 3D views, with tiled models), without creating a link, for any signed-in user who can view the
+  project.
 - **Share** on a project's Explorer page shows and copies the page's link. It opens only for signed-in users the
   project is shared with (Dashboard: the project's Edit dialog, Permissions).
 - **Anyone with the Link**, in the Share panel for users who can change the project: links that open the project
@@ -23,7 +33,7 @@ Under development.
   from the task's mesh in WebODM's worker the first time it is shared or opened (a minute or two per mesh, at low
   priority, one at a time, kept in the plugin's folder in WebODM's media until the task is removed); until they are
   ready, the link shows WebODM's own model. A link serves only what these views stream, unless it has
-  **Allow Downloads** (ticked when creating it, or on the link later): its task cards then get a **Download** menu
+  **Allow Downloads** (ticked when creating it, or on the link later): its task cards and views then get a **Download** menu
   with the orthophoto, DSM, DTM, point cloud (LAZ) and textured model (zip and glTF), but not the report, camera
   positions or All Assets. Links are kept in plain text in WebODM's database (so they can be copied again), and
   revoking one, or unticking Allow Downloads, takes effect at once.

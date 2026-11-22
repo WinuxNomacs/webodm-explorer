@@ -2,10 +2,10 @@
 
 ## Phases (current and upcoming)
 
-Up next: **Explorer UX: the project hub** (the request 2026-11-21, plan below). Step 1 built (see "Done"); step 2 decided (plan below), to build next.
-Its steps, each a phase: 1. defects (single-band colours and legend, thumbnail fallback, 3D framing; done);
-2. navigation hub (home and project pages, with Explorer's viewer for signed-in users and Open in WebODM, folded in
-2026-11-21); 3. viewer polish; 4. showcase (link landing page, embed).
+Up next: **Explorer UX: the project hub** (the request 2026-11-21, plan below). Steps 1 and 2 built (see "Done");
+step 3 to plan next. Its steps, each a phase: 1. defects (single-band colours and legend, thumbnail fallback, 3D
+framing; done); 2. navigation hub (home and project pages, with Explorer's viewer for signed-in users and Open in
+WebODM; done); 3. viewer polish; 4. showcase (link landing page, embed).
 
 Later: COPC point clouds and a Range/caching asset endpoint (only if EPT through WebODM proves too slow);
 docs site (VitePress on GitHub Pages, as TweakUI) and screenshots, once there are features to show.
@@ -446,8 +446,8 @@ WGS84 (`orthophoto_extent`, `dsm_extent`, `dtm_extent`, GeoJSON polygons), `imag
 - **Smoothness:** one query for a page of projects with their tasks, link counts read per project on the page
   only (at most 24), thumbnails lazy as now; the footprint maps draw GeoJSON outlines (no tiles of the tasks).
 - What can fail: a project without tasks (no picture, "No outputs yet"), extents missing (left off the maps), the
-  links store busy (the badge left out, never a page error), a bad page or sort in the address (the first page,
-  the default sort).
+  links store busy (the badge left out, never a page error), a bad page or sort in the address (the first
+  page, or the last for a number past the end; the default sort).
 
 The user's answers (2026-11-21): all three as recommended.
 
@@ -458,6 +458,28 @@ The user's answers (2026-11-21): all three as recommended.
 3. The project page's overview map of task footprints. Recommended: yes, folded away when a project has one task.
 
 ## Done
+
+- **UX step 2: the navigation hub** (2026-11-21, branch `ux-hub`):
+  - Code: `explorer/pages.py` (`HomeQuery`, `home_query`, `home_projects`, `home_page`, `project_summaries`,
+    `home_map`, cards as dicts with `open`, `webodm`, `facts`, `tags`, `footprint`; `task_footprints`, `user_tags`,
+    `duration`, `disk_size`), `explorer/links.py` (`index:linked` with `linked_project_ids`, built once for links
+    saved before it; `summary` for the badge), `explorer/plugin.py` (the home's query, the project page's header,
+    `own_viewer` at `project/<id>/map|3d/<task>/`, `viewer_context` with downloads and Open in WebODM),
+    `explorer/options.py` (`signed_in_basemaps`), templates `projects.html`, `project.html`, `cards.html`,
+    `viewer_tools.html`, `link_map.html`, `link_3d.html`, `preview_bar.html` (View as Visitor),
+    `explorer/public/footprints.js` (the home's Map view and the Overview Map), `layers.js` (`basemapLayer` and
+    `chosenBasemap`, shared with `map.js`), `explorer.js` (the toolbar applies at once, leaves defaults out of the
+    address), `explorer.css`.
+  - Tests: `explorer/tests/test_hub.py` (Django), `explorer/public/__tests__/footprints.test.js` and the toolbar in
+    `explorer.test.js` (Jest); failures injected: the links store raising (filter empty, page answers), footprint
+    data that doesn't parse, an index missing for links saved before it.
+  - Live check (headless Chromium on the M4 Pro's GPU, the user's two projects, desktop and phone): the home's cards,
+    sort, Map view; the project pages' Overview Map, card menus, a card opening Explorer's map with Download and Open in
+    WebODM; no long tasks on any of these pages, the server answering in 20-31 ms, loads in 60-125 ms (with two
+    projects; Spotlight busy on the Mac, the stack idle).
+  - Also found: a drawn thermal thumbnail shows faint seams between its tiles (from step 1, left for step 3).
+  - Open: the home's and project page's maps use `Basemap.get_cached_basemaps()` as the link map does; the approved
+    exception names the link map only (asked of the user 2026-11-21).
 
 - **UX step 1: thermal layer and legends, drawn thumbnails, framing, basemaps** (2026-11-21, branch `ux-defects`):
   `explorer/public/layers.js` (each layer's parameters and stretch as WebODM's map, legends, the tiles a thumbnail

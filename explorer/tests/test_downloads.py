@@ -105,12 +105,12 @@ class DownloadPageTests(LinkTestMixin, BootTestCase):
         for asset in ("dtm.tif", "report.pdf", "all.zip", "cameras.json", "splats.rad"):
             self.assertNotContains(response, f"{downloads}{asset}")
 
-    def test_the_signed_in_project_page_has_no_download_menu(self):
-        self.task()
+    def test_the_signed_in_project_page_offers_webodms_own_downloads(self):
+        task = self.task()
         response = self.client_for("testuser").get(f"/plugins/explorer/project/{self.project.id}/")
         self.assertEqual(response.status_code, 200)
-        self.assertNotContains(response, "/download/")
-        self.assertNotContains(response, "fa-download")
+        self.assertContains(response, f'href="/api/projects/{self.project.id}/tasks/{task.id}/download/orthophoto.tif" download')
+        self.assertNotContains(response, "/api/plugins/explorer/s/")
 
 
 class TokenDownloadTests(LinkTestMixin, BootTestCase):

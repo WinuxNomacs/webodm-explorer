@@ -99,3 +99,31 @@ test("a thumbnail that loaded is kept", () => {
     init(document);
     expect(document.querySelector("img")).toBe(img);
 });
+
+test("a changed scope, sort or filter on the home's toolbar applies at once; typing a search waits for Enter", () => {
+    document.body.innerHTML = `
+        <form data-explorer-toolbar>
+            <input type="search" name="q"><select name="scope"><option>all</option><option>mine</option></select>
+            <input type="checkbox" name="3d" value="1">
+        </form>`;
+    const form = document.querySelector("form");
+    form.requestSubmit = jest.fn();
+    init(document);
+    document.querySelector("[name=q]").dispatchEvent(new Event("change"));
+    expect(form.requestSubmit).not.toHaveBeenCalled();
+    document.querySelector("select").dispatchEvent(new Event("change"));
+    document.querySelector("[name='3d']").dispatchEvent(new Event("change"));
+    expect(form.requestSubmit).toHaveBeenCalledTimes(2);
+});
+
+test("the toolbar leaves empty and default values out of the address", () => {
+    document.body.innerHTML = `
+        <form data-explorer-toolbar>
+            <input type="search" name="q" value=""><select name="scope" data-default="all"><option>all</option></select>
+            <select name="sort" data-default="activity"><option>activity</option><option selected>name</option></select>
+        </form>`;
+    init(document);
+    const form = document.querySelector("form");
+    form.dispatchEvent(new Event("submit"));
+    expect([...form.elements].filter((f) => !f.disabled).map((f) => f.name)).toEqual(["sort"]);
+});

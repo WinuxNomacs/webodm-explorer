@@ -1,8 +1,8 @@
 /*
  * The raster layers Explorer draws, drawn as WebODM's map draws them (Map.jsx): each layer's tile parameters and
  * stretch, its tile and metadata URLs, its legend, and the tiles that cover a small picture of it (a card's thumbnail
- * when WebODM's thumbnail API can't make one). Layer types: orthophoto, thermal (the orthophoto's one band in degrees
- * Celsius), dsm and dtm.
+ * when WebODM's thumbnail API can't make one), and the admin's basemaps under Explorer's maps. Layer types: orthophoto,
+ * thermal (the orthophoto's one band in degrees Celsius), dsm and dtm.
  */
 (function () {
     "use strict";
@@ -156,10 +156,35 @@
         };
     }
 
+    // A basemap as WebODM stores it (Basemap.get_cached_basemaps) to a Leaflet layer, kept under the task's layer
+    function basemapLayer(L, basemap) {
+        var options = {
+            attribution: basemap.attribution || "", minZoom: basemap.minzoom || 0,
+            maxNativeZoom: basemap.maxzoom || 19, maxZoom: 24
+        };
+        if (basemap.subdomains) options.subdomains = basemap.subdomains;
+        if (basemap.type === "wms") {
+            options.layers = basemap.layers || "";
+            options.format = basemap.format || "image/jpeg";
+            if (basemap.styles) options.styles = basemap.styles;
+            return L.tileLayer.wms(basemap.url, options);
+        }
+        return L.tileLayer(basemap.url, options);
+    }
+
+    // The basemap label to show: the remembered one (saved, "" being none) if still offered, else WebODM's default
+    function chosenBasemap(basemaps, saved) {
+        if (!basemaps.length) return "";
+        var offered = saved === "" || basemaps.some(function (b) { return b.label === saved; });
+        if (saved !== null && saved !== undefined && offered) return saved;
+        return (basemaps.filter(function (b) { return b.default; })[0] || basemaps[0]).label;
+    }
+
     var Layers = {
         TILE: TILE, tileType: tileType, params: params, hasBands: hasBands, range: range, rescale: rescale,
         query: query, metadataUrl: metadataUrl, tileUrl: tileUrl, colorRamp: colorRamp, units: units,
-        convert: convert, number: number, format: format, toPixels: toPixels, cover: cover
+        convert: convert, number: number, format: format, toPixels: toPixels, cover: cover,
+        basemapLayer: basemapLayer, chosenBasemap: chosenBasemap, BASEMAP_KEY: "explorer-basemap"
     };
     if (typeof module !== "undefined" && module.exports) {
         module.exports = Layers;

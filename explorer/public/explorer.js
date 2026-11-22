@@ -1,5 +1,5 @@
 /*
- * The Explorer pages: the home's Settings panel for admins, card thumbnails (drawn from the task's tiles where
+ * The Explorer pages: the home's toolbar and its Settings panel for admins, card thumbnails (drawn from the task's tiles where
  * WebODM's thumbnail API can't make one, else a placeholder), and the project page's Share panel, which shows the
  * page's own link (for signed-in users the project is shared with) and, for users who can change the project, its
  * "anyone with the link" links: listed, created and revoked through the plugin's API.
@@ -167,7 +167,33 @@
         });
     }
 
+    // The home's toolbar is a plain GET form; a changed scope, sort or filter applies at once. Empty and default values
+    // stay out of the address, as the page's own links leave them out.
+    function initToolbar(root) {
+        var form = root.querySelector("[data-explorer-toolbar]");
+        if (!form) return;
+        form.addEventListener("submit", function () {
+            var named = form.querySelectorAll("[name]");
+            for (var i = 0; i < named.length; i++) {
+                var field = named[i];
+                if (field.value === "" || field.value === field.getAttribute("data-default")) field.disabled = true;
+            }
+        });
+        // Back to this page from the browser's cache: the fields left out are usable again
+        window.addEventListener("pageshow", function () {
+            var named = form.querySelectorAll("[name]");
+            for (var i = 0; i < named.length; i++) named[i].disabled = false;
+        });
+        var fields = form.querySelectorAll("select, input[type=checkbox]");
+        for (var i = 0; i < fields.length; i++) {
+            fields[i].addEventListener("change", function () {
+                if (form.requestSubmit) form.requestSubmit(); else form.submit();
+            });
+        }
+    }
+
     function init(root) {
+        initToolbar(root);
         initSettings(root);
         watchThumbnails(root);
         initShare(root);

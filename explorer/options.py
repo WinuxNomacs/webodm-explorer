@@ -33,3 +33,8 @@ def link_basemaps():
     2026-11-21: no API lists them); none when the setting is off.
     """
     return Basemap.get_cached_basemaps() if basemaps_on_links() else []
+
+
+def signed_in_basemaps():
+    """The basemaps under the signed-in pages' maps (the home's and the project's): WebODM's own map shows them too."""
+    return Basemap.get_cached_basemaps()
