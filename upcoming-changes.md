@@ -2,7 +2,8 @@
 
 ## Phases (current and upcoming)
 
-Up next: nothing planned. **3D backgrounds** (the request 2026-11-22) is built (see "Done").
+Up next: nothing planned. **Keep the camera across 3D views** and **Space without the purple** (the request
+2026-11-22, below) and **3D backgrounds** are built (see "Done").
 
 Built: **Explorer UX: the project hub** (the request 2026-11-21, plan below) is built, all four
 steps (see "Done"). Its steps, each a phase: 1. defects (single-band colours and legend, thumbnail fallback, 3D
@@ -558,7 +559,33 @@ View as Visitor and the signed-in viewer. Today the canvas is transparent (`alph
 - Double-click focus ignores the grid (it picks only the model). Point cloud colours and the elevation legend stay
   as they are.
 
+### The request: keep the camera across 3D views, Space without the purple (2026-11-22)
+
+"when switching between views (e.g. textured model -> guassian splat -> point cloud), is it possible for the position
+and angle to be preserved? That way it doesn't reset the view each time the user switches? Also, space background is
+great but lose the purple galaxy hue."
+
+Built straight away (small, clear, no decisions open): the views are drawn in different coordinates (the point cloud
+relative to its centre, the mesh and the splats relative to WebODM's offset in `odm_georeferencing/coords.txt`; checked
+on task 358acbe0: the GLB's `CESIUM_RTC` centre is that offset, the tiles keep the OBJ's coordinates, and the splats
+line up with the mesh). The page now carries the offset, the cloud is moved by its origin minus it, and a switch
+keeps the camera. Without a readable offset each view is framed as before. Reset View still frames the shown view.
+
 ## Done
+
+- **Keep the camera across 3D views; Space without the purple** (2026-11-22, branch `viewer-keep-camera`):
+  - Code: `explorer/pages.py` `model_offset` (coords.txt's second line, None unless two finite numbers),
+    `explorer/plugin.py` and `explorer/templates/link_3d.html` (`data-offset`), `explorer/public/viewer/scene.js`
+    (`offsetOf`, the cloud's group moved onto the offset, `keep` instead of `frame` on a switch, the tiles' bounds
+    frame skipped then; `place()` for live checks), `explorer/public/viewer/ept.js` (node selection and culling in
+    the group's coordinates), `explorer/public/viewer/backdrop.js` (Space's band and core now neutral greys).
+  - Tests: `explorer/tests/test_polish.py` `KeepCameraTests` (the offset on signed-in and link pages; none when
+    coords.txt is missing, short, not numbers or not finite).
+  - Live check (Metal, task 358acbe0): orbited and zoomed, then switched mesh, splats, cloud, mesh and, from a fresh
+    page, cloud, mesh (tiles loading under the kept camera), splats: the camera and target stayed (within 0.3 m of
+    orbit damping settling) and the house sat on the same pixels in every view. Point cloud streaming unchanged:
+    16.7 ms frames loading, interacting and idle, no long tasks. Space screenshot: no hue left.
+
 
 - **3D backgrounds** (2026-11-22, branch `viewer-backgrounds`):
   - Code: `explorer/public/viewer/backdrop.js` (new: the grid's shader plane fitted under the framed box, with its

@@ -3,7 +3,9 @@ Tests of UX step 3, viewer polish (upcoming-changes.md): Previous / Next task on
 controls those pages carry. Run inside the dev stack's web container:
 docker exec -w /webodm ex-webapp python manage.py test --noinput coreplugins.explorer.tests
 """
+import os
 import re
+import shutil
 from datetime import timedelta
 
 from app.tests.classes import BootTestCase
@@ -129,3 +131,34 @@ class BackgroundMenuTests(LinkTestMixin, BootTestCase):
     def test_the_map_page_has_no_background_menu(self):
         html = self.client_for("testuser").get(f"/plugins/explorer/project/{self.project.id}/map/{self.full.id}/").content.decode()
         self.assertNotIn("data-background", html)
+
+
+class KeepCameraTests(LinkTestMixin, BootTestCase):
+    """The 3D page carries WebODM's offset, so the views line up and a switch keeps the camera (viewer/scene.js)."""
+    def setUp(self):
+        super().setUp()
+        self.full = self.task("Full")
+        self.addCleanup(shutil.rmtree, self.full.task_path(), True)
+        self.path = f"/plugins/explorer/project/{self.project.id}/3d/{self.full.id}/"
+
+    def coords(self, text):
+        os.makedirs(self.full.assets_path("odm_georeferencing"), exist_ok=True)
+        with open(self.full.assets_path("odm_georeferencing", "coords.txt"), "w") as f:
+            f.write(text)
+
+    def page(self):
+        return self.client_for("testuser").get(self.path).content.decode()
+
+    def test_the_3d_page_carries_the_tasks_offset(self):
+        self.coords("WGS84 UTM 16N\n410976 4661818\n-5.19 -1.68 226.7\n")
+        self.assertIn('data-offset="410976.000 4661818.000"', self.page())
+        token = self.link()["token"]
+        html = Client().get(f"/plugins/explorer/s/{token}/3d/{self.full.id}/").content.decode()
+        self.assertIn('data-offset="410976.000 4661818.000"', html)
+
+    def test_without_a_readable_offset_the_page_has_none_and_switching_frames_each_view(self):
+        self.assertNotIn("data-offset", self.page())
+        for text in ("WGS84 UTM 16N\n", "WGS84 UTM 16N\nnorth east\n", "WGS84 UTM 16N\nnan 4661818\n"):
+            self.coords(text)
+            self.assertIsNone(pages.model_offset(self.full), text)
+            self.assertNotIn("data-offset", self.page(), text)

@@ -39,7 +39,8 @@ Under development.
   revoking one, or unticking Allow Downloads, takes effect at once.
 - **Explorer's map and 3D pages** (for visitors and signed-in users alike) have **Previous** and **Next** to step
   through the project's tasks, keeping the view where the next task has it, **Reset View** (R) and **Fullscreen**
-  (F, where the browser allows it). The 3D page explains its controls ("?"), turns to orbit a point you double-click
+  (F, where the browser allows it). Switching the 3D page between Point Cloud, Textured Model and Gaussian Splats
+  keeps the camera where you left it. The 3D page explains its controls ("?"), turns to orbit a point you double-click
   or double-tap, and gives the point cloud a **Point Size** and **Colour by Elevation** with a legend. The map has a
   **layer opacity** slider over the basemap and a scale bar in the legend's units. The 3D page's **Background** menu
   (B) draws a dark **Grid** floor under the model (the default), a **Sky**, **Space** with stars, or **Plain** (the

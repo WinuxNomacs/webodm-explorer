@@ -2,7 +2,7 @@
  * What fills the 3D view around the model (the 3D page's Background menu, viewer-ui.js):
  * - Grid: a dark background and a floor of lines under the model, one plane drawn by a small shader;
  * - Sky: a gradient sky, Z-up as WebODM's outputs;
- * - Space: a dark sky with a faint galactic band and stars;
+ * - Space: a dark sky with a faint grey galactic band and stars;
  * - Plain: nothing, so the page's theme colour shows through the transparent canvas.
  * Sky and Space's gradients are drawn once into a cube texture, the scene's background (one draw a frame); the stars
  * are points that keep their directions as the camera moves, so they stay sharp at any screen size. Everything is
@@ -15,7 +15,8 @@ export const BACKGROUNDS = ["grid", "sky", "space", "plain"];
 
 const GRID = { background: 0x15181d, minor: 0x353d4a, major: 0x5b6676 };
 const SKY = { zenith: 0x2a63ad, horizon: 0xdbe9f5, ground: 0x9fb8cc };
-const SPACE = { deep: 0x020309, band: 0x2a2440, core: 0x6d5a72 };
+// Space without a hue (the user, 2026-11-22): the band is a faint grey, as starlight is to the eye
+const SPACE = { deep: 0x020203, band: 0x1e1e20, core: 0x424244 };
 // The floor reaches this many times the model's horizontal radius, fading out from FADE_START times it
 const GRID_REACH = 14;
 const FADE_START = 3;

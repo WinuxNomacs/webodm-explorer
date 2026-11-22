@@ -5,6 +5,7 @@ the project for signed-in users, whose cards also offer WebODM's own pages ("Ope
 upcoming-changes.md).
 """
 import logging
+import math
 from typing import NamedTuple
 from urllib.parse import urlencode
 
@@ -309,6 +310,18 @@ def viewer_types(task):
     if "splats.rad" in assets:
         types.append(("splats", _("Gaussian Splats"), "fa fa-splat"))
     return types
+
+
+def model_offset(task):
+    """WebODM's offset for a task, "x y" (coords.txt's second line: the mesh's and the splats' origin in the model's
+    coordinates), or None. The 3D page lines its views up with it, so switching keeps the camera."""
+    try:
+        with open(task.assets_path("odm_georeferencing", "coords.txt")) as f:
+            f.readline()
+            x, y = (float(value) for value in f.readline().split()[:2])
+    except (OSError, ValueError, UnicodeDecodeError):
+        return None
+    return f"{x:.3f} {y:.3f}" if math.isfinite(x) and math.isfinite(y) else None
 
 
 def link_outputs(task, link_path):
