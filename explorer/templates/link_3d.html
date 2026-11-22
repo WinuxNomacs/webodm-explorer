@@ -8,19 +8,23 @@
 {"imports": {
     "three": "{{ public }}vendor/three-0.187.0/build/three.module.js",
     "three/addons/": "{{ public }}vendor/three-0.187.0/examples/jsm/",
-    "@sparkjsdev/spark": "{{ public }}vendor/spark-2.4.0/dist/spark.module.min.js"
+    "@sparkjsdev/spark": "{{ public }}vendor/spark-2.4.0/dist/spark.module.min.js",
+    "3d-tiles-renderer/three": "{{ public }}vendor/3d-tiles-renderer-0.5.4/build/index.three.js",
+    "3d-tiles-renderer/three/plugins": "{{ public }}vendor/3d-tiles-renderer-0.5.4/build/index.three-plugins.js"
 }}
 </script>{% endblock %}
 
 {% block content %}
 <div class="explorer-viewer-page" data-explorer-viewer data-initial="{{ initial }}" data-link="{{ link_path }}"
      data-draco="{{ public }}vendor/three-0.187.0/examples/jsm/libs/draco/gltf/"
+     data-basis="{{ public }}vendor/three-0.187.0/examples/jsm/libs/basis/"
      data-ept-worker="{{ public }}ept-worker.js" data-ept-decode="{{ public }}ept-decode.js"
      data-lazperf="{{ public }}vendor/laz-perf-0.0.7/lib/worker/laz-perf.js"
      data-lazperf-wasm="{{ public }}vendor/laz-perf-0.0.7/lib/worker/laz-perf.wasm"
      data-loading="{% trans "Loading..." %}"
      data-invalid="{% trans "This link is no longer valid." %}"
      data-error="{% trans "This view could not be loaded." %}"
+     data-preparing="{% trans "A faster view of this model is being prepared for next time." %}"
      data-no-webgl="{% trans "This browser can't show 3D views (WebGL 2 is not available)." %}">
     <div class="explorer-viewer-bar">
         <div class="explorer-viewer-title">
@@ -29,8 +33,16 @@
         </div>
         <div class="btn-group" role="group" aria-label="{% trans "View" %}">
             {% for type in types %}
+            {% if type.type == "mesh" %}
+            {# The tiles once built, WebODM's GLB as their fallback; the GLB alone until then #}
+            <button type="button" class="btn btn-default btn-sm" data-type="mesh" aria-pressed="false"
+                    {% if mesh_build %}data-url="{{ api }}{{ task.id }}/tiles/{{ mesh_build }}/tileset.json"
+                    data-fallback="{{ api }}{{ task.id }}/textured_model/"{% else %}data-url="{{ api }}{{ task.id }}/textured_model/"{% endif %}
+                    {% if preparing %}data-preparing{% endif %}>
+            {% else %}
             <button type="button" class="btn btn-default btn-sm" data-type="{{ type.type }}" aria-pressed="false"
-                    data-url="{% if type.type == "mesh" %}{{ api }}{{ task.id }}/textured_model/{% elif type.type == "cloud" %}{{ api }}{{ task.id }}/assets/entwine_pointcloud/{% else %}{{ api }}{{ task.id }}/assets/splats/model.rad{% endif %}">
+                    data-url="{% if type.type == "cloud" %}{{ api }}{{ task.id }}/assets/entwine_pointcloud/{% else %}{{ api }}{{ task.id }}/assets/splats/model.rad{% endif %}">
+            {% endif %}
                 <i class="{{ type.icon }}"></i> {{ type.label }}
             </button>
             {% endfor %}

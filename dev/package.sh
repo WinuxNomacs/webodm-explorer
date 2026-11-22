@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Builds the release zip, dist/explorer-<version>.zip (the version from explorer/manifest.json), from the committed
-# files of explorer/ with LICENSE added and without the tests, and prints its sha256 for WebODM-Plugins'
-# directory.json. Commit first: uncommitted changes are not in the zip.
+# files of explorer/ with LICENSE added and without the tests, plus the mesh tiling tools that dev/tools.sh fetches
+# (explorer/bin/, not committed), and prints its sha256 for WebODM-Plugins' directory.json. Commit first: uncommitted
+# changes are not in the zip.
 set -euo pipefail
 repo="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$repo"
@@ -18,6 +19,8 @@ trap 'rm -rf "$work"' EXIT
 # The single root folder WebODM expects; the tests stay out (public/ is served to browsers)
 git archive HEAD explorer LICENSE | tar -x -C "$work"
 mv "$work/LICENSE" "$work/explorer/LICENSE"
+dev/tools.sh >/dev/null
+cp -R explorer/bin "$work/explorer/bin"
 rm -rf "$work/explorer/tests" "$work/explorer/public/__tests__"
 
 mkdir -p dist

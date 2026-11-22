@@ -1,11 +1,16 @@
-from app.models import Project
-from app.plugins import Menu, MountPoint, PluginBase
+import logging
+
+from app.models import Project, Task
+from app.plugins import Menu, MountPoint, PluginBase, signals
 from django.contrib.auth.decorators import login_required
+from django.dispatch import receiver
 from django.http import Http404
 from django.shortcuts import get_object_or_404, render
 from django.utils.translation import gettext as _
 
-from . import api, links, pages
+from . import api, links, pages, tiles
+
+logger = logging.getLogger("app.logger")
 
 TOKEN = rf"(?P<token>{links.TOKEN_PATTERN})"
 TASK = r"(?P<pk>[0-9a-fA-F-]{36})"
@@ -98,10 +103,15 @@ class Plugin(PluginBase):
                 return invalid_link(request)
             kinds = [kind for kind, _label, _icon in types]
             initial = request.GET.get("t") if request.GET.get("t") in kinds else kinds[0]
+            # The mesh streams as tiles once they are built; until then (and if they fail) WebODM's GLB
+            mesh_build, preparing = None, False
+            if "mesh" in kinds:
+                store = tiles.Tiles.current()
+                mesh_build, preparing = store.tileset(task) if store else (None, False)
             return link_headers(render(request, self.template_path("link_3d.html"), link_context(
                 token, project, title=task.name or project.name, task=task,
                 types=[{"type": kind, "label": label, "icon": icon} for kind, label, icon in types],
-                initial=initial)))
+                initial=initial, mesh_build=mesh_build, preparing=preparing)))
 
         return [
             MountPoint("$", project_list),
@@ -127,4 +137,25 @@ class Plugin(PluginBase):
             MountPoint(rf"{base}textured_model/$", api.TokenTexturedModel.as_view()),
             MountPoint(rf"{base}assets/(?P<unsafe_asset_path>.+)$", api.TokenAssets.as_view()),
             MountPoint(rf"{base}download/(?P<asset>[A-Za-z0-9_.]+)$", api.TokenDownloads.as_view()),
+            MountPoint(rf"{base}tiles/(?P<build>[0-9a-f]{{16}})/(?P<path>[A-Za-z0-9_\-/.]+)$",
+                       api.TokenMeshTiles.as_view()),
         ]
+
+
+@receiver(signals.task_removing, dispatch_uid="explorer_task_removing")
+def remove_tiles(sender, task_id, **kwargs):
+    store = tiles.Tiles.current()
+    if store:
+        store.remove(task_id)
+
+
+@receiver(signals.task_completed, dispatch_uid="explorer_task_completed")
+def prepare_tiles(sender, task_id, **kwargs):
+    """A task completed (or reprocessed) in a shared project: its mesh is tiled before anyone opens it."""
+    try:
+        store = tiles.Tiles.current()
+        task = Task.objects.filter(pk=task_id).first()
+        if store and task and tiles.project_is_shared(task.project_id):
+            store.prepare([task])
+    except Exception as e:  # noqa: BLE001 - a signal handler must not fail the task
+        logger.warning(f"Explorer: could not queue the mesh tiles of task {task_id}: {e}")

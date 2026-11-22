@@ -2,11 +2,7 @@
 
 ## Phases (current and upcoming)
 
-Up next:
-
-1. **On-demand mesh tiling and 3D Tiles in the viewer**: Obj2Tiles, bundled (D3, Linux x64/arm64), builds 3D Tiles
-   for a task's mesh the first time it is shared or opened, cached in the plugin's persistent path; the viewer
-   streams them with 3DTilesRendererJS (and ODX `--3d-tiles` output where it exists), replacing the GLB.
+Up next: nothing planned; new requests go in `new.md`.
 
 Later: COPC point clouds and a Range/caching asset endpoint (only if EPT through WebODM proves too slow);
 docs site (VitePress on GitHub Pages, as TweakUI) and screenshots, once there are features to show.
@@ -201,7 +197,7 @@ Checked in WebODM v4.0.1's code unless marked otherwise.
 - **Link page**: each task card gets a Download menu listing that task's allowed files, only on links that allow
   downloads.
 
-### Plan: on-demand mesh tiling and 3D Tiles (proposed 2026-11-21; the user's answers below)
+### Plan: on-demand mesh tiling and 3D Tiles (decided 2026-11-21, built: see "Done")
 
 - **The user's answers** (2026-11-21): measure Obj2Tiles on the user's meshes in the dev worker before building;
   KTX2 textures (WebP if KTX2's quality proves poor on the user's meshes); the Explorer page for signed-in users
@@ -256,15 +252,19 @@ Checked in WebODM v4.0.1's code unless marked otherwise.
 - **While it builds, the visitor sees the GLB as today**, with a quiet note ("Preparing a faster view"); when the tiles
   are ready, the next open uses them. Nothing waits on a build.
 - **Cache**: `<persistent path>/tiles/<task id>/<build id>/`, built in a temporary folder and renamed when
-  `tileset.json` has been read back; removed when the task is removed or reprocessed. ODX `3d_tiles/model` output is
-  used as is where it exists.
+  `tileset.json` has been read back; removed when the task is removed or reprocessed. As built: ODX's
+  `3d_tiles/model` output is not used (no task has it, and its tiles' geometry isn't compressed); the build's state is
+  a `state.json` file beside the builds under a file lock (`fcntl.flock`, shared by the web and worker containers
+  through WebODM's media volume) rather than the plugin's data store, so the state goes with the tiles.
 - **Serving**: a token view serving that folder (only `.json`, `.glb`, `.b3dm`, `.jpg`, `.webp`, `.ktx2`, paths
   resolved inside the build folder only: no path traversal), with long cache headers since a build id never changes,
   so a second visit loads from the browser's cache.
 - **Viewer**: 3DTilesRendererJS 0.5.4 (vetted 2026-11-21: Apache-2.0, imports only `three` and `three/addons`, which
   the import map already serves; `TilesFadePlugin` for LOD changes without popping, `UpdateOnChangePlugin` so idle
   views cost nothing), its parse queue limited per frame so tiles never cause long tasks, memory cache smaller on
-  phones (as the point budget).
+  phones (as the point budget). As built: no `UpdateOnChangePlugin` (fading needs an update every frame) and the
+  renderer's own queues; meshopt decoding runs in workers and KTX2 transcoding in the loader's; measured, the longest
+  task while tiles load is 79 ms (the GLB's: 543 ms).
 - **Failures** (the build runs unattended):
   - The binary missing, not executable or for another platform: no build, the GLB stays; the reason is logged.
   - Obj2Tiles exits non-zero or reports `{"stage":"error"}`: the build is marked failed with its message, the
@@ -275,8 +275,10 @@ Checked in WebODM v4.0.1's code unless marked otherwise.
     build; the temporary folder is removed either way.
   - The worker restarts mid-build: the build's state carries a heartbeat written on each progress line; a stale one
     counts as failed and its temporary folder is removed on the next attempt.
-  - Two requests for the same task: one owner, the build's state in the plugin's data store under the existing lock;
-    a second request finds it queued and does nothing.
+  - Two requests for the same task: one owner, the build's state under the task's file lock; a second request finds
+    it queued and does nothing.
+  - A tool that keeps writing past its deadline: stopped as well (the deadline is checked on every line; a test
+    found the first version checking it only during silence).
   - The task reprocessed or removed during a build: the result is checked against the task's mesh (size and time)
     before the rename and discarded if stale; `task_removing` removes the cache.
   - A tile or `tileset.json` failing in the browser: as point cloud nodes (retry once, then skip); a tileset that
@@ -366,6 +368,41 @@ Checked in WebODM v4.0.1's code:
   is installed).
 
 ## Done
+
+- **On-demand mesh tiling and 3D Tiles** (2026-11-21):
+  - Code: `explorer/tiles_build.py` (the worker's build: Obj2Tiles, then gltfpack on every tile with the root
+    simplified to a quarter; one build at a time, at the lowest CPU priority, with a deadline, a stall limit,
+    SIGTERM then SIGKILL, heartbeats, a disk space check and a read-back before the build is published; the state
+    file and the queue decision), `explorer/tiles.py` (queuing on link creation, task completion in a shared project
+    and a 3D page without tiles; the async entry that loads the build by path), `explorer/api.py`
+    (`TokenMeshTiles`, the tiles through the link's token, immutable caching), `explorer/plugin.py` (the mount, the
+    `task_completed` and `task_removing` receivers, the 3D page's tileset), `explorer/public/viewer/scene.js`
+    (3DTilesRendererJS with KTX2, meshopt in workers, fading, the fetch deadline and retry, the GLB fallback, the
+    group turned back to Z-up), `explorer/public/viewer-ui.js` (tile memory per device, the "faster view" note),
+    `explorer/templates/link_3d.html`, `dev/tools.sh`, `dev/vendor.sh` (3DTilesRendererJS 0.5.4, three's KTX2
+    loader, Basis transcoder and meshopt decoder), `dev/package.sh`.
+  - Tests: `explorer/tests/test_tiles.py` (Django; stand-ins for Obj2Tiles and gltfpack that exit with errors,
+    report an error stage, stall, keep writing past the deadline, name a missing tile, change or remove the mesh
+    mid-build; each failure seen failing before its fix where a fix was needed: the stall default bound too early,
+    the deadline checked only in silence, Obj2Tiles' null `children`), `explorer/public/__tests__/viewer.test.js`
+    (Jest: the fallback URL, the note, memory per device).
+  - Checked live on WebODM 4.0.1 with the user's project 1 (`link-tiles.js` and `link-perf.js` in the `live-check`
+    skill; headless Chromium on the M4 Pro's GPU): builds of 84 and 128 s (117 and 219 MB); the tiled mesh's first
+    view in 0.5-0.6 s with 65 tiles (14 MB) against 1.0 s for the 25 MB GLB, one 76-79 ms long task while loading
+    against 543 ms, 16.7 ms frames while orbiting; 285 tiles after zooming in; phone width (the root tile alone,
+    2 MB); a failing `tileset.json` shows the GLB; failing tiles skipped with no message; a revoke says "no longer
+    valid". During a build the point cloud and tiles opened as fast as without one (0.3 s, 0.6 s).
+  - Found while building:
+    - Obj2Tiles 1.10.3 `--local` keeps the OBJ's Z-up coordinates in its glTF tiles but writes bounding volumes that
+      match them only after glTF's Y-up turn, so the viewer turns the tiles' group back instead of changing the
+      tileset (which would break culling). It writes `"children": null` and `"transform": null` on leaves.
+    - Obj2Tiles' root tile is 8-12 MB of uncompressed geometry whatever `--lods` is; gltfpack takes it to about
+      1.2-2 MB. `--single-material-per-part` loses texture detail.
+    - The tiles must be framed on the tileset's bounds before any loads: the renderer loads nothing outside the
+      camera's view, the root included. A tile can arrive before it is attached to the turned group (phones).
+    - On the dev machine a running build slows the GLB view (8.5 s instead of 1.0 s) because the browser and the
+      Docker VM share the Mac's CPU; the GLB itself downloads in 0.36 s during a build. A visitor's browser runs
+      elsewhere, and the tiles' view is unaffected.
 
 - **EPT point cloud streamer** (2026-11-21):
   - Code: `explorer/public/ept-tree.js` (octree, hierarchy, node selection as Potree: biggest on screen first,
@@ -457,7 +494,9 @@ Checked in WebODM v4.0.1's code:
   2026-11-21).
 - **D3: Obj2Tiles bundled in the zip** (the user, 2026-11-21): v1.10.3 (2026-11-17) release zips are 10-11 MB
   each for Linux x64/arm64 and macOS, 21-22 MB for Windows x64/arm64. Platforms: Linux x64 and arm64 only (Docker
-  installs only, decided 2026-11-21). AGPL-3.0, like the plugin.
+  installs only, decided 2026-11-21). AGPL-3.0, like the plugin. Widened (the user, 2026-11-21) to gltfpack 1.3.0
+  (MIT), its WebAssembly build run by WebODM's Node.js, to compress the tiles' geometry. Neither is committed:
+  `dev/tools.sh` fetches them by sha256 and `dev/package.sh` adds them to the zip (27 MB).
 - **D4: vendored prebuilt JS** (the user, 2026-11-21): pinned builds in `explorer/public/vendor/`.
 - **Phase 1** (the user, 2026-11-21): reached from a main menu item and a project list; lists completed tasks with
   outputs only; merged with the "WebODM users only" links phase.

@@ -14,7 +14,7 @@ const Tree = window.ExplorerEptTree;
 // As Potree on WebODM's own 3D page (minimumNodePixelSize)
 const MIN_NODE_PIXELS = 150;
 const MAX_FETCHES = 4;
-const FETCH_TIMEOUT_MS = 60000;
+export const FETCH_TIMEOUT_MS = 60000;
 const DECODE_TIMEOUT_MS = 30000;
 const RETRY_DELAY_MS = 1000;
 // Loaded points kept beyond the budget, so turning back doesn't fetch again
@@ -24,7 +24,7 @@ const POINT_SIZE = 1.4;
 const MIN_POINT_PIXELS = 1.5;
 const MAX_POINT_PIXELS = 40;
 
-class HttpError extends Error {
+export class HttpError extends Error {
     constructor(status) {
         super("HTTP " + status);
         this.status = status;
@@ -43,7 +43,7 @@ async function fetchWithTimeout(url, as) {
     }
 }
 
-async function withRetry(load) {
+export async function withRetry(load) {
     try {
         return await load();
     } catch (e) {

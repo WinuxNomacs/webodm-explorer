@@ -24,6 +24,10 @@
             },
             hide: function () {
                 element.hidden = true;
+            },
+            // The message showing, or null
+            text: function () {
+                return element.hidden ? null : element.textContent;
             }
         };
     }

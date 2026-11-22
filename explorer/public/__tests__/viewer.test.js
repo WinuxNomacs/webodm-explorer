@@ -19,8 +19,8 @@ function fakeScene() {
     return {
         calls,
         resize: jest.fn(),
-        show: jest.fn((type, url, onProgress, onFailure) => new Promise((resolve, reject) => {
-            calls.push({type, url, onProgress, onFailure, resolve, reject});
+        show: jest.fn((type, url, onProgress, onFailure, fallback) => new Promise((resolve, reject) => {
+            calls.push({type, url, onProgress, onFailure, fallback, resolve, reject});
         })),
     };
 }
@@ -134,4 +134,50 @@ test("a scene that never starts (its scripts didn't load) ends in the error mess
     viewer.create(element, desktop);
     jest.advanceTimersByTime(30000);
     expect(element.querySelector(".explorer-status").textContent).toBe("Failed.");
+});
+
+// A link 3D page whose mesh button is as the server renders it: tiles with the GLB as fallback, or the GLB while the
+// tiles are being prepared
+function tiledPage({tiles, preparing}) {
+    const element = page("mesh");
+    const button = element.querySelector("[data-type=mesh]");
+    element.setAttribute("data-preparing", "Preparing.");
+    if (tiles) {
+        button.setAttribute("data-url", "/api/m/tiles/0123456789abcdef/tileset.json");
+        button.setAttribute("data-fallback", "/api/m/textured_model/");
+    }
+    if (preparing) button.setAttribute("data-preparing", "");
+    return element;
+}
+
+test("built tiles open with WebODM's GLB, at the device's size, as their fallback", () => {
+    const scene = fakeScene();
+    viewer.create(tiledPage({tiles: true}), {userAgent: "Mozilla/5.0 (Linux; Android 14)", touch: true}).start(scene);
+    expect(scene.calls[0].url).toBe("/api/m/tiles/0123456789abcdef/tileset.json");
+    expect(scene.calls[0].fallback).toBe("/api/m/textured_model/?platform=mobile");
+    const glb = fakeScene();
+    viewer.create(page("mesh"), desktop).start(glb);
+    expect(glb.calls[0].url).toBe("/api/m/textured_model/");
+    expect(glb.calls[0].fallback).toBeNull();
+});
+
+test("while tiles are prepared the GLB shows, with a note that goes after a while", async () => {
+    jest.useFakeTimers();
+    const element = tiledPage({preparing: true});
+    const scene = fakeScene();
+    viewer.create(element, desktop).start(scene);
+    scene.calls[0].resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    const status = element.querySelector(".explorer-status");
+    expect(status.hidden).toBe(false);
+    expect(status.textContent).toBe("Preparing.");
+    jest.advanceTimersByTime(8000);
+    expect(status.hidden).toBe(true);
+});
+
+test("the tiles kept in memory are fewer on phones", () => {
+    expect(viewer.tilesMemory("ios")).toBeLessThan(viewer.tilesMemory("mobile"));
+    expect(viewer.tilesMemory("mobile")).toBeLessThan(viewer.tilesMemory(""));
+    expect(viewer.create(page("mesh"), desktop).tilesMemory).toBe(viewer.tilesMemory(""));
 });

@@ -12,12 +12,14 @@ THREE=0.187.0
 SPARK=2.4.0
 LEAFLET=1.9.4
 LAZPERF=0.0.7
+TILES=0.5.4
 
 vendor="explorer/public/vendor"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-(cd "$work" && npm pack --silent "three@$THREE" "@sparkjsdev/spark@$SPARK" "leaflet@$LEAFLET" "laz-perf@$LAZPERF" >/dev/null)
+(cd "$work" && npm pack --silent "three@$THREE" "@sparkjsdev/spark@$SPARK" "leaflet@$LEAFLET" "laz-perf@$LAZPERF" \
+    "3d-tiles-renderer@$TILES" >/dev/null)
 for tgz in "$work"/*.tgz; do
     dir="${tgz%.tgz}"
     mkdir -p "$dir"
@@ -47,7 +49,17 @@ copy "$work/three-$THREE/package" "$vendor/three-$THREE" \
     examples/jsm/postprocessing/Pass.js \
     examples/jsm/libs/draco/README.md \
     examples/jsm/libs/draco/gltf/draco_decoder.wasm examples/jsm/libs/draco/gltf/draco_wasm_wrapper.js \
-    examples/jsm/libs/draco/gltf/draco_decoder.js
+    examples/jsm/libs/draco/gltf/draco_decoder.js \
+    examples/jsm/loaders/KTX2Loader.js examples/jsm/utils/WorkerPool.js examples/jsm/math/ColorSpaces.js \
+    examples/jsm/libs/ktx-parse.module.js examples/jsm/libs/zstddec.module.js \
+    examples/jsm/libs/basis/README.md examples/jsm/libs/basis/basis_transcoder.js \
+    examples/jsm/libs/basis/basis_transcoder.wasm \
+    examples/jsm/libs/meshopt_decoder.module.js
+# The mesh tiles: KTX2 textures (Obj2Tiles) need the Basis transcoder, meshopt geometry (gltfpack) the meshopt decoder
+cat > "$vendor/three-$THREE/examples/jsm/libs/basis/LICENSE.txt" <<'EOF'
+The Basis Universal transcoder (https://github.com/BinomialLLC/basis_universal), as shipped in three.js's
+examples/jsm/libs/basis, is licensed under the Apache License, Version 2.0: https://www.apache.org/licenses/LICENSE-2.0
+EOF
 cat > "$vendor/three-$THREE/examples/jsm/libs/draco/LICENSE.txt" <<'EOF'
 The Draco decoder (https://github.com/google/draco), as shipped in three.js's examples/jsm/libs/draco, is
 licensed under the Apache License, Version 2.0: https://www.apache.org/licenses/LICENSE-2.0
@@ -68,6 +80,12 @@ laz-perf (https://github.com/hobuinc/laz-perf), as published on npm, is licensed
 Version 2.0: https://www.apache.org/licenses/LICENSE-2.0
 EOF
 
+# 3DTilesRendererJS: the three.js renderer and its plugins (fading, glTF extensions), with the chunks they import;
+# they import only "three" and three's addons. Not its Babylon.js, PlayCanvas or React builds.
+tiles_src="$work/3d-tiles-renderer-$TILES/package"
+copy "$tiles_src" "$vendor/3d-tiles-renderer-$TILES" LICENSE build/index.three.js build/index.three-plugins.js \
+    $(cd "$tiles_src" && ls build/renderer-*.js build/plugins-*.js | grep -v '\.map$')
+
 # Every import inside the vendored modules must resolve: relative ones to a vendored file, bare ones to the import map
 missing=0
 while IFS= read -r line; do
@@ -78,7 +96,7 @@ while IFS= read -r line; do
         three|three/addons/*) ;;
         *) echo "unexpected import $spec in $file" >&2; missing=1 ;;
     esac
-done < <(grep -rEo "^(import|export|\}) .*from ['\"][^'\"]+['\"]" "$vendor" --include=*.js | grep -v "draco_")
+done < <(grep -rEo "^(import|export|\}) .*from ['\"][^'\"]+['\"]" "$vendor" --include=*.js | grep -v "draco_\|basis_transcoder")
 [ "$missing" = 0 ] || exit 1
 
 (cd "$vendor" && find . -type f | sort | xargs shasum -a 256)
