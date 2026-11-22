@@ -3,8 +3,7 @@
 ## Phases (current and upcoming)
 
 Up next: **Documentation site** (the request 2026-11-22, plan below; decided). Its steps, each a phase:
-1. the site and its pages (Getting Started, usage guides; done); 2. the Linode hosting guide and its script (building;
-plan below); 3. publishing to GitHub Pages (once the repo is public).
+1. the site and its pages (Getting Started, usage guides; done); 2. the Linode hosting guide and its script (done); 3. publishing to GitHub Pages (once the repo is public).
 
 Built just before: **Keep the camera across 3D views** and **Space without the purple** (the request
 2026-11-22, below) and **3D backgrounds** are built (see "Done").
@@ -691,7 +690,7 @@ processing wants 16 GB and more).
   - checks: root, Ubuntu 24.04, the variables, and an SSH key for root to hand on (refuses rather than lock out);
   - updates, then a sudo user with root's SSH keys (no password, sudo without one, as Ubuntu's cloud images do); SSH:
     no root, no passwords, only that user (`sshd -t` before reload);
-  - ufw (SSH rate-limited, 80, 443 TCP and UDP), fail2ban for SSH, unattended upgrades (with Docker's and Caddy's
+  - ufw (SSH, 80, 443 TCP and UDP; SSH not rate-limited: ufw's limit refused the VM test's quick connections), fail2ban for SSH, unattended upgrades (with Docker's and Caddy's
     repositories), 2 GB swap when there is none;
   - Docker from Docker's apt repository, logs rotated; WebODM cloned at the pinned tag in `/opt/WebODM`, started by
     a systemd unit with `--port 127.0.0.1:8000 --default-nodes 0`;
@@ -708,6 +707,28 @@ processing wants 16 GB and more).
   (stops before touching SSH).
 
 ## Done
+
+- **Docs step 2: the Linode guide and its script** (the request 2026-11-22, plan above, branch `docs-linode`):
+  `docs/public/linode/setup.sh` (served by the site; run as root or pasted as user data) and `docs/hosting/linode.md`
+  (in the sidebar under Hosting; Getting Started and the README link to it). Explorer gained **Public Address**
+  (Settings on Explorer's home: link copies and embed code start with it; `options.py`, `api.py` `Settings`,
+  `explorer.js`; tests `test_ux.py` 2 new, Jest `links.test.js` and `thumbnails.test.js` 1 each; Django 170 OK).
+  Tested in a Multipass VM (2 CPUs, 4 GB, Ubuntu 24.04, the script as cloud-init user data, `TLS=internal`), with
+  the harness in `dev/linode-vm/` and the steps in the `linode-vm` skill: a clean run, then end to end (admin
+  created through the tunnel, the zip through Administration > Plugins, `sudo webodm restart`, Public Address, a
+  task imported from the dev stack, a link opened as a visitor on the public name: page, map, 3D views, 66 mesh tile
+  files through the proxy, nothing refused, no script errors), the outside checks (sign-in, admin, API, plugin pages
+  and traversal attempts all 404; port 8000 closed; root and passwords refused), a second run that changed nothing,
+  unattended upgrades allowing Docker and Caddy, and a reboot (WebODM back on 127.0.0.1:8000 by itself, checks
+  pass). Memory peaked at 2.6 GB of 3.9 GB while the mesh tiles built (both CPUs busy for a few minutes; link pages
+  still loaded in under a second). Found and fixed on the way: WebODM's untagged app image is `latest`, which moved
+  after 4.0.1 (the script pulls the release's image and tags it); installing Explorer needs a WebODM restart (root
+  mount points), and a plain `webodm.sh restart` would drop `--port 127.0.0.1:8000` and add a processing node (the
+  script writes them into WebODM's `.env` and installs `sudo webodm`); ufw's SSH limit refused quick reconnections
+  (now a plain allow, fail2ban kept); Docker's repository has no codename, so unattended upgrades match it by
+  archive. Both repository keys are checked by fingerprint (computed from the keys served, 2026-11-22). Not
+  reproduced: one link page load that hung right after the first link was created (three later tries during a fresh
+  tile build loaded in 42-224 ms). ShellCheck v0.11.0 (Docker image) clean; ESLint, Jest 102, Ruff, the docs build.
 
 - **Fix: Basemaps on Links turned basemaps off on signed-in users' own task maps too** (found while writing the
   docs, the user chose 2026-11-22: links only; branch `fix-signed-in-basemaps`): the map page takes
