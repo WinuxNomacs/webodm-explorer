@@ -2,10 +2,10 @@
 
 ## Phases (current and upcoming)
 
-Up next: **Explorer UX: the project hub** (the request 2026-11-21, plan below). Step 1 built (see "Done"); step 2 planned below, decisions open.
-Its steps, each a phase: 1. defects (single-band colours and legend, thumbnail fallback, 3D framing); 2. navigation
-hub (home and project pages); 3. Explorer's viewer for signed-in users, with Open in WebODM; 4. viewer polish;
-5. showcase (link landing page, embed).
+Up next: **Explorer UX: the project hub** (the request 2026-11-21, plan below). Step 1 built (see "Done"); step 2 decided (plan below), to build next.
+Its steps, each a phase: 1. defects (single-band colours and legend, thumbnail fallback, 3D framing; done);
+2. navigation hub (home and project pages, with Explorer's viewer for signed-in users and Open in WebODM, folded in
+2026-11-21); 3. viewer polish; 4. showcase (link landing page, embed).
 
 Later: COPC point clouds and a Range/caching asset endpoint (only if EPT through WebODM proves too slow);
 docs site (VitePress on GitHub Pages, as TweakUI) and screenshots, once there are features to show.
@@ -419,7 +419,7 @@ The user's answers (2026-11-21):
 - What fails, and what happens: a basemap provider down or blocked shows the layer on grey (tile errors are not
   page errors); metadata for the legend failing hides the legend only; a tile failing in a thumbnail keeps the icon.
 
-### Plan: UX step 2, the navigation hub (proposed 2026-11-21)
+### Plan: UX step 2, the navigation hub (decided 2026-11-21)
 
 Facts checked in WebODM v4.0.1: a superuser passes every `has_perm` (Django's ModelBackend), so admins can already
 open any project's Explorer page; only the list leaves them out (`pages.viewable_projects`). Projects and tasks have
@@ -449,7 +449,7 @@ WGS84 (`orthophoto_extent`, `dsm_extent`, `dtm_extent`, GeoJSON polygons), `imag
   links store busy (the badge left out, never a page error), a bad page or sort in the address (the first page,
   the default sort).
 
-Decisions for the user:
+The user's answers (2026-11-21): all three as recommended.
 
 1. Fold step 3 in: the cards open Explorer's own viewer for signed-in users (today's Preview pages without the
    Preview bar, with Download for users who may and **Open in WebODM** on the map and 3D views for the measurement
