@@ -3,6 +3,11 @@
 A plugin for [WebODM](https://github.com/WebODM/WebODM) 4.0 and later, to browse and share a project's outputs.
 Under development.
 
+The documentation is in [docs/](docs/): [Getting Started](docs/getting-started.md) and guides to
+[Explorer's home](docs/guide/projects.md), [a project's page](docs/guide/project.md),
+[the viewers](docs/guide/viewers.md), [sharing](docs/guide/sharing.md) and
+[administration](docs/guide/administration.md). It will be published to GitHub Pages.
+
 ## Features
 
 - **Explorer** in the main menu lists the projects you can view (WebODM's admins: every project), with **Search**
@@ -67,30 +72,8 @@ repository's releases.
 
 ## Development
 
-Requirements: Docker, [uv](https://docs.astral.sh/uv/), Node.js 26 (`.nvmrc`), git.
-
-```bash
-git clone https://github.com/WebODM/WebODM ignored/WebODM && git -C ignored/WebODM switch --detach v4.0.1
-uv venv --python 3.14 .venv && uv pip install -r requirements-dev.txt
-npm install
-dev/webodm.sh up        # WebODM 4.0.1 in dev mode on http://localhost:8008, with explorer/ mounted live
-```
-
-Checks:
-
-```bash
-.venv/bin/ruff check .
-npm run lint
-npm test
-docker exec -w /webodm ex-webapp python manage.py test --noinput coreplugins.explorer.tests
-```
-
-`dev/vendor.sh` fetches the pinned browser libraries (three.js, Spark, Leaflet, laz-perf, 3DTilesRendererJS) from
-npm into `explorer/public/vendor/`. `dev/tools.sh` fetches the mesh tiling tools ([Obj2Tiles](https://github.com/OpenDroneMap/Obj2Tiles)
-for Linux x64 and arm64, and [gltfpack](https://github.com/zeux/meshoptimizer), run by the Node.js in WebODM's
-image) into `explorer/bin/`, which is not committed: run it once before `dev/webodm.sh up` so the dev worker can
-build tiles. `dev/package.sh` runs it and builds the release zip `dist/explorer-X.Y.Z.zip` (about 27 MB, the tools
-included), and prints its sha256.
+See [docs/developing.md](docs/developing.md): the dev stack (WebODM 4.0.1 in Docker with `explorer/` mounted
+live), the checks and packaging.
 
 ## Licence
 

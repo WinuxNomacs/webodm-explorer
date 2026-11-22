@@ -47,6 +47,9 @@ public: nothing private, nothing true only on one machine. Keep it short; edit i
 - **No screenshots that show a model or a location** in the docs or the README (the user, 2026-11-22): no map,
   orthophoto, mesh, point cloud or splat, and no place name or coordinates; screenshots show Explorer's interface
   (panels, menus, settings) with neutral names only.
+- **`README.md` is the plugin's overview, `docs/` its documentation** (VitePress 1.6.4, `docs/.vitepress/config.mjs`;
+  Getting Started, a guide per page, Developing). A feature change updates its guide page and the README on the same
+  branch. The site is published to GitHub Pages only once the repository is public (`upcoming-changes.md`).
 - **Names in the UI are in Title Case**: headings, buttons, menu items and setting names; descriptions and messages
   are sentences.
 - Planned in `upcoming-changes.md`; new requests arrive in `new.md` (untracked).
@@ -93,6 +96,9 @@ The `test`, `live-check` and `release-check` skills in `.claude/skills` have the
   One run at a time: runs share the stack's test database.
 - Jest: `npm test` at the repo root (jsdom). ESLint: `npm run lint`.
 - Ruff: `.venv/bin/ruff check .`
+- Docs: `npm run docs:build` (fails on a dead link). `docs:dev` and `docs:preview` open a local server: VitePress
+  1.x pins Vite 5, whose dev server has open advisories (all dev-server only), so check rendered pages from the built
+  files instead (a Playwright route that answers from `docs/.vitepress/dist`).
 - Live checks: headless Playwright (Node) against http://localhost:8008 with a dev account from the user. Expected
   console error in dev mode: `localhost:35729/livereload.js` refused.
 - WebODM's Django CSRF check applies to a plugin's API (WebODM routes it through a plain Django view): a POST,
