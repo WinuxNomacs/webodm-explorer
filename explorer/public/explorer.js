@@ -66,9 +66,10 @@
                 canvas.width = area.width;
                 canvas.height = area.height;
                 var context = canvas.getContext("2d");
+                // Whole pixels: at a fractional offset each tile's edge is blended with the empty canvas, a seam
+                var left = Math.round(area.left), top = Math.round(area.top);
                 tiles.forEach(function (tile) {
-                    context.drawImage(tile.img, (tile.x - area.x0) * Layers.TILE - area.left,
-                        (tile.y - area.y0) * Layers.TILE - area.top);
+                    context.drawImage(tile.img, (tile.x - area.x0) * Layers.TILE - left, (tile.y - area.y0) * Layers.TILE - top);
                 });
                 return canvas.toDataURL("image/png");
             });

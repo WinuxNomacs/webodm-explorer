@@ -16,7 +16,7 @@
 
 {% block content %}
 {% if preview %}{% include preview_template %}{% endif %}
-<div class="explorer-viewer-page" data-explorer-viewer data-initial="{{ initial }}" data-link="{{ link_path }}"
+<div class="explorer-viewer-page theme-secondary" data-explorer-viewer data-initial="{{ initial }}" data-link="{{ link_path }}"
      data-draco="{{ public }}vendor/three-0.187.0/examples/jsm/libs/draco/gltf/"
      data-basis="{{ public }}vendor/three-0.187.0/examples/jsm/libs/basis/"
      data-ept-worker="{{ public }}ept-worker.js" data-ept-decode="{{ public }}ept-decode.js"
@@ -26,34 +26,67 @@
      data-invalid="{% trans "This link is no longer valid." %}"
      data-error="{% trans "This view could not be loaded." %}"
      data-preparing="{% trans "A faster view of this model is being prepared for next time." %}"
-     data-no-webgl="{% trans "This browser can't show 3D views (WebGL 2 is not available)." %}">
+     data-no-webgl="{% trans "This browser can't show 3D views (WebGL 2 is not available)." %}"
+     data-unit-switch="{% trans "Switch units" %}">
     <div class="explorer-viewer-bar">
         <div class="explorer-viewer-title">
             <a href="{{ link_path }}"><i class="fa fa-arrow-left"></i> {{ project.name }}</a> /
             {% if task.name %}{{ task.name }}{% else %}{% trans "Unnamed Task" %}{% endif %}
         </div>
-        <div class="btn-group" role="group" aria-label="{% trans "View" %}">
+        <div class="explorer-viewer-tools">
+        {% include neighbours_template %}
+        <div class="btn-group explorer-types" role="group" aria-label="{% trans "View" %}">
             {% for type in types %}
             {% if type.type == "mesh" %}
             {# The tiles once built, WebODM's GLB as their fallback; the GLB alone until then #}
-            <button type="button" class="btn btn-default btn-sm" data-type="mesh" aria-pressed="false"
+            <button type="button" class="btn btn-default btn-sm" data-type="mesh" aria-pressed="false" title="{{ type.label }}"
                     {% if mesh_build %}data-url="{{ tiles_api }}{{ task.id }}/tiles/{{ mesh_build }}/tileset.json"
                     data-fallback="{{ api }}{{ task.id }}/textured_model/"{% else %}data-url="{{ api }}{{ task.id }}/textured_model/"{% endif %}
                     {% if preparing %}data-preparing{% endif %}>
             {% else %}
-            <button type="button" class="btn btn-default btn-sm" data-type="{{ type.type }}" aria-pressed="false"
+            <button type="button" class="btn btn-default btn-sm" data-type="{{ type.type }}" aria-pressed="false" title="{{ type.label }}"
                     data-url="{% if type.type == "cloud" %}{{ api }}{{ task.id }}/assets/entwine_pointcloud/{% else %}{{ api }}{{ task.id }}/assets/splats/model.rad{% endif %}">
             {% endif %}
-                <i class="{{ type.icon }}"></i> {{ type.label }}
+                <i class="{{ type.icon }}"></i> <span class="explorer-label">{{ type.label }}</span>
             </button>
             {% endfor %}
         </div>
-        {% if downloads or webodm %}<div class="explorer-viewer-tools">{% include viewer_tools_template %}</div>{% endif %}
+        <div class="btn-group" role="group" aria-label="{% trans "View Controls" %}">
+            <button type="button" class="btn btn-default btn-sm" data-reset title="{% trans "Reset View (R)" %}" aria-label="{% trans "Reset View" %}"><i class="fa fa-crosshairs"></i></button>
+            <button type="button" class="btn btn-default btn-sm" data-fullscreen hidden title="{% trans "Fullscreen (F)" %}" aria-label="{% trans "Fullscreen" %}"><i class="fa fa-expand"></i></button>
+            <button type="button" class="btn btn-default btn-sm" data-help-toggle aria-expanded="false" aria-controls="explorer-help" title="{% trans "Controls" %}" aria-label="{% trans "Controls" %}"><i class="fa fa-question-circle"></i></button>
+        </div>
+        {% include viewer_tools_template %}
+        </div>
     </div>
     <div class="explorer-status theme-secondary theme-border-secondary-07" role="status" hidden></div>
+    <div id="explorer-help" class="explorer-overlay explorer-help theme-secondary theme-border-secondary-07" hidden>
+        <table>
+            <tr><th>{% trans "Orbit" %}</th><td>{% trans "Left drag, or one finger" %}</td></tr>
+            <tr><th>{% trans "Pan" %}</th><td>{% trans "Right drag, Shift and drag, or two fingers" %}</td></tr>
+            <tr><th>{% trans "Zoom" %}</th><td>{% trans "Wheel, or pinch" %}</td></tr>
+            <tr><th>{% trans "Focus" %}</th><td>{% trans "Double-click or double-tap a point to orbit around it" %}</td></tr>
+            <tr><th>{% trans "Keys" %}</th><td>{% trans "R resets the view, F turns fullscreen on and off" %}</td></tr>
+        </table>
+    </div>
     <div class="explorer-scene"></div>
+    <div class="explorer-overlay explorer-cloud-panel theme-secondary theme-border-secondary-07" data-cloud-panel hidden>
+        <label class="explorer-cloud-row">{% trans "Point Size" %}
+            <input type="range" data-point-size min="0.25" max="4" step="0.25" value="1" aria-label="{% trans "Point Size" %}"></label>
+        <label class="explorer-cloud-row">{% trans "Colour" %}
+            <select class="form-control input-sm" data-cloud-colour aria-label="{% trans "Colour" %}">
+                <option value="rgb">{% trans "Photo Colours" %}</option>
+                <option value="elevation">{% trans "Elevation" %}</option>
+            </select></label>
+        <div class="explorer-cloud-legend" data-cloud-legend hidden>
+            <div class="explorer-legend-ramp"></div>
+            <div class="explorer-legend-labels"><span data-min></span><button type="button" class="btn btn-default btn-xs" data-unit title="{% trans "Switch units" %}"></button><span data-max></span></div>
+        </div>
+    </div>
 </div>
 <script src="{{ public }}linkpage.js"></script>
+<script src="{{ public }}layers.js"></script>
+<script src="{{ public }}viewer-controls.js"></script>
 <script src="{{ public }}viewer-ui.js"></script>
 <script src="{{ public }}ept-tree.js"></script>
 <script src="{{ public }}frame.js"></script>

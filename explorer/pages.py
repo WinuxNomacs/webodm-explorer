@@ -390,6 +390,36 @@ def explorable_tasks(projects, outputs_for=task_outputs, downloads_for=None, det
     return cards
 
 
+def neighbours(project, task, path, view):
+    """
+    Previous / Next on a map or 3D page: the tasks before and after this one in the cards' order (newest first),
+    each opening in the same view where it has it (view: "map", or a 3D type), else its first view. Returns
+    {"previous": card or None, "next": card or None, "position": 1-based, "total"}, a card being {"name", "url",
+    "open", "views"}.
+    path: the page the cards are on, ending in a slash.
+    """
+    cards = explorable_tasks([project], lambda t: link_outputs(t, path))
+    ids = [card["task"].id for card in cards]
+    if task.id not in ids:
+        return None
+    index = ids.index(task.id)
+
+    def target(card):
+        if card is None:
+            return None
+        other = card["task"]
+        views = {kind: f"{path}3d/{other.id}/?t={kind}" for kind, _label, _icon in viewer_types(other)}
+        if map_layers(other):
+            views["map"] = f"{path}map/{other.id}/"
+        # views: the URL of each view it has, so the 3D page's link follows its type switch
+        return {"name": other.name or _("Unnamed Task"), "url": views.get(view, card["open"]), "open": card["open"],
+                "views": views}
+
+    return {"previous": target(cards[index - 1] if index > 0 else None),
+            "next": target(cards[index + 1] if index + 1 < len(cards) else None),
+            "position": index + 1, "total": len(cards)}
+
+
 def task_footprints(cards):
     """The project page's overview map: each card's task at its footprint, opening as its thumbnail does."""
     return [{"name": card["task"].name or _("Unnamed Task"), "url": card["open"], "geometry": card["footprint"]}

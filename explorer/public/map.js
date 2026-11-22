@@ -9,6 +9,8 @@
     var node = typeof module !== "undefined" && module.exports;
     var helpers = node ? require("./linkpage.js") : window.ExplorerLinkPage;
     var Layers = node ? require("./layers.js") : window.ExplorerLayers;
+    var Controls = node ? require("./viewer-controls.js") : window.ExplorerControls;
+    var OPACITY_KEY = "explorer-opacity";
     var TILE_SIZE = 512;
     var BASEMAP_KEY = Layers.BASEMAP_KEY;
     var UNITS_KEY = "explorer-units-";
@@ -27,8 +29,14 @@
         return [[value[1], value[0]], [value[3], value[2]]];
     }
 
-    // The value layers' legend: the colour ramp between the stretched range, in a unit the visitor can switch
-    function legend(container) {
+    // Whether lengths read in feet: the elevation unit chosen on a legend
+    function imperial() {
+        return remembered(UNITS_KEY + "elevation") === "ft";
+    }
+
+    // The value layers' legend: the colour ramp between the stretched range, in a unit the visitor can switch;
+    // onUnits() after a switch
+    function legend(container, onUnits) {
         var element = document.createElement("div");
         element.className = "explorer-legend theme-secondary theme-border-secondary-07";
         element.hidden = true;
@@ -66,6 +74,7 @@
             unit.onclick = function () {
                 remember(UNITS_KEY + kind, choices[(index + 1) % choices.length].label);
                 draw();
+                if (onUnits) onUnits();
             };
         }
         return {
@@ -97,7 +106,29 @@
         var switches = page.querySelectorAll("[data-layer]");
         var picker = page.querySelector("[data-basemap]");
         var map = L.map(mapElement, {maxZoom: 24});
-        var key = legend(mapElement);
+        // A scale bar in the unit system of the elevation legend
+        var scale = null;
+        function drawScale() {
+            if (!L.control || !L.control.scale) return;
+            if (scale) scale.remove();
+            scale = L.control.scale({metric: !imperial(), imperial: imperial(), position: "bottomright"}).addTo(map);
+        }
+        var key = legend(mapElement, drawScale);
+        drawScale();
+        var opacitySlider = page.querySelector("[data-opacity]");
+        function opacity() {
+            return opacitySlider ? parseInt(opacitySlider.value, 10) / 100 : 1;
+        }
+        if (opacitySlider) {
+            var savedOpacity = parseInt(remembered(OPACITY_KEY), 10);
+            if (savedOpacity >= 0 && savedOpacity <= 100) opacitySlider.value = String(savedOpacity);
+            opacitySlider.addEventListener("input", function () {
+                remember(OPACITY_KEY, opacitySlider.value);
+                Object.keys(layers).forEach(function (k) {
+                    if (layers[k].layer) layers[k].layer.setOpacity(opacity());
+                });
+            });
+        }
         key.element.querySelector("button").setAttribute("data-switch", page.getAttribute("data-unit-switch") || "");
         var layers = {};
         var current = null;
@@ -105,7 +136,12 @@
         var fitted = false;
         var checking = false;
 
-        helpers.fitHeight(mapElement, function () { map.invalidateSize(); });
+        var fit = helpers.fitHeight(mapElement, function () { map.invalidateSize(); });
+        // Reset View fits the layer shown again
+        Controls.init(page, {resize: fit, reset: function () {
+            var shown = current && layers[current];
+            if (shown && shown.bounds) map.fitBounds(shown.bounds);
+        }});
 
         function failed() {
             helpers.explainFailure(page, line);
@@ -161,8 +197,9 @@
                 var bounds = L.latLngBounds(boundsLatLng(metadata.bounds.value));
                 var layer = L.tileLayer(Layers.tileUrl(api, type, metadata, bands, crop, TILE_SIZE), {
                     bounds: bounds, minZoom: 0, maxZoom: metadata.maxzoom + 99, maxNativeZoom: metadata.maxzoom - 1,
-                    tileSize: TILE_SIZE, detectRetina: true
+                    tileSize: TILE_SIZE, detectRetina: true, opacity: opacity()
                 });
+                layers[type].bounds = bounds;
                 layer.on("tileerror", tileFailed);
                 layers[type].layer = layer;
                 layers[type].metadata = metadata;

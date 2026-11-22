@@ -8,6 +8,13 @@
     // The element fills the window from its top edge down, and follows the window's size.
     function fitHeight(element, onResize) {
         function fit() {
+            // In fullscreen the view fills the screen below the bar, and nothing else is laid out
+            var full = document.fullscreenElement || document.webkitFullscreenElement;
+            if (full && full.contains(element)) {
+                element.style.height = Math.max(240, window.innerHeight - element.getBoundingClientRect().top) + "px";
+                if (onResize) onResize();
+                return;
+            }
             var top = element.getBoundingClientRect().top + (window.pageYOffset || 0);
             var height = Math.max(240, window.innerHeight - top);
             element.style.height = height + "px";
@@ -17,7 +24,10 @@
             if (onResize) onResize();
         }
         window.addEventListener("resize", fit);
+        document.addEventListener("fullscreenchange", fit);
+        document.addEventListener("webkitfullscreenchange", fit);
         fit();
+        return fit;
     }
 
     function status(element) {
