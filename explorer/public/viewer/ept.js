@@ -170,18 +170,46 @@ class WorkerPool {
     }
 }
 
+// Elevation is coloured between the root node's 2nd and 98th percentile heights, as WebODM's map stretches a DSM
+const ELEVATION_PERCENTILES = [0.02, 0.98];
+
+// Colour by Elevation: z (relative to the cloud's centre) between zMin and zMax on the ramp's stops (layers.js)
 const vertexShader = `
     uniform float size;
     uniform float projection;
     uniform float minPixels;
     uniform float maxPixels;
+    uniform float sizeScale;
+    uniform float colorMode;
+    uniform float zMin;
+    uniform float zMax;
+    uniform vec3 ramp[${(window.ExplorerLayers ? window.ExplorerLayers.VIRIDIS.length : 9)}];
     varying vec3 vColor;
     void main() {
-        vColor = color;
+        if (colorMode > 0.5) {
+            float t = clamp((position.z - zMin) / max(zMax - zMin, 0.001), 0.0, 1.0) * float(ramp.length() - 1);
+            int i = int(min(floor(t), float(ramp.length() - 2)));
+            vColor = mix(ramp[i], ramp[i + 1], t - float(i));
+        } else {
+            vColor = color;
+        }
         vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-        gl_PointSize = clamp(size * projection / -mvPosition.z, minPixels, maxPixels);
+        gl_PointSize = clamp(size * sizeScale * projection / -mvPosition.z, minPixels * sizeScale, maxPixels);
         gl_Position = projectionMatrix * mvPosition;
     }`;
+
+function rampUniform() {
+    const stops = window.ExplorerLayers ? window.ExplorerLayers.VIRIDIS : [[0, 0, 0], [255, 255, 255]];
+    return stops.map((c) => new THREE.Vector3(c[0] / 255, c[1] / 255, c[2] / 255));
+}
+
+// The heights at the given fractions of the sorted z values (every third value is a z)
+export function zPercentiles(positions, fractions) {
+    const zs = new Float32Array(positions.length / 3);
+    for (let i = 0; i < zs.length; i++) zs[i] = positions[i * 3 + 2];
+    zs.sort();
+    return fractions.map((f) => zs.length ? zs[Math.min(zs.length - 1, Math.floor(f * zs.length))] : 0);
+}
 
 const fragmentShader = `
     varying vec3 vColor;
@@ -212,6 +240,22 @@ export class EptCloud {
         this.disposed = false;
         this.frameCount = 0;
         this.shown = { nodes: 0, points: 0 };
+        // Shared by every node's material: a change of size or colour applies at once, with no node rebuilt
+        this.style = { sizeScale: { value: 1 }, colorMode: { value: 0 }, zMin: { value: 0 }, zMax: { value: 1 },
+            ramp: { value: rampUniform() } };
+        this.zRange = [0, 1];
+    }
+
+    // style: {size (a scale, 1 the default), colour ("rgb" or "elevation")}
+    setStyle(style) {
+        if (style.size) this.style.sizeScale.value = style.size;
+        if (style.colour) this.style.colorMode.value = style.colour === "elevation" ? 1 : 0;
+    }
+
+    // The elevation range coloured, in the cloud's own units and coordinates (absolute heights)
+    elevationRange() {
+        const z = this.info ? this.info.origin[2] : 0;
+        return [this.zRange[0] + z, this.zRange[1] + z];
     }
 
     // Reads the cloud and its root node; resolves with the root's points, for framing
@@ -228,6 +272,9 @@ export class EptCloud {
         const buffer = await withRetry(() => fetchWithTimeout(this.base + "ept-data/0-0-0-0.laz"));
         const decoded = await this.pool.decode(buffer, this.info.origin, "auto");
         this.sixteenBit = decoded.sixteenBit;
+        this.zRange = zPercentiles(decoded.positions, ELEVATION_PERCENTILES);
+        this.style.zMin.value = this.zRange[0];
+        this.style.zMax.value = this.zRange[1];
         this.add(this.tree.root, decoded);
         return decoded.positions;
     }
@@ -238,7 +285,7 @@ export class EptCloud {
         geometry.setAttribute("color", new THREE.BufferAttribute(decoded.colors, 3, true));
         const material = new THREE.ShaderMaterial({
             uniforms: { size: { value: Tree.spacing(this.info, node.depth) * POINT_SIZE }, projection: { value: 1 },
-                minPixels: { value: MIN_POINT_PIXELS }, maxPixels: { value: MAX_POINT_PIXELS } },
+                minPixels: { value: MIN_POINT_PIXELS }, maxPixels: { value: MAX_POINT_PIXELS }, ...this.style },
             vertexShader, fragmentShader, vertexColors: true,
         });
         const points = new THREE.Points(geometry, material);

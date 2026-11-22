@@ -1,0 +1,16 @@
+{% load i18n %}{# Previous / Next task on the map and 3D pages, in the cards' order (pages.neighbours); data-view-* follow the 3D page's type switch #}
+{% if neighbours and neighbours.total > 1 %}
+<div class="btn-group explorer-neighbours" role="group" aria-label="{% trans "Tasks" %}">
+    {% with card=neighbours.previous %}
+    {% if card %}<a class="btn btn-default btn-sm" href="{{ card.url }}" rel="prev" data-neighbour data-open="{{ card.open }}"{% for kind, url in card.views.items %} data-view-{{ kind }}="{{ url }}"{% endfor %}
+       title="{% blocktrans with name=card.name %}Previous: {{ name }}{% endblocktrans %}" aria-label="{% blocktrans with name=card.name %}Previous: {{ name }}{% endblocktrans %}"><i class="fa fa-chevron-left"></i></a>
+    {% else %}<span class="btn btn-default btn-sm disabled" aria-hidden="true"><i class="fa fa-chevron-left"></i></span>{% endif %}
+    {% endwith %}
+    <span class="btn btn-default btn-sm disabled explorer-position" title="{% trans "Task" %}">{{ neighbours.position }} / {{ neighbours.total }}</span>
+    {% with card=neighbours.next %}
+    {% if card %}<a class="btn btn-default btn-sm" href="{{ card.url }}" rel="next" data-neighbour data-open="{{ card.open }}"{% for kind, url in card.views.items %} data-view-{{ kind }}="{{ url }}"{% endfor %}
+       title="{% blocktrans with name=card.name %}Next: {{ name }}{% endblocktrans %}" aria-label="{% blocktrans with name=card.name %}Next: {{ name }}{% endblocktrans %}"><i class="fa fa-chevron-right"></i></a>
+    {% else %}<span class="btn btn-default btn-sm disabled" aria-hidden="true"><i class="fa fa-chevron-right"></i></span>{% endif %}
+    {% endwith %}
+</div>
+{% endif %}

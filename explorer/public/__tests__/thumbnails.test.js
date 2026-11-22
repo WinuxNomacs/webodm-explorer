@@ -50,6 +50,8 @@ test("a thermal task's card draws its thumbnail from the Thermal layer's tiles, 
     expect(tilesLoaded.length).toBeLessThanOrEqual(9);
     expect(tilesLoaded[0]).toMatch(/^\/api\/projects\/2\/tasks\/TASK\/orthophoto\/tiles\/\d+\/\d+\/\d+\?formula=Celsius&bands=L&color_map=magma&rescale=10.5%2C50.3&size=256$/);
     expect(drawn).toHaveLength(tilesLoaded.length);
+    // Whole pixels: a tile drawn at a fractional offset leaves a blended seam at its edge
+    expect(drawn.flat().every(Number.isInteger)).toBe(true);
     const img = document.querySelector("img.explorer-thumbnail");
     expect(img.getAttribute("src")).toBe("data:image/png;base64,DRAWN");
 });

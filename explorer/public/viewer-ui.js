@@ -1,10 +1,88 @@
 /*
  * A link's 3D page, around the scene (viewer/scene.js, an ES module that calls ExplorerViewer.start once three.js
- * and Spark have loaded): the switch between the task's types, the loading status and the failure messages.
+ * and Spark have loaded): the switch between the task's types, the loading status and the failure messages, the
+ * bar's controls (viewer-controls.js), and the point cloud's Point Size and Colour by Elevation with its legend.
  */
 (function () {
     "use strict";
-    var helpers = typeof module !== "undefined" && module.exports ? require("./linkpage.js") : window.ExplorerLinkPage;
+    var node = typeof module !== "undefined" && module.exports;
+    var helpers = node ? require("./linkpage.js") : window.ExplorerLinkPage;
+    var Controls = node ? require("./viewer-controls.js") : window.ExplorerControls;
+    var Layers = node ? require("./layers.js") : window.ExplorerLayers;
+    var SIZE_KEY = "explorer-cloud-size";
+    var COLOUR_KEY = "explorer-cloud-colour";
+
+    function remembered(key) {
+        try { return window.localStorage.getItem(key); } catch (e) { return null; }
+    }
+
+    function remember(key, value) {
+        try { window.localStorage.setItem(key, value); } catch (e) { /* not kept */ }
+    }
+
+    // The point cloud's panel: Point Size and Colour, remembered in the browser, and the elevation legend in the unit
+    // chosen on a map's legend (m or ft)
+    function cloudPanel(page, scene) {
+        var panel = page.querySelector("[data-cloud-panel]");
+        if (!panel) return {show: function () {}};
+        var size = panel.querySelector("[data-point-size]");
+        var colour = panel.querySelector("[data-cloud-colour]");
+        var legend = panel.querySelector("[data-cloud-legend]");
+        var unit = legend.querySelector("[data-unit]");
+        legend.querySelector(".explorer-legend-ramp").style.background = Layers.rampCss(Layers.VIRIDIS);
+        var savedSize = parseFloat(remembered(SIZE_KEY));
+        if (savedSize >= parseFloat(size.min) && savedSize <= parseFloat(size.max)) size.value = String(savedSize);
+        if (remembered(COLOUR_KEY) === "elevation") colour.value = "elevation";
+
+        function drawLegend() {
+            var range = scene.cloudRange();
+            legend.hidden = colour.value !== "elevation" || !range;
+            if (legend.hidden) return;
+            var choices = Layers.units("dsm");
+            var key = Layers.UNITS_KEY + "elevation";
+            var index = Math.max(0, choices.map(function (u) { return u.label; }).indexOf(remembered(key)));
+            legend.querySelector("[data-min]").textContent = Layers.number(range[0], choices[index]);
+            legend.querySelector("[data-max]").textContent = Layers.number(range[1], choices[index]);
+            unit.textContent = choices[index].label;
+            unit.onclick = function () {
+                remember(key, choices[(index + 1) % choices.length].label);
+                drawLegend();
+            };
+        }
+        function apply() {
+            scene.setCloudStyle({size: parseFloat(size.value), colour: colour.value});
+            drawLegend();
+        }
+        size.addEventListener("input", function () {
+            remember(SIZE_KEY, size.value);
+            apply();
+        });
+        colour.addEventListener("change", function () {
+            remember(COLOUR_KEY, colour.value);
+            apply();
+        });
+        // Dragging the slider shouldn't orbit the model under it
+        ["pointerdown", "wheel", "dblclick"].forEach(function (name) {
+            panel.addEventListener(name, function (e) { e.stopPropagation(); });
+        });
+        apply();
+        return {
+            show: function (on) {
+                panel.hidden = !on;
+                if (on) drawLegend();
+            }
+        };
+    }
+
+    // The address keeps the type shown, so Back and reloading open it again
+    function keepType(type) {
+        if (!window.history || !window.history.replaceState) return;
+        try {
+            var url = new URL(window.location.href);
+            url.searchParams.set("t", type);
+            window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+        } catch (e) { /* the address stays */ }
+    }
     // The scene module not starting by then means it couldn't load (an old browser without import maps)
     var START_TIMEOUT = 30000;
 
@@ -62,11 +140,16 @@
             started = true;
             viewer.scene = scene;
             clearTimeout(timer);
-            helpers.fitHeight(page.querySelector(".explorer-scene"), scene.resize);
+            var fit = helpers.fitHeight(page.querySelector(".explorer-scene"), scene.resize);
+            var controls = Controls.init(page, {reset: function () { scene.reset(); }, resize: fit});
+            var panel = cloudPanel(page, scene);
 
             function select(button) {
                 var type = button.getAttribute("data-type");
                 current = type;
+                controls.setView(type);
+                keepType(type);
+                panel.show(false);
                 for (var i = 0; i < switches.length; i++) {
                     var on = switches[i] === button;
                     switches[i].setAttribute("aria-pressed", on ? "true" : "false");
@@ -83,6 +166,7 @@
                     });
                 }, fallbackFor(button)).then(function () {
                     if (current !== type) return;
+                    panel.show(type === "cloud");
                     if (!button.hasAttribute("data-preparing")) return line.hide();
                     // The GLB shows while the tiles are built: say a faster view comes next time
                     line.show(page.getAttribute("data-preparing"));
@@ -112,9 +196,9 @@
         return viewer;
     }
 
-    if (typeof module !== "undefined" && module.exports) {
+    if (node) {
         module.exports = {create: create, platform: platform, meshUrl: meshUrl, pointBudget: pointBudget,
-            tilesMemory: tilesMemory};
+            tilesMemory: tilesMemory, keepType: keepType};
     } else {
         var page = document.querySelector("[data-explorer-viewer]");
         if (page) {

@@ -180,11 +180,21 @@
         return (basemaps.filter(function (b) { return b.default; })[0] || basemaps[0]).label;
     }
 
+    // Matplotlib's viridis at nine stops, as WebODM draws elevation (its color_map "viridis"): the point cloud's
+    // Colour by Elevation, whose colours come from no tile metadata
+    var VIRIDIS = [[68, 1, 84], [71, 45, 123], [59, 82, 139], [44, 114, 142], [33, 145, 140], [40, 174, 128],
+        [94, 201, 98], [173, 220, 48], [253, 231, 37]];
+
+    function rampCss(stops) {
+        return "linear-gradient(to right, " + stops.map(function (c) { return "rgb(" + c.join(",") + ")"; }).join(", ") + ")";
+    }
+
     var Layers = {
         TILE: TILE, tileType: tileType, params: params, hasBands: hasBands, range: range, rescale: rescale,
         query: query, metadataUrl: metadataUrl, tileUrl: tileUrl, colorRamp: colorRamp, units: units,
         convert: convert, number: number, format: format, toPixels: toPixels, cover: cover,
-        basemapLayer: basemapLayer, chosenBasemap: chosenBasemap, BASEMAP_KEY: "explorer-basemap"
+        basemapLayer: basemapLayer, chosenBasemap: chosenBasemap, BASEMAP_KEY: "explorer-basemap",
+        VIRIDIS: VIRIDIS, rampCss: rampCss, UNITS_KEY: "explorer-units-"
     };
     if (typeof module !== "undefined" && module.exports) {
         module.exports = Layers;

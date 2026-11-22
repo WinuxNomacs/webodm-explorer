@@ -449,3 +449,107 @@ path.explorer-footprint {
     padding: 3px 8px;
     font-size: 12px;
 }
+
+/* The viewer pages' overlays over the view: the 3D page's Controls help (top right) and point cloud panel (bottom
+   left, where the map's legend is) */
+.explorer-overlay {
+    position: absolute;
+    z-index: 900;
+    padding: 8px 10px;
+    border-width: 1px;
+    border-style: solid;
+    border-radius: 4px;
+    font-size: 12px;
+    max-width: calc(100% - 20px);
+}
+
+.explorer-help {
+    right: 10px;
+    margin-top: 10px;
+    top: auto;
+}
+
+.explorer-help th {
+    padding: 2px 12px 2px 0;
+    vertical-align: top;
+    white-space: nowrap;
+}
+
+.explorer-help td {
+    padding: 2px 0;
+}
+
+.explorer-cloud-panel {
+    left: 10px;
+    bottom: 12px;
+    width: 240px;
+}
+
+.explorer-cloud-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 0 0 6px;
+    font-weight: normal;
+}
+
+.explorer-cloud-row input[type=range] {
+    width: 120px;
+}
+
+.explorer-cloud-row select {
+    width: 120px;
+    height: 26px;
+    padding: 2px 6px;
+}
+
+/* The map's layer opacity */
+.explorer-opacity {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    font-weight: normal;
+}
+
+.explorer-opacity input {
+    width: 90px;
+}
+
+.explorer-position {
+    min-width: 4em;
+}
+
+/* In fullscreen the page fills the screen; the bar keeps its padding */
+.explorer-viewer-page:fullscreen {
+    margin: 0;
+    overflow: hidden;
+}
+
+.explorer-viewer-page:-webkit-full-screen {
+    margin: 0;
+    overflow: hidden;
+}
+
+@media (max-width: 600px) {
+    /* One row of controls: the 3D types as icons (their names in titles), the long half of the visitor bar left out */
+    .explorer-types .explorer-label,
+    .explorer-tool .explorer-label,
+    .explorer-position,
+    .explorer-wide {
+        display: none;
+    }
+
+    .explorer-viewer-bar {
+        padding-top: 14px;
+    }
+
+    .explorer-opacity input {
+        width: 60px;
+    }
+
+    .explorer-basemap {
+        max-width: 8em;
+    }
+}

@@ -2,10 +2,10 @@
 
 ## Phases (current and upcoming)
 
-Up next: **Explorer UX: the project hub** (the request 2026-11-21, plan below). Steps 1 and 2 built (see "Done");
-step 3 decided (plan below), to build next. Its steps, each a phase: 1. defects (single-band colours and legend, thumbnail fallback, 3D
+Up next: **Explorer UX: the project hub** (the request 2026-11-21, plan below). Steps 1 to 3 built (see "Done");
+step 4 to plan next. Its steps, each a phase: 1. defects (single-band colours and legend, thumbnail fallback, 3D
 framing; done); 2. navigation hub (home and project pages, with Explorer's viewer for signed-in users and Open in
-WebODM; done); 3. viewer polish; 4. showcase (link landing page, embed).
+WebODM; done); 3. viewer polish (done); 4. showcase (link landing page, embed).
 
 Later: COPC point clouds and a Range/caching asset endpoint (only if EPT through WebODM proves too slow);
 docs site (VitePress on GitHub Pages, as TweakUI) and screenshots, once there are features to show.
@@ -496,6 +496,26 @@ The user's answers (2026-11-22), both as recommended:
    when RGB is flat or missing).
 
 ## Done
+
+- **UX step 3: viewer polish** (2026-11-22, branch `ux-polish`):
+  - Code: `explorer/pages.py` (`neighbours`: the tasks before and after in the cards' order, a URL per view each
+    has), `explorer/plugin.py`, templates `neighbours.html`, `link_3d.html` (controls, help, point cloud panel),
+    `link_map.html` (opacity, controls), `viewer_tools.html` (icons on phones), `preview_bar.html`;
+    `explorer/public/viewer-controls.js` (Fullscreen, Reset View, keys R and F, help, Previous / Next following the
+    view), `viewer-ui.js` (the point cloud panel and its legend, `?t=` kept in the address), `viewer/scene.js`
+    (`reset`, `pick`, double-click and double-tap focus), `viewer/ept.js` (shared style uniforms: size scale,
+    elevation colour between the root node's 2nd and 98th percentile heights), `map.js` (opacity, scale bar, reset),
+    `layers.js` (viridis stops), `linkpage.js` (fullscreen height), `explorer.js` (thumbnail tiles drawn at whole
+    pixels: the seams came from fractional offsets), `explorer.css`.
+  - Tests: `explorer/tests/test_polish.py` (Django), `explorer/public/__tests__/viewer-polish.test.js` and the
+    whole-pixel check in `thumbnails.test.js` (Jest); failures injected: fullscreen refused, unsupported, a
+    remembered size out of range.
+  - Live check (headless Chromium on the M4 Pro's GPU, the user's projects): Colour by Elevation 209-237 m, a point
+    cloud pick in 4 ms, focus and Reset on the mesh tiles, Fullscreen on and off (F), help and Escape, Next keeping
+    the mesh view, the address following the type switch, opacity and a 10 m scale bar; phone: the 3D bar in one
+    row, the map's in two (three layers, basemap and opacity don't fit one). Smoothness (`link-perf.js`, the stack
+    idle): steady 16.7 ms frames while interacting for cloud, mesh and splats; one long task while loading (cloud
+    156 ms, mesh 80 ms; baseline 155 and 543 ms). Fullscreen on a real iPhone not checked.
 
 - **UX step 2: the navigation hub** (2026-11-21, branch `ux-hub`):
   - Code: `explorer/pages.py` (`HomeQuery`, `home_query`, `home_projects`, `home_page`, `project_summaries`,

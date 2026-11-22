@@ -153,7 +153,8 @@ class Plugin(PluginBase):
                        "back": f"{public}project/{viewer.project.id}/",
                        "cards_template": self.template_path("cards.html"),
                        "preview_template": self.template_path("preview_bar.html"),
-                       "viewer_tools_template": self.template_path("viewer_tools.html"), **extra}
+                       "viewer_tools_template": self.template_path("viewer_tools.html"),
+                       "neighbours_template": self.template_path("neighbours.html"), **extra}
             if task is not None:
                 context["downloads"] = pages.link_downloads(task, viewer.api) if viewer.downloads else []
                 if viewer.signed_in:
@@ -176,6 +177,7 @@ class Plugin(PluginBase):
                 return invalid_link(request)
             return link_headers(render(request, self.template_path("link_map.html"), viewer_context(
                 viewer, title=task.name or viewer.project.name, task=task,
+                neighbours=pages.neighbours(viewer.project, task, viewer.path, "map"),
                 layers=[{"type": kind, "label": label} for kind, label in layers],
                 bands=task.orthophoto_bands or [], crop=task.crop is not None,
                 basemaps=options.link_basemaps())))
@@ -194,6 +196,7 @@ class Plugin(PluginBase):
                 mesh_build, preparing = store.tileset(task) if store else (None, False)
             return link_headers(render(request, self.template_path("link_3d.html"), viewer_context(
                 viewer, title=task.name or viewer.project.name, task=task,
+                neighbours=pages.neighbours(viewer.project, task, viewer.path, initial),
                 types=[{"type": kind, "label": label, "icon": icon} for kind, label, icon in types],
                 initial=initial, mesh_build=mesh_build, preparing=preparing)))
 

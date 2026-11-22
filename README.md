@@ -37,6 +37,12 @@ Under development.
   with the orthophoto, DSM, DTM, point cloud (LAZ) and textured model (zip and glTF), but not the report, camera
   positions or All Assets. Links are kept in plain text in WebODM's database (so they can be copied again), and
   revoking one, or unticking Allow Downloads, takes effect at once.
+- **Explorer's map and 3D pages** (for visitors and signed-in users alike) have **Previous** and **Next** to step
+  through the project's tasks, keeping the view where the next task has it, **Reset View** (R) and **Fullscreen**
+  (F, where the browser allows it). The 3D page explains its controls ("?"), turns to orbit a point you double-click
+  or double-tap, and gives the point cloud a **Point Size** and **Colour by Elevation** with a legend. The map has a
+  **layer opacity** slider over the basemap and a scale bar in the legend's units. Size, colour, opacity and units
+  are remembered in the browser.
 - **A link's map** shows the orthophoto, DSM and DTM as WebODM's map draws them, and a thermal orthophoto as
   **Thermal** (degrees in the magma colours, first). Elevation and thermal layers get a legend, in metric or imperial
   units (the visitor's choice, remembered in their browser). Under the layer, one of the basemaps set in WebODM's

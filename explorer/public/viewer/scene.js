@@ -23,6 +23,12 @@ const FRAME_SAMPLES = 50000;
 const TILES_TIMEOUT_MS = 60000;
 // Screen-space error in pixels before a tile is refined (3DTilesRendererJS's default)
 const TILES_ERROR_TARGET = 16;
+// Focus: the camera turns to a double-clicked point over this long; a point cloud's point counts within this many
+// pixels of the click; two taps this close in time and space are a double-tap
+const FOCUS_MS = 350;
+const PICK_PIXELS = 6;
+const DOUBLE_TAP_MS = 300;
+const DOUBLE_TAP_PIXELS = 24;
 
 // A cube around where most of the sampled points are (frame.js), its diagonal the frame's diameter; null without
 // points. frame() fits a box's diagonal, so the camera fits that sphere.
@@ -152,6 +158,56 @@ function createScene(container, options) {
         controls.update();
     }
 
+    // Reset View: the shown view framed again
+    function reset() {
+        const view = current && views[current];
+        if (view) view.then((v) => frame(v.box), () => {});
+    }
+
+    // The point of the shown model under a screen position (client pixels), or null: three's raycast on the mesh, its
+    // tiles or the splats; on the point cloud, the nearest shown point within PICK_PIXELS of the ray
+    const raycaster = new THREE.Raycaster();
+    async function pick(clientX, clientY) {
+        const view = current && views[current] ? await views[current].catch(() => null) : null;
+        if (!view) return null;
+        const rect = renderer.domElement.getBoundingClientRect();
+        const ndc = new THREE.Vector2((clientX - rect.left) / rect.width * 2 - 1, -(clientY - rect.top) / rect.height * 2 + 1);
+        raycaster.setFromCamera(ndc, camera);
+        let targets = [view.object];
+        if (current === "cloud" && cloud) {
+            const distance = camera.position.distanceTo(controls.target);
+            const perPixel = 2 * distance * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) / rect.height;
+            raycaster.params.Points.threshold = perPixel * PICK_PIXELS;
+            targets = cloud.group.children.filter((points) => points.visible);
+        }
+        const hits = raycaster.intersectObjects(targets, true).filter((hit) => hit.point && isFinite(hit.point.x));
+        if (!hits.length) return null;
+        hits.sort((a, b) => a.distance - b.distance);
+        return hits[0].point;
+    }
+
+    // Double-click (double-tap): the camera turns to orbit the point under it, where there is one
+    let focus = null; // {from, to, start}
+    async function focusAt(clientX, clientY) {
+        const point = await pick(clientX, clientY);
+        if (!point) return;
+        moved = true;
+        focus = { from: controls.target.clone(), to: point.clone(), start: performance.now() };
+    }
+    renderer.domElement.addEventListener("dblclick", (event) => focusAt(event.clientX, event.clientY));
+    let lastTap = null;
+    renderer.domElement.addEventListener("pointerup", (event) => {
+        if (event.pointerType !== "touch") return;
+        const now = performance.now();
+        if (lastTap && now - lastTap.time < DOUBLE_TAP_MS &&
+            Math.hypot(event.clientX - lastTap.x, event.clientY - lastTap.y) < DOUBLE_TAP_PIXELS) {
+            lastTap = null;
+            focusAt(event.clientX, event.clientY);
+        } else {
+            lastTap = { time: now, x: event.clientX, y: event.clientY };
+        }
+    });
+
     function progress(onProgress) {
         return (event) => onProgress(event && event.lengthComputable ? event.loaded / event.total : null);
     }
@@ -273,6 +329,7 @@ function createScene(container, options) {
             throw e;
         }
         cloud = opened;
+        opened.setStyle(cloudStyle);
         scene.add(opened.group);
         return { object: opened.group, box: cloudFrameBox(positions) };
     }
@@ -296,6 +353,11 @@ function createScene(container, options) {
     }
 
     renderer.setAnimationLoop(() => {
+        if (focus) {
+            const t = Math.min(1, (performance.now() - focus.start) / FOCUS_MS);
+            controls.target.lerpVectors(focus.from, focus.to, 1 - Math.pow(1 - t, 3));
+            if (t >= 1) focus = null;
+        }
         controls.update();
         if (cloud && current === "cloud") cloud.update(camera, renderer);
         if (tiles && current === "mesh") {
@@ -316,7 +378,17 @@ function createScene(container, options) {
         return cloud ? { ...cloud.shown, loaded: cloud.loaded.size, failed: cloud.failed.size } : null;
     }
 
-    return { show, resize, stats };
+    // The point cloud's Point Size and Colour (EptCloud.setStyle), kept for a cloud still opening
+    let cloudStyle = {};
+    function setCloudStyle(style) {
+        cloudStyle = { ...cloudStyle, ...style };
+        if (cloud) cloud.setStyle(cloudStyle);
+    }
+    function cloudRange() {
+        return cloud ? cloud.elevationRange() : null;
+    }
+
+    return { show, resize, stats, reset, setCloudStyle, cloudRange, pick };
 }
 
 const page = document.querySelector("[data-explorer-viewer]");
