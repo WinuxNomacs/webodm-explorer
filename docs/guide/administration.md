@@ -15,13 +15,13 @@
 
 ![The Settings panel with Basemaps on Links ticked](/images/settings.png)
 
-- **Basemaps on Links** (on by default): Explorer's task maps, opened from links, with **View as Visitor** or by
-  signed-in users, show the basemaps set in WebODM's Administration, Basemaps. Each visitor's browser then loads the
-  basemap's tiles from its provider (such as Google, Esri or OpenStreetMap), which sees the visitor's address and the
-  area viewed. Turn it off where that matters: the task maps then show the layer alone, without **Layer Opacity**,
-  and a link's page has no **Overview Map**.
+- **Basemaps on Links** (on by default): maps opened from links and with **View as Visitor** show the basemaps set
+  in WebODM's Administration, Basemaps. Each visitor's browser then loads the basemap's tiles from its provider (such
+  as Google, Esri or OpenStreetMap), which sees the visitor's address and the area viewed. Turn it off where that
+  matters: link maps then show the layer alone, without **Layer Opacity**, and a link's page has no **Overview Map**.
 
-Explorer's home and project pages always draw their maps over WebODM's basemaps, as WebODM's own map does.
+Signed-in users' maps (Explorer's home, project pages and task maps) always show WebODM's basemaps, as WebODM's own
+map does.
 
 ## Storage and work on the server
 

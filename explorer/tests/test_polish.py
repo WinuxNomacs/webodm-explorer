@@ -106,6 +106,14 @@ class ViewerControlTests(LinkTestMixin, BootTestCase):
         self.assertNotIn("data-opacity", html)  # nothing under the layer to see
         self.assertIn("data-reset", html)
 
+    def test_basemaps_on_links_off_leaves_the_signed_in_users_own_map_its_basemaps(self):
+        options.set_basemaps_on_links(False)
+        client = self.client_for("testuser")
+        own = client.get(f"{self.own}map/{self.full.id}/").content.decode()
+        self.assertIn("data-opacity", own)
+        preview = client.get(f"{self.own}preview/map/{self.full.id}/").content.decode()
+        self.assertNotIn("data-opacity", preview)  # as a link shows it
+
     def test_the_visitor_bar_keeps_its_long_half_for_wide_screens(self):
         html = self.client_for("testuser").get(f"{self.own}preview/").content.decode()
         self.assertIn('Viewing as a visitor<span class="explorer-wide">', html)

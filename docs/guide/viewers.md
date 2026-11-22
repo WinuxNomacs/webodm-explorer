@@ -19,7 +19,7 @@ The map shows one layer at a time: the **Orthophoto**, **DSM**, **DTM**, or a th
 
 - **Layer Opacity** fades the layer to compare it with the basemap under it.
 - **Basemap** picks one of the basemaps set in WebODM's Administration, Basemaps, or **No Basemap**. An admin can
-  turn basemaps off for these maps ([Administration](/guide/administration)).
+  turn basemaps off for maps opened from links ([Administration](/guide/administration)).
 - Elevation and thermal layers have a legend, and the map a scale bar, in metric or imperial units: choose the
   unit button to switch.
 

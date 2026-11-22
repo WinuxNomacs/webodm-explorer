@@ -230,7 +230,9 @@ class Plugin(PluginBase):
                 neighbours=pages.neighbours(viewer.project, task, viewer.path, "map"),
                 layers=[{"type": kind, "label": label} for kind, label in layers],
                 bands=task.orthophoto_bands or [], crop=task.crop is not None,
-                basemaps=options.link_basemaps())))
+                # A signed-in user's own map has WebODM's basemaps, as WebODM's map does; Basemaps on Links rules
+                # the link's maps and View as Visitor, which shows them as a link does
+                basemaps=options.signed_in_basemaps() if viewer.signed_in else options.link_basemaps())))
 
         def page_3d(request, viewer, pk):
             task = pages.explorable_task(viewer.project, pk) if viewer else None

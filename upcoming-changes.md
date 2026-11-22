@@ -652,6 +652,13 @@ processing wants 16 GB and more).
 
 ## Done
 
+- **Fix: Basemaps on Links turned basemaps off on signed-in users' own task maps too** (found while writing the
+  docs, the user chose 2026-11-22: links only; branch `fix-signed-in-basemaps`): the map page takes
+  `options.signed_in_basemaps()` for the user's own view, `link_basemaps()` for links and View as Visitor
+  (`plugin.py` `map_page`). Test `test_polish.py` (`ViewerControlTests`). Docs `administration.md`, `viewers.md`.
+  Django 168 OK; live on task 89d7617e with the setting turned off and restored: the own map has its basemap and
+  Layer Opacity, View as Visitor the layer alone.
+
 - **Docs step 1: the site and its pages** (the request 2026-11-22, branch `docs-site`): VitePress 1.6.4 (pinned, a
   dev dependency; `npm run docs:build`, `docs:dev`, `docs:preview`) in `docs/`: the home (`index.md`), Getting
   Started, guides to Explorer's home, a project's page, the viewers, sharing and administration, and Developing
@@ -665,7 +672,7 @@ processing wants 16 GB and more).
   (`media/plugins/explorer/`), so deleting or updating the plugin removes the built 3D Tiles (rebuilt on demand);
   links and settings stay (data stores, no foreign key to the plugin). The Settings panel's text names maps from
   links and View as Visitor, but the setting also covers signed-in users' task maps (`plugin.py` `map_page` with
-  `own_viewer`): asked the user which is meant. Also noted: VitePress 1.6.4 pulls Vite 5.4.21 and esbuild 0.21.5,
+  `own_viewer`): the user chose links only (fixed, see the entry above). Also noted: VitePress 1.6.4 pulls Vite 5.4.21 and esbuild 0.21.5,
   which `npm audit` flags (path traversal and cross-origin reads in the dev server, launch-editor on Windows; fixed
   only in Vite 6.4.4+ and esbuild 0.25, which VitePress 1.x doesn't take); they affect the local dev server only,
   not the built site.
