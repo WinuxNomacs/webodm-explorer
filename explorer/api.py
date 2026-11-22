@@ -3,7 +3,8 @@ The plugin's API (api_mount_points, under /api/plugins/explorer/):
 - the Share panel's links: list, create and revoke, for users with change_project;
 - the token views a link page streams from: WebODM's tile, thumbnail, asset and textured model views with the link's
   token check in place of WebODM's permission check (decision D1 in upcoming-changes.md), its download view for
-  links that allow downloads, and the mesh tiles Explorer builds (tiles.py).
+  links that allow downloads, and the mesh tiles Explorer builds (tiles.py);
+- Explorer's settings (options.py), for WebODM's admins.
 """
 import logging
 import os
@@ -19,11 +20,11 @@ from django.http import FileResponse
 from django.utils.translation import gettext as _
 from nodeodm import status_codes
 from rest_framework import exceptions, status
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny, BasePermission, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from . import links, pages, tiles
+from . import links, options, pages, tiles
 
 logger = logging.getLogger("app.logger")
 LINK_PATH = "/plugins/{}/s/{}/"
@@ -46,6 +47,28 @@ def downloads_value(data):
     if not isinstance(value, bool):
         raise exceptions.ValidationError({"downloads": _("Not a valid choice.")})
     return value
+
+
+class IsSuperuser(BasePermission):
+    """WebODM's admins: the users its Administration menu is for."""
+
+    def has_permission(self, request, view):
+        return bool(request.user and request.user.is_superuser)
+
+
+class Settings(APIView):
+    """Explorer's settings: GET them, PATCH {"basemaps_on_links": true|false}."""
+    permission_classes = (IsSuperuser,)
+
+    def get(self, request):
+        return Response(options.all_settings())
+
+    def patch(self, request):
+        value = request.data.get("basemaps_on_links")
+        if not isinstance(value, bool):
+            raise exceptions.ValidationError({"basemaps_on_links": _("Expected true or false.")})
+        options.set_basemaps_on_links(value)
+        return Response(options.all_settings())
 
 
 class ProjectLinksBase(APIView):
@@ -97,7 +120,7 @@ def prepare_tiles(project):
     try:
         store = tiles.Tiles.current()
         if store:
-            store.prepare(task for task, _outputs, _downloads in pages.explorable_tasks([project]))
+            store.prepare(card[0] for card in pages.explorable_tasks([project]))
     except Exception as e:  # noqa: BLE001
         logger.warning(f"Explorer: could not queue the mesh tiles of project {project.id}: {e}")
 

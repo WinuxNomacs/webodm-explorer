@@ -5,14 +5,38 @@
 
 {% block content %}
 <div class="explorer">
-    <h3><i class="fa fa-binoculars"></i> {% trans "Explorer" %}</h3>
+    <div class="explorer-header">
+        <h3><i class="fa fa-binoculars"></i> {% trans "Explorer" %}</h3>
+        {% if settings %}
+        <div class="explorer-actions">
+            <button type="button" class="btn btn-default btn-sm" data-explorer-settings-toggle aria-expanded="false" aria-controls="explorer-settings">
+                <i class="fa fa-cog"></i> {% trans "Settings" %}
+            </button>
+        </div>
+        {% endif %}
+    </div>
+    {% if settings %}
+    <form id="explorer-settings" class="explorer-share theme-border-secondary-07" data-settings-api="{{ settings_api }}"
+          data-error="{% trans "The setting could not be saved. Try again." %}" hidden>
+        {% csrf_token %}
+        <div class="checkbox">
+            <label><input type="checkbox" name="basemaps_on_links"{% if settings.basemaps_on_links %} checked{% endif %}> {% trans "Basemaps on Links" %}</label>
+        </div>
+        <p class="explorer-card-text">{% trans "Maps opened from links and previews show the basemaps set in Administration, Basemaps. Each visitor's browser then loads them from their provider, which sees the visitor's address and the area viewed." %}</p>
+        <div class="explorer-settings-error alert alert-warning" role="alert" hidden></div>
+    </form>
+    {% endif %}
     {% if projects %}
     <div class="explorer-grid">
         {% for entry in projects %}
         <a class="explorer-card explorer-card-link theme-border-secondary-07" href="{{ public }}project/{{ entry.project.id }}/">
-            {% if entry.thumbnail %}
+            {% if entry.picture.webodm %}
             <img class="explorer-thumbnail" loading="lazy" alt="" data-placeholder-icon="fa fa-folder-open"
-                 src="/api/projects/{{ entry.project.id }}/tasks/{{ entry.thumbnail.id }}/thumbnail?size=512">
+                 src="/api/projects/{{ entry.project.id }}/tasks/{{ entry.thumbnail.id }}/thumbnail?size=512"{% if entry.picture.draw %}
+                 data-draw="{{ entry.picture.draw }}" data-api="/api/projects/{{ entry.project.id }}/tasks/{{ entry.thumbnail.id }}/"{% if entry.thumbnail.crop %} data-crop="1"{% endif %}{% endif %}>
+            {% elif entry.picture.draw %}
+            <div class="explorer-thumbnail explorer-no-thumbnail theme-border-secondary-07" data-draw="{{ entry.picture.draw }}"
+                 data-api="/api/projects/{{ entry.project.id }}/tasks/{{ entry.thumbnail.id }}/"{% if entry.thumbnail.crop %} data-crop="1"{% endif %}><i class="fa fa-folder-open"></i></div>
             {% else %}
             <div class="explorer-thumbnail explorer-no-thumbnail theme-border-secondary-07"><i class="fa fa-folder-open"></i></div>
             {% endif %}
@@ -30,5 +54,6 @@
     <p>{% trans "No projects yet. Projects you create, or that are shared with you, appear here." %}</p>
     {% endif %}
 </div>
+<script src="{{ public }}layers.js"></script>
 <script src="{{ public }}explorer.js"></script>
 {% endblock %}

@@ -226,3 +226,43 @@ a.explorer-card-link:focus .explorer-card-title {
     margin-left: 8px;
     white-space: nowrap;
 }
+
+/* The map page's layer switch and basemap picker, side by side */
+.explorer-viewer-tools {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+
+.explorer-basemap {
+    width: auto;
+    max-width: 14em;
+}
+
+/* A value layer's legend, over the map's bottom-left corner (Leaflet's panes stop at z-index 700) */
+.explorer-legend {
+    position: absolute;
+    left: 10px;
+    bottom: 22px;
+    z-index: 800;
+    width: 220px;
+    max-width: calc(100% - 20px);
+    padding: 6px 8px;
+    border-width: 1px;
+    border-style: solid;
+    border-radius: 3px;
+    font-size: 12px;
+}
+
+.explorer-legend-ramp {
+    height: 10px;
+    border-radius: 2px;
+}
+
+.explorer-legend-labels {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 4px;
+}

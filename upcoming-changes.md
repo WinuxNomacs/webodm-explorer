@@ -2,7 +2,7 @@
 
 ## Phases (current and upcoming)
 
-Up next: **Explorer UX: the project hub** (the request 2026-11-21, plan below). Building step 1 (branch `ux-defects`).
+Up next: **Explorer UX: the project hub** (the request 2026-11-21, plan below). Step 1 built (see "Done"); step 2 to plan.
 Its steps, each a phase: 1. defects (single-band colours and legend, thumbnail fallback, 3D framing); 2. navigation
 hub (home and project pages); 3. Explorer's viewer for signed-in users, with Open in WebODM; 4. viewer polish;
 5. showcase (link landing page, embed).
@@ -420,6 +420,18 @@ The user's answers (2026-11-21):
   page errors); metadata for the legend failing hides the legend only; a tile failing in a thumbnail keeps the icon.
 
 ## Done
+
+- **UX step 1: thermal layer and legends, drawn thumbnails, framing, basemaps** (2026-11-21, branch `ux-defects`):
+  `explorer/public/layers.js` (each layer's parameters and stretch as WebODM's map, legends, the tiles a thumbnail
+  needs), `map.js` (legend with a unit switch, the admin's basemaps under the layer with a picker),
+  `explorer.js` (thumbnails drawn from tiles when near the screen; the admins' Settings panel), `frame.js` (median
+  centre and the radius of 90 % of the points; the mesh tiles re-frame on their root tile, which a child tile can
+  beat to it, unless the visitor moved), `options.py` and `api.Settings` (Basemaps on Links, superusers only),
+  `pages.is_thermal`, `pages.thumbnail`. Tests: `tests/test_ux.py`, Jest `layers.test.js`, `thumbnails.test.js`,
+  `map.test.js`. Live check (desktop and phone, the user's data): Thermal legend 10.6-50.3 °C as WebODM's map shows
+  it; Roof Sample's card and project card drawn in magma; Google basemap by default, ESRI and none switch; the house
+  framed on HomerunObliqueRGB's tiles, GLB and splats. One long task of about 185 ms while the mesh tiles load,
+  with or without the re-frame (not compared with `main`; the machine was busy: another WebODM stack at 33 % CPU).
 
 - **Preview without a link** (the user, 2026-11-21): **Preview** in the project page's header opens the link pages
   for a signed-in user who can view the project, with a bar saying so and Back to Explorer. They read WebODM's own

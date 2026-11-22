@@ -1,11 +1,14 @@
 {% load i18n %}<div class="explorer-grid">
-    {% for task, outputs, downloads in cards %}
+    {% for task, outputs, downloads, picture in cards %}
     <div class="explorer-card theme-border-secondary-07">
-        {% if "orthophoto.tif" in task.available_assets %}
+        {# WebODM's thumbnail of the orthophoto; a layer drawn from tiles where it can't make one (explorer.js) #}
+        {% if picture.webodm %}
         <img class="explorer-thumbnail" loading="lazy" alt="" data-placeholder-icon="fa fa-cube"
-             src="{{ thumbnails }}{{ task.id }}/thumbnail?size=512">
+             src="{{ thumbnails }}{{ task.id }}/thumbnail?size=512"{% if picture.draw %}
+             data-draw="{{ picture.draw }}" data-api="{{ thumbnails }}{{ task.id }}/"{% if task.crop %} data-crop="1"{% endif %}{% endif %}>
         {% else %}
-        <div class="explorer-thumbnail explorer-no-thumbnail theme-border-secondary-07"><i class="fa fa-cube"></i></div>
+        <div class="explorer-thumbnail explorer-no-thumbnail theme-border-secondary-07"{% if picture.draw %}
+             data-draw="{{ picture.draw }}" data-api="{{ thumbnails }}{{ task.id }}/"{% if task.crop %} data-crop="1"{% endif %}{% endif %}><i class="fa fa-cube"></i></div>
         {% endif %}
         <div class="explorer-card-body">
             <div class="explorer-card-title">{% if task.name %}{{ task.name }}{% else %}{% trans "Unnamed Task" %}{% endif %}</div>

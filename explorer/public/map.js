@@ -1,65 +1,25 @@
 /*
- * A link's map page: the task's orthophoto, DSM or DTM on Leaflet, from the link's token tile views. No basemap (one
- * would send visitors' addresses to a tile provider). Tile URLs are built as WebODM's Map.jsx builds them.
+ * A link's map page: the task's orthophoto, thermal, DSM or DTM layer on Leaflet, from the link's token tile views
+ * (or WebODM's own API on a preview), drawn as WebODM's map draws them (layers.js), with a legend for value layers.
+ * Under it, one of the basemaps the admin configured in WebODM unless Explorer's settings turn them off on links
+ * (decided 2026-11-21: they send visitors' map views to the basemap's provider).
  */
 (function () {
     "use strict";
-    var helpers = typeof module !== "undefined" && module.exports ? require("./linkpage.js") : window.ExplorerLinkPage;
+    var node = typeof module !== "undefined" && module.exports;
+    var helpers = node ? require("./linkpage.js") : window.ExplorerLinkPage;
+    var Layers = node ? require("./layers.js") : window.ExplorerLayers;
     var TILE_SIZE = 512;
-    var RGB = ["red", "green", "blue"];
+    var BASEMAP_KEY = "explorer-basemap";
+    var UNITS_KEY = "explorer-units-";
 
-    function bandNames(bands) {
-        var names = [];
-        for (var i = 0; i < (bands || []).length; i++) names.push((bands[i].description || "").toLowerCase());
-        return names;
+    // Browser storage can be missing or refuse (private windows, blocked site data): a preference is then not kept
+    function remembered(key) {
+        try { return window.localStorage.getItem(key); } catch (e) { return null; }
     }
 
-    function hasBands(needles, bands) {
-        var names = bandNames(bands);
-        for (var i = 0; i < needles.length; i++) if (names.indexOf(needles[i]) === -1) return false;
-        return true;
-    }
-
-    // Elevation is shaded and coloured, as on WebODM's map
-    function layerParams(type) {
-        return type === "orthophoto" ? {} : {hillshade: 6, color_map: "viridis"};
-    }
-
-    // The value range to stretch: the RGB bands' min and max for a colour orthophoto, every band's otherwise.
-    function rescale(type, statistics, bands) {
-        if (!statistics["1"]) return "-1,1";
-        var indexes = Object.keys(statistics);
-        if (type === "orthophoto" && hasBands(RGB, bands)) {
-            var names = bandNames(bands);
-            indexes = RGB.map(function (name) { return String(names.indexOf(name) + 1); });
-        }
-        var min = Infinity, max = -Infinity;
-        indexes.forEach(function (b) {
-            min = Math.min(min, statistics[b].min);
-            max = Math.max(max, statistics[b].max);
-        });
-        return min + "," + max;
-    }
-
-    function query(params) {
-        return Object.keys(params).map(function (k) {
-            return encodeURIComponent(k) + "=" + encodeURIComponent(params[k]);
-        }).join("&");
-    }
-
-    function metadataUrl(api, type, crop) {
-        var params = layerParams(type);
-        if (crop) params.crop = 1;
-        var q = query(params);
-        return api + type + "/metadata" + (q ? "?" + q : "");
-    }
-
-    function tileUrl(api, type, metadata, bands, crop) {
-        var params = layerParams(type);
-        if (metadata.statistics) params.rescale = rescale(type, metadata.statistics, bands);
-        params.size = TILE_SIZE;
-        if (crop) params.crop = 1;
-        return api + type + "/tiles/{z}/{x}/{y}?" + query(params);
+    function remember(key, value) {
+        try { window.localStorage.setItem(key, value); } catch (e) { /* not kept */ }
     }
 
     // [west, south, east, north] to Leaflet's [[south, west], [north, east]]
@@ -67,17 +27,97 @@
         return [[value[1], value[0]], [value[3], value[2]]];
     }
 
+    // A basemap as WebODM stores it (Basemap.get_cached_basemaps) to a Leaflet layer, kept under the task's layer
+    function basemapLayer(L, basemap) {
+        var options = {
+            attribution: basemap.attribution || "", minZoom: basemap.minzoom || 0,
+            maxNativeZoom: basemap.maxzoom || 19, maxZoom: 24
+        };
+        if (basemap.subdomains) options.subdomains = basemap.subdomains;
+        if (basemap.type === "wms") {
+            options.layers = basemap.layers || "";
+            options.format = basemap.format || "image/jpeg";
+            if (basemap.styles) options.styles = basemap.styles;
+            return L.tileLayer.wms(basemap.url, options);
+        }
+        return L.tileLayer(basemap.url, options);
+    }
+
+    // The value layers' legend: the colour ramp between the stretched range, in a unit the visitor can switch
+    function legend(container) {
+        var element = document.createElement("div");
+        element.className = "explorer-legend theme-secondary theme-border-secondary-07";
+        element.hidden = true;
+        var ramp = document.createElement("div");
+        ramp.className = "explorer-legend-ramp";
+        var labels = document.createElement("div");
+        labels.className = "explorer-legend-labels";
+        var min = document.createElement("span");
+        var unit = document.createElement("button");
+        unit.type = "button";
+        unit.className = "btn btn-default btn-xs explorer-legend-unit";
+        var max = document.createElement("span");
+        labels.appendChild(min);
+        labels.appendChild(unit);
+        labels.appendChild(max);
+        element.appendChild(ramp);
+        element.appendChild(labels);
+        container.appendChild(element);
+        // Dragging or double-clicking the legend shouldn't move the map under it
+        ["mousedown", "touchstart", "dblclick", "click", "wheel"].forEach(function (name) {
+            element.addEventListener(name, function (e) { e.stopPropagation(); });
+        });
+
+        var shown = null;
+        function draw() {
+            var choices = Layers.units(shown.type);
+            var kind = shown.type === "thermal" ? "thermal" : "elevation";
+            var index = Math.max(0, choices.map(function (u) { return u.label; }).indexOf(remembered(UNITS_KEY + kind)));
+            var chosen = choices[index];
+            // The values in the unit the button between them names
+            min.textContent = Layers.number(shown.range[0], chosen);
+            max.textContent = Layers.number(shown.range[1], chosen);
+            unit.textContent = chosen.label;
+            unit.setAttribute("title", unit.getAttribute("data-switch") || "");
+            unit.onclick = function () {
+                remember(UNITS_KEY + kind, choices[(index + 1) % choices.length].label);
+                draw();
+            };
+        }
+        return {
+            show: function (type, metadata, bands) {
+                var colors = Layers.colorRamp(type, metadata);
+                if (!colors || !Layers.units(type).length) {
+                    element.hidden = true;
+                    return;
+                }
+                shown = {type: type, range: Layers.range(type, metadata.statistics, bands)};
+                ramp.style.background = "linear-gradient(to right, " + colors.join(", ") + ")";
+                draw();
+                element.hidden = false;
+            },
+            hide: function () { element.hidden = true; },
+            element: element
+        };
+    }
+
     function start(page, L) {
         var api = page.getAttribute("data-api");
         var crop = page.getAttribute("data-crop") === "1";
         var bandsScript = document.getElementById("explorer-bands");
         var bands = bandsScript ? JSON.parse(bandsScript.textContent) : [];
+        var basemapsScript = document.getElementById("explorer-basemaps");
+        var basemaps = basemapsScript ? JSON.parse(basemapsScript.textContent) : [];
         var line = helpers.status(page.querySelector(".explorer-status"));
         var mapElement = page.querySelector(".explorer-map");
         var switches = page.querySelectorAll("[data-layer]");
+        var picker = page.querySelector("[data-basemap]");
         var map = L.map(mapElement, {maxZoom: 24});
+        var key = legend(mapElement);
+        key.element.querySelector("button").setAttribute("data-switch", page.getAttribute("data-unit-switch") || "");
         var layers = {};
         var current = null;
+        var basemap = null;
         var fitted = false;
         var checking = false;
 
@@ -97,6 +137,19 @@
             });
         }
 
+        // The remembered basemap if the admin still offers it, else WebODM's default one; "" is none
+        function pickBasemap(label) {
+            if (basemap) map.removeLayer(basemap);
+            basemap = null;
+            var chosen = basemaps.filter(function (b) { return b.label === label; })[0];
+            if (picker) picker.value = chosen ? chosen.label : "";
+            if (!chosen) return;
+            // A provider that fails leaves the layer on the page's background: its tiles are not the page's errors
+            basemap = basemapLayer(L, chosen);
+            basemap.addTo(map);
+            if (basemap.bringToBack) basemap.bringToBack();
+        }
+
         function select(type) {
             current = type;
             for (var i = 0; i < switches.length; i++) {
@@ -108,24 +161,32 @@
                 if (k !== type && layers[k].layer) map.removeLayer(layers[k].layer);
             });
             if (layers[type]) {
-                if (layers[type].layer) layers[type].layer.addTo(map);
+                if (layers[type].layer) {
+                    layers[type].layer.addTo(map);
+                    key.show(type, layers[type].metadata, bands);
+                }
                 return;
             }
             layers[type] = {};
+            key.hide();
             line.show(page.getAttribute("data-loading"));
-            window.fetch(metadataUrl(api, type, crop), {credentials: "same-origin"}).then(function (response) {
+            window.fetch(Layers.metadataUrl(api, type, crop), {credentials: "same-origin"}).then(function (response) {
                 if (!response.ok) throw new Error(response.status);
                 return response.json();
             }).then(function (metadata) {
                 var bounds = L.latLngBounds(boundsLatLng(metadata.bounds.value));
-                var layer = L.tileLayer(tileUrl(api, type, metadata, bands, crop), {
+                var layer = L.tileLayer(Layers.tileUrl(api, type, metadata, bands, crop, TILE_SIZE), {
                     bounds: bounds, minZoom: 0, maxZoom: metadata.maxzoom + 99, maxNativeZoom: metadata.maxzoom - 1,
                     tileSize: TILE_SIZE, detectRetina: true
                 });
                 layer.on("tileerror", tileFailed);
                 layers[type].layer = layer;
+                layers[type].metadata = metadata;
                 line.hide();
-                if (current === type) layer.addTo(map);
+                if (current === type) {
+                    layer.addTo(map);
+                    key.show(type, metadata, bands);
+                }
                 if (!fitted) {
                     map.fitBounds(bounds);
                     fitted = true;
@@ -136,15 +197,26 @@
             });
         }
 
+        if (basemaps.length) {
+            var saved = remembered(BASEMAP_KEY);
+            var fallback = (basemaps.filter(function (b) { return b.default; })[0] || basemaps[0]).label;
+            var offered = saved === "" || basemaps.some(function (b) { return b.label === saved; });
+            pickBasemap(saved !== null && offered ? saved : fallback);
+            if (picker) {
+                picker.addEventListener("change", function () {
+                    remember(BASEMAP_KEY, picker.value);
+                    pickBasemap(picker.value);
+                });
+            }
+        }
         for (var i = 0; i < switches.length; i++) {
             switches[i].addEventListener("click", function (e) { select(e.currentTarget.getAttribute("data-layer")); });
         }
         if (switches.length) select(switches[0].getAttribute("data-layer"));
     }
 
-    if (typeof module !== "undefined" && module.exports) {
-        module.exports = {start: start, rescale: rescale, tileUrl: tileUrl, metadataUrl: metadataUrl,
-            boundsLatLng: boundsLatLng};
+    if (node) {
+        module.exports = {start: start, boundsLatLng: boundsLatLng, basemapLayer: basemapLayer};
     } else {
         var page = document.querySelector("[data-explorer-map]");
         if (page) start(page, window.L);
