@@ -43,6 +43,13 @@ Under development.
   or double-tap, and gives the point cloud a **Point Size** and **Colour by Elevation** with a legend. The map has a
   **layer opacity** slider over the basemap and a scale bar in the legend's units. Size, colour, opacity and units
   are remembered in the browser.
+- **A link's page** opens on a cover: the project's name, description and facts beside its newest task's picture
+  and views, then an **Overview Map** of the tasks (over a basemap) and the other tasks. Pasted into a chat app or a
+  social site, a link shows a preview with the project's name, description and that picture (search engines are
+  still asked not to index it). **Embed**, on each link in the Share panel, gives iframe code for the whole page or
+  one task's view, shown without WebODM's header and with **Open Full View**; revoking the link stops the embed, and
+  anyone who can read the host page's code can read the link. Explorer's signed-in pages can't be framed by other
+  sites (against clickjacking); link pages can.
 - **A link's map** shows the orthophoto, DSM and DTM as WebODM's map draws them, and a thermal orthophoto as
   **Thermal** (degrees in the magma colours, first). Elevation and thermal layers get a legend, in metric or imperial
   units (the visitor's choice, remembered in their browser). Under the layer, one of the basemaps set in WebODM's

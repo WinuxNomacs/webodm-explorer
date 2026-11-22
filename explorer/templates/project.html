@@ -52,6 +52,9 @@
              data-expires="{% trans "Expires %(date)s" %}" data-none="{% trans "No links yet." %}"
              data-downloads="{% trans "Allow Downloads" %}"
              data-open="{% trans "Open" %}" data-open-title="{% trans "Open the link as visitors see it" %}"
+             data-embed="{% trans "Embed" %}" data-embed-title="{% trans "Code to show this link's views in another website" %}"
+             data-embed-page="{% trans "The Whole Page" %}" data-embed-note="{% trans "Anyone who can read the website's code can read the link in it. Revoking the link stops the embed." %}"
+             data-embed-label="{% trans "Show" %}" data-embed-code="{% trans "Embed Code" %}" data-project-name="{{ project.name }}"
              data-error="{% trans "Something went wrong. Try again." %}">
             <h4>{% trans "Anyone with the Link" %}</h4>
             <p class="explorer-card-text">{% trans "Anyone with one of these links can open this project's maps and 3D views without signing in, until the link expires or is revoked. With Allow Downloads, they can also download the orthophoto, elevation models, point cloud and textured model." %}</p>
@@ -73,6 +76,7 @@
         {% endif %}
     </div>
 
+    {{ embed_views|json_script:"explorer-embed-views" }}
     {% if cards %}
     {% if footprints %}
     {# Folded away for a single task: its card shows the same #}

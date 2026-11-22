@@ -234,6 +234,25 @@
         wireCopy(copyButton, input, copyButton.getAttribute("data-copied"));
     }
 
+    function escapeAttribute(value) {
+        return String(value).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    // The iframe code for a link's page or one of its views (path below the link's page, "" for the page itself),
+    // in Explorer's embed layout (?embed=1). Fullscreen allowed; loaded when the host page scrolls to it.
+    function embedCode(linkUrl, path, title) {
+        var url = linkUrl + (path || "");
+        url += (url.indexOf("?") === -1 ? "?" : "&") + "embed=1";
+        return '<iframe src="' + escapeAttribute(url) + '" title="' + escapeAttribute(title) + '" width="100%" ' +
+            'height="480" style="border: 0;" allow="fullscreen" allowfullscreen loading="lazy"></iframe>';
+    }
+
+    function readJson(root, id) {
+        var script = root.getElementById ? root.getElementById(id) : document.getElementById(id);
+        if (!script) return [];
+        try { return JSON.parse(script.textContent) || []; } catch (e) { return []; }
+    }
+
     function initLinks(root) {
         var box = root.querySelector("[data-links-api]");
         if (!box) return;
@@ -278,6 +297,51 @@
             return node;
         }
 
+        var embedViews = readJson(root, "explorer-embed-views");
+
+        // Embed: pick the whole page or a task's view, then copy the iframe code
+        function embedBox(link) {
+            var panel = element("div", "explorer-embed");
+            panel.hidden = true;
+            var label = element("label", "explorer-embed-pick explorer-card-text", text("embed-label"));
+            var select = element("select", "form-control input-sm");
+            var page = element("option", null, text("embed-page"));
+            page.value = "";
+            select.appendChild(page);
+            embedViews.forEach(function (task) {
+                var group = element("optgroup");
+                group.label = task.task;
+                task.views.forEach(function (view) {
+                    var option = element("option", null, view.label);
+                    option.value = view.path;
+                    group.appendChild(option);
+                });
+                select.appendChild(group);
+            });
+            label.appendChild(select);
+            panel.appendChild(label);
+            var group = element("div", "input-group input-group-sm");
+            var code = element("textarea", "form-control explorer-embed-code");
+            code.readOnly = true;
+            code.rows = 3;
+            code.setAttribute("aria-label", text("embed-code"));
+            group.appendChild(code);
+            var buttons = element("span", "input-group-btn");
+            var copy = element("button", "btn btn-default", text("copy"));
+            copy.type = "button";
+            wireCopy(copy, code, text("copied"));
+            buttons.appendChild(copy);
+            group.appendChild(buttons);
+            panel.appendChild(group);
+            panel.appendChild(element("p", "explorer-card-text", text("embed-note")));
+            function update() {
+                code.value = embedCode(window.location.origin + link.path, select.value, text("project-name") || "");
+            }
+            select.addEventListener("change", update);
+            update();
+            return panel;
+        }
+
         function renderLink(link) {
             var row = element("div", "explorer-link theme-border-secondary-07");
             row.setAttribute("data-token", link.token);
@@ -316,11 +380,23 @@
             open.target = "_blank";
             open.rel = "noopener noreferrer";
             open.title = text("open-title");
+            var embedPanel = embedBox(link);
+            var embed = element("button", "btn btn-default", text("embed"));
+            embed.type = "button";
+            embed.title = text("embed-title") || "";
+            embed.setAttribute("aria-expanded", "false");
+            embed.addEventListener("click", function () {
+                embedPanel.hidden = !embedPanel.hidden;
+                embed.setAttribute("aria-expanded", embedPanel.hidden ? "false" : "true");
+                if (!embedPanel.hidden) embedPanel.querySelector("textarea").select();
+            });
             buttons.appendChild(open);
+            buttons.appendChild(embed);
             buttons.appendChild(copy);
             buttons.appendChild(revoke);
             group.appendChild(buttons);
             row.appendChild(group);
+            row.appendChild(embedPanel);
             return row;
         }
 
@@ -383,7 +459,7 @@
     }
 
     if (typeof module !== "undefined" && module.exports) {
-        module.exports = { init: init, drawThumbnail: drawThumbnail };
+        module.exports = { init: init, drawThumbnail: drawThumbnail, embedCode: embedCode };
     } else {
         init(document);
     }

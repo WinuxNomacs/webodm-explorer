@@ -1,0 +1,12 @@
+{# A link page's preview in chat apps and social sites (plugin.py preview_meta); the pages stay noindex for search engines #}
+{% if meta %}<meta property="og:type" content="website">
+<meta property="og:title" content="{{ meta.title }}">
+{% if meta.description %}<meta property="og:description" content="{{ meta.description }}">
+<meta name="description" content="{{ meta.description }}">{% endif %}
+{% if meta.image %}<meta property="og:image" content="{{ meta.image }}">
+<meta name="twitter:card" content="summary_large_image">{% else %}<meta name="twitter:card" content="summary">{% endif %}
+<meta name="twitter:title" content="{{ meta.title }}">
+{% endif %}{% if embed %}<style>
+    /* An embed shows the view alone: WebODM's header and the link page's way back are left out */
+    #navbar-top { display: none; }
+</style>{% endif %}

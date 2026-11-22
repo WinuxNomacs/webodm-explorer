@@ -420,6 +420,30 @@ def neighbours(project, task, path, view):
             "position": index + 1, "total": len(cards)}
 
 
+def link_footprints(cards):
+    """A link page's Overview Map: each card's task at its footprint, opening as its card does."""
+    return [{"name": card["task"].name or _("Unnamed Task"), "url": card["open"], "geometry": shape}
+            for card in cards if (shape := footprint(card["task"]))]
+
+
+def cover_facts(cards):
+    """A link page's facts line: how many tasks, images in all, and the newest task's date (None without tasks)."""
+    if not cards:
+        return None
+    return {"tasks": len(cards), "images": sum(card["task"].images_count or 0 for card in cards),
+            "updated": cards[0]["task"].created_at}
+
+
+def embed_views(cards):
+    """
+    What the Share panel's Embed can show: each task's views as paths below a link's page ("map/<id>/",
+    "3d/<id>/?t=cloud"), with labels; the panel adds the link page's own path and ?embed=1.
+    """
+    return [{"task": card["task"].name or _("Unnamed Task"),
+             "views": [{"label": output["label"], "path": output["url"]} for output in link_outputs(card["task"], "")]}
+            for card in cards]
+
+
 def task_footprints(cards):
     """The project page's overview map: each card's task at its footprint, opening as its thumbnail does."""
     return [{"name": card["task"].name or _("Unnamed Task"), "url": card["open"], "geometry": card["footprint"]}
