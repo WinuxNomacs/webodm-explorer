@@ -478,8 +478,8 @@ The user's answers (2026-11-21): all three as recommended.
     WebODM; no long tasks on any of these pages, the server answering in 20-31 ms, loads in 60-125 ms (with two
     projects; Spotlight busy on the Mac, the stack idle).
   - Also found: a drawn thermal thumbnail shows faint seams between its tiles (from step 1, left for step 3).
-  - Open: the home's and project page's maps use `Basemap.get_cached_basemaps()` as the link map does; the approved
-    exception names the link map only (asked of the user 2026-11-21).
+  - The home's and project page's maps use `Basemap.get_cached_basemaps()` as the link map does: approved by the user
+    2026-11-22 (CLAUDE.md's approved exceptions).
 
 - **UX step 1: thermal layer and legends, drawn thumbnails, framing, basemaps** (2026-11-21, branch `ux-defects`):
   `explorer/public/layers.js` (each layer's parameters and stretch as WebODM's map, legends, the tiles a thumbnail
