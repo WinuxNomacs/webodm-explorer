@@ -17,24 +17,21 @@ import { EptCloud, FETCH_TIMEOUT_MS, HttpError, withRetry } from "./ept.js";
 
 // A paged splat file's bounds fill in as its first pages arrive
 const BOUNDS_WAIT_MS = 10000;
-// Framing ignores the outermost points on each axis: photogrammetry leaves stray fragments and long splats far out
-const FRAME_PERCENTILE = 0.02;
+// Framing samples at most this many points
 const FRAME_SAMPLES = 50000;
 // The mesh tiles' first view: its root tile (1-2 MB) should arrive well before this
 const TILES_TIMEOUT_MS = 60000;
 // Screen-space error in pixels before a tile is refined (3DTilesRendererJS's default)
 const TILES_ERROR_TARGET = 16;
 
-// The box holding all but the outermost FRAME_PERCENTILE of the points on each axis; null without points
+// A cube around where most of the sampled points are (frame.js), its diagonal the frame's diameter; null without
+// points. frame() fits a box's diagonal, so the camera fits that sphere.
 export function robustBox(xs, ys, zs) {
-    if (!xs.length) return null;
-    const range = (values) => {
-        const sorted = Float64Array.from(values).sort();
-        const at = (q) => sorted[Math.min(sorted.length - 1, Math.max(0, Math.round(q * (sorted.length - 1))))];
-        return [at(FRAME_PERCENTILE), at(1 - FRAME_PERCENTILE)];
-    };
-    const [x, y, z] = [range(xs), range(ys), range(zs)];
-    return new THREE.Box3(new THREE.Vector3(x[0], y[0], z[0]), new THREE.Vector3(x[1], y[1], z[1]));
+    const found = window.ExplorerFrame.sphere(xs, ys, zs);
+    if (!found) return null;
+    const center = new THREE.Vector3(...found.center);
+    const half = Math.max(found.radius, 0.01) / Math.sqrt(3);
+    return new THREE.Box3(center.clone().subScalar(half), center.clone().addScalar(half));
 }
 
 function meshFrameBox(object) {
@@ -132,8 +129,13 @@ function createScene(container, options) {
     new ResizeObserver(resize).observe(container);
     resize();
 
+    // Whether the visitor has moved the camera since it was last framed: a late, better frame then doesn't jump
+    let moved = false;
+    controls.addEventListener("start", () => { moved = true; });
+
     function frame(box) {
         if (!box || box.isEmpty()) return;
+        moved = false;
         const center = box.getCenter(new THREE.Vector3());
         const radius = Math.max(box.getSize(new THREE.Vector3()).length() / 2, 0.01);
         // Fit the narrower of the two angles: on a phone held upright, the horizontal one
@@ -189,30 +191,37 @@ function createScene(container, options) {
                 scene.remove(opened.group);
                 reject(error);
             }
+            const view = { object: opened.group, box: null };
+            let framedOnRoot = false;
             // Frame on the tileset's bounds first: tiles outside the camera's view are never loaded, the root included
-            let bounds = null;
             opened.addEventListener("load-root-tileset", () => {
                 const box = new THREE.Box3();
                 opened.group.updateMatrixWorld(true);
-                if (opened.getBoundingBox(box)) {
-                    bounds = box.applyMatrix4(opened.group.matrixWorld);
-                    frame(bounds);
+                if (opened.getBoundingBox(box) && !framedOnRoot) {
+                    view.box = box.applyMatrix4(opened.group.matrixWorld);
+                    frame(view.box);
                 }
             });
+            // The view opens with its first tile, framed on the bounds; the root tile, which a smaller child tile can
+            // beat to it, then frames it on its points as the GLB is (stray fragments left out), unless the visitor
+            // has moved the camera by then
             opened.addEventListener("load-model", (event) => {
+                opened.group.updateMatrixWorld(true);
+                if (!framedOnRoot && event.tile === opened.root) {
+                    framedOnRoot = true;
+                    // The tile may not be in the (turned) group yet: its box then needs the group's turn added
+                    const box = meshFrameBox(event.scene);
+                    let attached = false;
+                    for (let node = event.scene.parent; node; node = node.parent) attached = attached || node === opened.group;
+                    view.box = attached ? box : box.applyMatrix4(opened.group.matrixWorld);
+                    if (shown && current === "mesh" && !moved) frame(view.box);
+                }
                 if (shown) return;
                 shown = true;
                 clearTimeout(timer);
                 tiles = opened;
-                opened.group.updateMatrixWorld(true);
-                // Then on the root tile's points, as the GLB (stray fragments ignored); any other tile is a corner only
-                const root = /\/root\.glb$/.test(event.url || "");
-                if (!root && bounds) return resolve({ object: opened.group, box: bounds });
-                // The tile may not be in the (turned) group yet: its box then needs the group's turn added
-                const box = meshFrameBox(event.scene);
-                let attached = false;
-                for (let node = event.scene.parent; node; node = node.parent) attached = attached || node === opened.group;
-                resolve({ object: opened.group, box: attached ? box : box.applyMatrix4(opened.group.matrixWorld) });
+                if (!view.box) view.box = new THREE.Box3().setFromObject(opened.group);
+                resolve(view);
             });
             opened.addEventListener("load-error", (event) => {
                 const status = event.error instanceof HttpError ? event.error.status : null;

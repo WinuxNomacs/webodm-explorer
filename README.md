@@ -8,13 +8,15 @@ Under development.
 - **Explorer** in the main menu lists the projects you can view. Each opens its Explorer page: a card per
   completed task with outputs, with a thumbnail and buttons that open WebODM's own views: **Map** (orthophoto, DSM,
   DTM), **Point Cloud**, **Textured Model** and **Gaussian Splats**. **View All on Map** shows the whole project.
+  Where WebODM can't make a thumbnail (a thermal orthophoto, or a task with elevation models only), the card draws
+  one from the task's map tiles, in the colours of its map.
 - **Preview** on a project's Explorer page shows the project as anyone with a link sees it (the link page, its maps
   and 3D views, with tiled models), without creating a link, for any signed-in user who can view the project.
 - **Share** on a project's Explorer page shows and copies the page's link. It opens only for signed-in users the
   project is shared with (Dashboard: the project's Edit dialog, Permissions).
 - **Anyone with the Link**, in the Share panel for users who can change the project: links that open the project
   without signing in, each with a label and an expiry (7, 30 or 90 days, or never), copied again or revoked at any
-  time, or opened with **Open** to see them as visitors do. A link opens a page of the project's tasks, each with a **Map** (orthophoto, DSM, DTM; no basemap) and a 3D
+  time, or opened with **Open** to see them as visitors do. A link opens a page of the project's tasks, each with a **Map** and a 3D
   view of its **Point Cloud** (streamed node by node from WebODM's EPT, within the point budget WebODM's own 3D page
   uses: 10 million points on a computer, 2 million on a phone, 1 million on iOS), **Textured Model** and **Gaussian
   Splats**. The textured model streams as 3D Tiles (only what is on screen, finer close up), which Explorer builds
@@ -25,6 +27,13 @@ Under development.
   with the orthophoto, DSM, DTM, point cloud (LAZ) and textured model (zip and glTF), but not the report, camera
   positions or All Assets. Links are kept in plain text in WebODM's database (so they can be copied again), and
   revoking one, or unticking Allow Downloads, takes effect at once.
+- **A link's map** shows the orthophoto, DSM and DTM as WebODM's map draws them, and a thermal orthophoto as
+  **Thermal** (degrees in the magma colours, first). Elevation and thermal layers get a legend, in metric or imperial
+  units (the visitor's choice, remembered in their browser). Under the layer, one of the basemaps set in WebODM's
+  Administration, Basemaps (its default first; the visitor can pick another or none).
+- **Settings** on the Explorer page, for WebODM's admins: **Basemaps on Links** (on by default). Each visitor's
+  browser loads a basemap's tiles from its provider (Google, Esri or OpenStreetMap with WebODM's own list), which
+  then sees the visitor's address and the area viewed; turn it off where that matters.
 
 ## Install
 

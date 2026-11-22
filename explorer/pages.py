@@ -68,10 +68,36 @@ def task_outputs(task):
     return outputs
 
 
+def is_thermal(task):
+    """
+    An orthophoto of one band and alpha, as WebODM's map tells a thermal one (Map.jsx): drawn in degrees Celsius,
+    and WebODM's thumbnail API can't make its thumbnail (it needs three colour bands).
+    """
+    return "orthophoto.tif" in (task.available_assets or []) and len(task.orthophoto_bands or []) == 2
+
+
 def map_layers(task):
-    """The map layers a task has, as (tile type, label) pairs."""
+    """
+    The map layers a task has, as (layer type, label) pairs. A thermal orthophoto's Thermal layer comes first: the
+    orthophoto itself is then a grey picture of the same values.
+    """
     assets = task.available_assets or []
-    return [(asset.removesuffix(".tif"), _(label)) for asset, label in MAP_LAYERS if asset in assets]
+    layers = [(asset.removesuffix(".tif"), _(label)) for asset, label in MAP_LAYERS if asset in assets]
+    if is_thermal(task):
+        layers.insert(0, ("thermal", _("Thermal")))
+    return layers
+
+
+def thumbnail(task):
+    """
+    A card's picture: WebODM's thumbnail of the orthophoto ("webodm"), and the layer the card draws from tiles
+    instead ("draw": thermal, dsm, dtm or None) when WebODM can't make one or there is no orthophoto.
+    """
+    assets = task.available_assets or []
+    elevation = next((kind for kind in ("dsm", "dtm") if f"{kind}.tif" in assets), None)
+    if is_thermal(task):
+        return {"webodm": False, "draw": "thermal"}
+    return {"webodm": "orthophoto.tif" in assets, "draw": elevation}
 
 
 def viewer_types(task):
@@ -119,28 +145,32 @@ def explorable_task(project, task_pk):
 
 def explorable_tasks(projects, outputs_for=task_outputs, downloads_for=None):
     """
-    Completed tasks (not being removed) with at least one output, newest first, as (task, outputs, downloads)
-    triples; downloads is [] without downloads_for.
+    Completed tasks (not being removed) with at least one output, newest first, as (task, outputs, downloads,
+    thumbnail) tuples; downloads is [] without downloads_for.
     """
     tasks = (Task.objects.filter(project__in=projects, status=status_codes.COMPLETED)
              .exclude(pending_action=pending_actions.REMOVE)
-             .only("id", "project_id", "name", "created_at", "available_assets")
+             .only("id", "project_id", "name", "created_at", "available_assets", "orthophoto_bands", "crop")
              .order_by("-created_at"))
     cards = []
     for task in tasks:
         outputs = outputs_for(task)
         if outputs:
-            cards.append((task, outputs, downloads_for(task) if downloads_for else []))
+            cards.append((task, outputs, downloads_for(task) if downloads_for else [], thumbnail(task)))
     return cards
 
 
 def project_cards(user):
-    """The project list: each viewable project with how many tasks have outputs and a thumbnail task if any."""
+    """
+    The project list: each viewable project with how many tasks have outputs, and the newest task with a picture
+    (WebODM's thumbnail or one drawn from tiles) and that picture, if any.
+    """
     projects = list(viewable_projects(user))
-    summary = {project.id: {"project": project, "count": 0, "thumbnail": None} for project in projects}
-    for task, _outputs, _downloads in explorable_tasks(projects):
+    summary = {project.id: {"project": project, "count": 0, "thumbnail": None, "picture": None}
+               for project in projects}
+    for task, _outputs, _downloads, picture in explorable_tasks(projects):
         entry = summary[task.project_id]
         entry["count"] += 1
-        if entry["thumbnail"] is None and "orthophoto.tif" in task.available_assets:
-            entry["thumbnail"] = task
+        if entry["thumbnail"] is None and (picture["webodm"] or picture["draw"]):
+            entry["thumbnail"], entry["picture"] = task, picture
     return [summary[project.id] for project in projects]

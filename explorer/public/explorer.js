@@ -1,10 +1,14 @@
 /*
- * The Explorer pages: thumbnails that fail fall back to a placeholder, and the project page's Share panel shows the
+ * The Explorer pages: the home's Settings panel for admins, card thumbnails (drawn from the task's tiles where
+ * WebODM's thumbnail API can't make one, else a placeholder), and the project page's Share panel, which shows the
  * page's own link (for signed-in users the project is shared with) and, for users who can change the project, its
  * "anyone with the link" links: listed, created and revoked through the plugin's API.
  */
 (function () {
     "use strict";
+    var Layers = typeof module !== "undefined" && module.exports ? require("./layers.js") : window.ExplorerLayers;
+    // A drawn thumbnail: at most this many pixels across, twice a card's width for sharp screens
+    var DRAWN_SIZE = 512;
 
     function copyText(input, done) {
         var text = input.value;
@@ -27,15 +31,92 @@
         }
     }
 
-    // WebODM's thumbnail endpoint answers 404 for an orthophoto with fewer than three colour bands (a greyscale
-    // one): such a card gets the placeholder a task without an orthophoto has.
-    function useThumbnailPlaceholder(img) {
+    function loadImage(url) {
+        return new Promise(function (resolve, reject) {
+            var img = new Image();
+            img.onload = function () { resolve(img); };
+            img.onerror = function () { reject(new Error("tile")); };
+            img.src = url;
+        });
+    }
+
+    // A thumbnail drawn from the task's tiles (a thermal orthophoto, or a DSM): the layer's metadata, then the few
+    // 256-pixel tiles that show its bounds at most DRAWN_SIZE across, on a canvas cut to the bounds. Resolves to an
+    // image URL; rejects when anything fails, and the card keeps its placeholder.
+    function drawThumbnail(element) {
+        var type = element.getAttribute("data-draw");
+        var api = element.getAttribute("data-api");
+        var crop = element.getAttribute("data-crop") === "1";
+        return window.fetch(Layers.metadataUrl(api, type, crop), {credentials: "same-origin"}).then(function (response) {
+            if (!response.ok) throw new Error(response.status);
+            return response.json();
+        }).then(function (metadata) {
+            var area = Layers.cover(metadata.bounds.value, metadata.maxzoom, DRAWN_SIZE);
+            var template = Layers.tileUrl(api, type, metadata, [], crop, Layers.TILE);
+            var tiles = [];
+            for (var y = area.y0; y <= area.y1; y++) {
+                for (var x = area.x0; x <= area.x1; x++) {
+                    tiles.push({x: x, y: y, url: template.replace("{z}", area.z).replace("{x}", x).replace("{y}", y)});
+                }
+            }
+            return Promise.all(tiles.map(function (tile) {
+                return loadImage(tile.url).then(function (img) { tile.img = img; return tile; });
+            })).then(function () {
+                var canvas = document.createElement("canvas");
+                canvas.width = area.width;
+                canvas.height = area.height;
+                var context = canvas.getContext("2d");
+                tiles.forEach(function (tile) {
+                    context.drawImage(tile.img, (tile.x - area.x0) * Layers.TILE - area.left,
+                        (tile.y - area.y0) * Layers.TILE - area.top);
+                });
+                return canvas.toDataURL("image/png");
+            });
+        });
+    }
+
+    function placeholderFor(img) {
         var placeholder = document.createElement("div");
         placeholder.className = "explorer-thumbnail explorer-no-thumbnail theme-border-secondary-07";
+        ["data-draw", "data-api", "data-crop"].forEach(function (name) {
+            if (img.hasAttribute(name)) placeholder.setAttribute(name, img.getAttribute(name));
+        });
         var icon = document.createElement("i");
         icon.className = img.getAttribute("data-placeholder-icon");
         placeholder.appendChild(icon);
+        return placeholder;
+    }
+
+    // A placeholder that names a layer to draw becomes that drawing once it is near the screen
+    function drawWhenSeen(placeholder) {
+        function draw() {
+            drawThumbnail(placeholder).then(function (url) {
+                var img = document.createElement("img");
+                img.className = "explorer-thumbnail";
+                img.alt = "";
+                img.src = url;
+                if (placeholder.parentNode) placeholder.parentNode.replaceChild(img, placeholder);
+            }, function () { /* the placeholder stays */ });
+        }
+        if (typeof window.IntersectionObserver === "undefined") {
+            draw();
+            return;
+        }
+        var observer = new window.IntersectionObserver(function (entries) {
+            if (entries.some(function (entry) { return entry.isIntersecting; })) {
+                observer.disconnect();
+                draw();
+            }
+        }, {rootMargin: "200px"});
+        observer.observe(placeholder);
+    }
+
+    // WebODM's thumbnail endpoint answers 404 for an orthophoto with fewer than three colour bands (a thermal one):
+    // such a card gets a placeholder, drawn from the task's tiles when the card names a layer to draw.
+    function useThumbnailPlaceholder(img) {
+        var placeholder = placeholderFor(img);
         if (img.parentNode) img.parentNode.replaceChild(placeholder, img);
+        if (placeholder.hasAttribute("data-draw")) drawWhenSeen(placeholder);
     }
 
     function watchThumbnails(root) {
@@ -49,9 +130,45 @@
                 img.addEventListener("error", function (e) { useThumbnailPlaceholder(e.target); });
             }
         }
+        var drawn = root.querySelectorAll(".explorer-no-thumbnail[data-draw]");
+        for (var j = 0; j < drawn.length; j++) drawWhenSeen(drawn[j]);
+    }
+
+    // The Explorer home's Settings panel, for WebODM's admins: each change is saved at once, and undone on the page if
+    // it couldn't be saved.
+    function initSettings(root) {
+        var toggle = root.querySelector("[data-explorer-settings-toggle]");
+        var form = root.querySelector("[data-settings-api]");
+        if (!toggle || !form) return;
+        var error = form.querySelector(".explorer-settings-error");
+        toggle.addEventListener("click", function () {
+            form.hidden = !form.hidden;
+            toggle.setAttribute("aria-expanded", form.hidden ? "false" : "true");
+        });
+        var box = form.elements.basemaps_on_links;
+        box.addEventListener("change", function () {
+            var wanted = box.checked;
+            box.disabled = true;
+            error.hidden = true;
+            window.fetch(form.getAttribute("data-settings-api"), {
+                method: "PATCH", credentials: "same-origin",
+                headers: {"Content-Type": "application/json", "X-CSRFToken": form.elements.csrfmiddlewaretoken.value},
+                body: JSON.stringify({basemaps_on_links: wanted})
+            }).then(function (response) {
+                if (!response.ok) throw new Error(response.status);
+                return response.json();
+            }).then(function (saved) {
+                box.checked = saved.basemaps_on_links;
+            }, function () {
+                box.checked = !wanted;
+                error.textContent = form.getAttribute("data-error");
+                error.hidden = false;
+            }).then(function () { box.disabled = false; });
+        });
     }
 
     function init(root) {
+        initSettings(root);
         watchThumbnails(root);
         initShare(root);
         initLinks(root);
@@ -239,7 +356,7 @@
     }
 
     if (typeof module !== "undefined" && module.exports) {
-        module.exports = { init: init };
+        module.exports = { init: init, drawThumbnail: drawThumbnail };
     } else {
         init(document);
     }

@@ -8,7 +8,7 @@ from django.http import Http404, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, render
 from django.utils.translation import gettext as _
 
-from . import api, links, pages, tiles
+from . import api, links, options, pages, tiles
 
 logger = logging.getLogger("app.logger")
 
@@ -58,6 +58,8 @@ class Plugin(PluginBase):
                 "title": _("Explorer"),
                 "public": public,
                 "projects": pages.project_cards(request.user),
+                "settings": options.all_settings() if request.user.is_superuser else None,
+                "settings_api": f"/api/plugins/{links.NAMESPACE}/settings/",
             })
 
         def viewable_project(request, project_pk):
@@ -131,7 +133,8 @@ class Plugin(PluginBase):
             return link_headers(render(request, self.template_path("link_map.html"), viewer_context(
                 viewer, title=task.name or viewer.project.name, task=task,
                 layers=[{"type": kind, "label": label} for kind, label in layers],
-                bands=task.orthophoto_bands or [], crop=task.crop is not None)))
+                bands=task.orthophoto_bands or [], crop=task.crop is not None,
+                basemaps=options.link_basemaps())))
 
         def page_3d(request, viewer, pk):
             task = pages.explorable_task(viewer.project, pk) if viewer else None
@@ -186,6 +189,7 @@ class Plugin(PluginBase):
         base = rf"s/{TOKEN}/tasks/{TASK}/"
         tile = rf"{base}{TILE_TYPE}/tiles/(?P<z>[\d]+)/(?P<x>[\d]+)/(?P<y>[\d]+)"
         return [
+            MountPoint(r"settings/$", api.Settings.as_view()),
             MountPoint(r"projects/(?P<project_pk>[0-9]+)/links/$", api.ProjectLinks.as_view()),
             MountPoint(rf"projects/(?P<project_pk>[0-9]+)/links/{TOKEN}/$", api.ProjectLink.as_view()),
             # Preview: the mesh tiles for signed-in users who can view the project (everything else is WebODM's API)

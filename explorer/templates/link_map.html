@@ -11,12 +11,14 @@
      data-crop="{{ crop|yesno:"1," }}"
      data-loading="{% trans "Loading..." %}"
      data-invalid="{% trans "This link is no longer valid." %}"
-     data-error="{% trans "This layer could not be loaded." %}">
+     data-error="{% trans "This layer could not be loaded." %}"
+     data-unit-switch="{% trans "Switch units" %}">
     <div class="explorer-viewer-bar">
         <div class="explorer-viewer-title">
             <a href="{{ link_path }}"><i class="fa fa-arrow-left"></i> {{ project.name }}</a> /
             {% if task.name %}{{ task.name }}{% else %}{% trans "Unnamed Task" %}{% endif %}
         </div>
+        <div class="explorer-viewer-tools">
         {% if layers|length > 1 %}
         <div class="btn-group" role="group" aria-label="{% trans "Layer" %}">
             {% for layer in layers %}
@@ -26,12 +28,21 @@
         {% else %}
         <span data-layer="{{ layers.0.type }}" aria-pressed="false" hidden></span>
         {% endif %}
+        {% if basemaps %}
+        <select class="form-control input-sm explorer-basemap" data-basemap aria-label="{% trans "Basemap" %}" title="{% trans "Basemap" %}">
+            {% for basemap in basemaps %}<option value="{{ basemap.label }}">{{ basemap.label }}</option>{% endfor %}
+            <option value="">{% trans "No Basemap" %}</option>
+        </select>
+        {% endif %}
+        </div>
     </div>
     <div class="explorer-status theme-secondary theme-border-secondary-07" role="status" hidden></div>
     <div class="explorer-map"></div>
 </div>
 {{ bands|json_script:"explorer-bands" }}
+{{ basemaps|json_script:"explorer-basemaps" }}
 <script src="{{ public }}vendor/leaflet-1.9.4/dist/leaflet.js"></script>
 <script src="{{ public }}linkpage.js"></script>
+<script src="{{ public }}layers.js"></script>
 <script src="{{ public }}map.js"></script>
 {% endblock %}
