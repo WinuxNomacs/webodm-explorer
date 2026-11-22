@@ -2,7 +2,7 @@
 
 ## Phases (current and upcoming)
 
-Up next: **Explorer UX: the project hub** (the request 2026-11-21, plan below). Step 1 built (see "Done"); step 2 to plan.
+Up next: **Explorer UX: the project hub** (the request 2026-11-21, plan below). Step 1 built (see "Done"); step 2 planned below, decisions open.
 Its steps, each a phase: 1. defects (single-band colours and legend, thumbnail fallback, 3D framing); 2. navigation
 hub (home and project pages); 3. Explorer's viewer for signed-in users, with Open in WebODM; 4. viewer polish;
 5. showcase (link landing page, embed).
@@ -418,6 +418,44 @@ The user's answers (2026-11-21):
   Explorer home holds "Basemaps on Links" (on), stored in the plugin's `GlobalDataStore`.
 - What fails, and what happens: a basemap provider down or blocked shows the layer on grey (tile errors are not
   page errors); metadata for the legend failing hides the legend only; a tile failing in a thumbnail keeps the icon.
+
+### Plan: UX step 2, the navigation hub (proposed 2026-11-21)
+
+Facts checked in WebODM v4.0.1: a superuser passes every `has_perm` (Django's ModelBackend), so admins can already
+open any project's Explorer page; only the list leaves them out (`pages.viewable_projects`). Projects and tasks have
+WebODM tags (`tags`; a leading "." marks WebODM's own, as `.dji-thermal-dataset`); tasks keep their footprints in
+WGS84 (`orthophoto_extent`, `dsm_extent`, `dtm_extent`, GeoJSON polygons), `images_count`, `size` (MB) and
+`processing_time` (ms).
+
+- **Explorer home** (`/plugins/explorer/`):
+  - a toolbar: Search (project names, descriptions and tags), a scope switch (All for admins and the default for
+    them, Mine, Shared with Me), Sort (Recent Activity, the default; Name; Created), and Has 3D / Shared by Link
+    filters. Server-side, in the page's address (bookmarkable, works without JS), 24 projects a page;
+  - richer cards: the picture, name, two lines of description, user tags, an icon and count per output type (Map,
+    Point Cloud, Textured Model, Splats), last activity ("Updated 3 days ago"), the owner when it isn't you, and a
+    link badge (active links, "expires soon" within 7 days) for users who can share;
+  - optional: a Grid / Map switch, the Map showing each project at its tasks' footprints (decision 2).
+- **Project page** (`/plugins/explorer/project/<id>/`):
+  - header: name, description, owner, tags, task count; Share (primary, with the active links count), View as
+    Visitor (today's Preview), and a "..." menu with Open in Dashboard and View All on Map (WebODM's pages);
+  - optional: an overview map of the tasks' footprints above the cards, a footprint opening its task (decision 3);
+  - task cards: the thumbnail opens the task (decision 1), outputs as compact chips instead of four full buttons, a
+    facts line (date, images, size, processing time), user tags, and a "..." menu: Open in WebODM (Map, 3D),
+    Download (WebODM's own downloads, for users who can view the task).
+- **Phone width:** the toolbar stacks (Search full width, the rest in one row), cards one per row, chips wrap.
+- **Smoothness:** one query for a page of projects with their tasks, link counts read per project on the page
+  only (at most 24), thumbnails lazy as now; the footprint maps draw GeoJSON outlines (no tiles of the tasks).
+- What can fail: a project without tasks (no picture, "No outputs yet"), extents missing (left off the maps), the
+  links store busy (the badge left out, never a page error), a bad page or sort in the address (the first page,
+  the default sort).
+
+Decisions for the user:
+
+1. Fold step 3 in: the cards open Explorer's own viewer for signed-in users (today's Preview pages without the
+   Preview bar, with Download for users who may and **Open in WebODM** on the map and 3D views for the measurement
+   tools); View as Visitor keeps the visitor's version. Recommended: yes, the hub then keeps users in Explorer.
+2. The Explorer home's Map view of all projects. Recommended: yes.
+3. The project page's overview map of task footprints. Recommended: yes, folded away when a project has one task.
 
 ## Done
 
