@@ -4,6 +4,7 @@ stack's web container: docker exec -w /webodm ex-webapp python manage.py test --
 """
 import os
 import shutil
+from unittest import mock
 
 from app.tests.classes import BootTestCase
 from coreplugins.explorer import links, options
@@ -142,7 +143,7 @@ class SignInLinkTests(LinkTestMixin, BootTestCase):
                                                            content_type="application/json").status_code, 403)
         self.assertEqual(links.private_links(), links.SIGNED_IN)
 
-    def test_the_older_switch_reads_as_not_allowed_and_is_dropped_when_the_new_setting_is_saved(self):
+    def test_the_older_switch_reads_as_not_allowed_and_is_kept_only_for_not_allowed(self):
         links.store().set_bool(links.PUBLIC_ONLY_KEY, True)  # saved by the version before
         self.assertEqual(links.private_links(), links.NONE)
         self.assertTrue(options.all_settings()["public_projects_only"])
@@ -153,8 +154,11 @@ class SignInLinkTests(LinkTestMixin, BootTestCase):
         self.assertEqual(links.private_links(), links.SIGNED_IN)
         links.set_public_projects_only(True)
         self.assertEqual(links.private_links(), links.NONE)
+        # Kept on for Not Allowed: a build from before, installed over this one, still stops private projects' links
+        self.assertTrue(links.store().get_bool(links.PUBLIC_ONLY_KEY, False))
         links.set_public_projects_only(False)
         self.assertEqual(links.private_links(), links.ANYONE)
+        self.assertFalse(links.store().has_key(links.PUBLIC_ONLY_KEY))
 
     def test_the_share_panel_offers_require_sign_in_and_fixes_it_where_every_link_must_have_it(self):
         own = f"/plugins/explorer/project/{self.project.id}/"
@@ -168,6 +172,39 @@ class SignInLinkTests(LinkTestMixin, BootTestCase):
         self.assertIn("explorer-links-sign-in", html)
         self.make_public()
         self.assertNotIn("data-sign-in-forced", self.client_for("testuser").get(own).content.decode())
+
+    def test_every_view_a_link_serves_from_refuses_a_visitor_who_is_not_signed_in(self):
+        from coreplugins.explorer import api, plugin
+        from django.contrib.auth.models import AnonymousUser
+        from rest_framework import exceptions
+        token = self.sign_in_link()["token"]
+        mounted = [m.view.view_class for m in plugin.Plugin.api_mount_points(None)
+                   if m.url.startswith("s/")]
+        self.assertEqual(len(mounted), 10)  # every token route, both tile routes included
+        for view_class in set(mounted):
+            self.assertTrue(issubclass(view_class, api.TokenTaskMixin), view_class)
+            self.assertIs(view_class.get_and_check_task, api.TokenTaskMixin.get_and_check_task, view_class)
+            view = view_class()
+            view.share_token = token
+            visitor = mock.Mock(user=AnonymousUser())
+            with self.assertRaises(exceptions.NotFound):
+                view.get_and_check_task(visitor, self.full.id)
+            inactive = self.user("testuser2")
+            inactive.is_active = False
+            with self.assertRaises(exceptions.NotFound):
+                view.get_and_check_task(mock.Mock(user=inactive), self.full.id)
+            if view_class.needs_downloads:
+                continue  # a link without Allow Downloads refuses everyone
+            self.assertEqual(view.get_and_check_task(mock.Mock(user=self.user("testuser2")), self.full.id), self.full)
+
+    def test_a_session_of_a_user_deactivated_since_does_not_count_as_signed_in(self):
+        token = self.sign_in_link()["token"]
+        client = self.client_for("testuser2")
+        self.assertEqual(client.get(self.paths(token)[0]).status_code, 200)
+        User = type(self.user("testuser2"))
+        User.objects.filter(username="testuser2").update(is_active=False)
+        self.assertEqual(client.get(self.paths(token)[0]).status_code, 302)
+        self.assertEqual(client.get(self.thumbnail(token)).status_code, 404)
 
     def user(self, username):
         from django.contrib.auth.models import User

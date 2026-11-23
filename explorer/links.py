@@ -80,7 +80,12 @@ def set_private_links(value):
     if value not in PRIVATE_LINKS:
         raise ValueError("private_links")
     store().set_string(PRIVATE_LINKS_KEY, value)
-    store().del_key(PUBLIC_ONLY_KEY)
+    # The older switch stays on for Not Allowed, so a build from before this setting, installed over it, still stops
+    # private projects' links (it reads only that switch)
+    if value == NONE:
+        store().set_bool(PUBLIC_ONLY_KEY, True)
+    else:
+        store().del_key(PUBLIC_ONLY_KEY)
 
 
 def public_projects_only():
