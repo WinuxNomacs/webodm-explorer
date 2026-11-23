@@ -868,7 +868,8 @@ The user chose to fix all four groups:
   database (2026-11-23, `gh api /advisories`, the query checked on vite 5.4.21, which returns 8): three 0.187.0, Spark
   2.4.0, Leaflet 1.9.4, laz-perf 0.0.7, 3d-tiles-renderer 0.5.4, ktx-parse 2.0.0, zstddec 0.3.4, gltfpack 1.3.0
   and Obj2Tiles 1.10.3 have none. No dependency changed: VitePress's latest is 1.6.4 (on vite ^5.4.14; 2.0 is
-  `2.0.0-alpha.21`), Jest's latest (30.5.2) still pulls minimatch 10 through glob 13 and test-exclude 8, and ESLint
+  `2.0.0-alpha.21`), Jest's latest (30.5.2) still pulls minimatch 9 and 10 through glob and test-exclude (test-exclude's latest, 8.0.0, is still on minimatch
+  ^10), and ESLint
   10.15.0 (2026-11-16, minimatch ^11.0.5) alone wouldn't close the minimatch alert. Look again when VitePress 2 or a
   Jest on glob 14 is released.
 
