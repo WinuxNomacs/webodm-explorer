@@ -229,9 +229,26 @@ a.explorer-card-link:focus .explorer-card-title {
     overflow-wrap: anywhere;
 }
 
+.explorer .dropdown-menu.explorer-menu-left,
 .explorer-viewer-bar .dropdown-menu.explorer-menu-left {
     left: 0;
     right: auto;
+}
+
+.explorer .dropdown-menu.explorer-menu-right {
+    left: auto;
+    right: 0;
+}
+
+/* A menu never wider than a phone's screen: long names wrap */
+.explorer .dropdown-menu,
+.explorer-viewer-bar .dropdown-menu {
+    max-width: calc(100vw - 24px);
+}
+
+.explorer .dropdown-menu > li > a,
+.explorer-viewer-bar .dropdown-menu > li > a {
+    white-space: normal;
 }
 
 .explorer-viewer-page {
@@ -251,6 +268,17 @@ a.explorer-card-link:focus .explorer-card-title {
     border-style: solid;
     border-radius: 4px;
     max-width: calc(100% - 24px);
+}
+
+/* On a phone the map's status line stands right of Leaflet's zoom buttons, not over them */
+@media (max-width: 480px) {
+    .explorer-viewer-page[data-explorer-map] .explorer-status {
+        left: 56px;
+        right: 12px;
+        transform: none;
+        max-width: none;
+        text-align: center;
+    }
 }
 
 .explorer-map,
@@ -658,13 +686,18 @@ path.explorer-footprint {
 
 .explorer-embed-pick {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 8px;
     font-weight: normal;
+    max-width: 100%;
 }
 
+/* A long task name in the picker shrinks the box rather than widening the panel */
 .explorer-embed-pick select {
+    flex: 0 1 auto;
     width: auto;
+    min-width: 0;
     max-width: 100%;
 }
 

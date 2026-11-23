@@ -213,3 +213,23 @@ test("the status line speaks for the layer chosen, not for one left while it loa
     element.querySelector("[data-layer=dsm]").click();  // tried again when chosen again
     expect(window.fetch.mock.calls.filter(([url]) => url.includes("/dsm/"))).toHaveLength(2);
 });
+
+test("a layer's failure isn't shown once another layer was chosen while the link was being checked", async () => {
+    const element = page(["orthophoto", "dsm"]);
+    let answerHead;
+    window.fetch = jest.fn((url, options) => {
+        if (options && options.method === "HEAD") return new Promise((resolve) => { answerHead = () => resolve({status: 200}); });
+        return url.includes("/dsm/") ? Promise.resolve({ok: false, status: 500}) : ok(metadata);
+    });
+    map.start(element, fakeLeaflet().L);
+    await settle();
+    const status = element.querySelector(".explorer-status");
+    element.querySelector("[data-layer=dsm]").click();
+    await settle();
+    expect(answerHead).toBeDefined();  // the DSM failed while chosen: the link is being checked
+    element.querySelector("[data-layer=orthophoto]").click();
+    expect(status.hidden).toBe(true);
+    answerHead();
+    await settle();
+    expect(status.hidden).toBe(true);
+});

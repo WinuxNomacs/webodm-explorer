@@ -127,6 +127,18 @@ test("revoking asks first, then deletes the link and lists the rest", async () =
     expect(list.textContent).toBe("No links yet.");
 });
 
+test("revoking a link that is already gone lists the links as they are now, and says why", async () => {
+    const { list, error } = render([json(200, [LINK]), json(404, {detail: "No such link."}), json(200, [])]);
+    await settle();
+    jest.spyOn(window, "confirm").mockReturnValue(true);
+    list.querySelector(".btn-danger").click();
+    await settle(); await settle(); await settle();
+    expect(window.fetch).toHaveBeenCalledTimes(3);
+    expect(list.textContent).toBe("No links yet.");
+    expect(error.hidden).toBe(false);
+    expect(error.textContent).toBe("No such link.");
+});
+
 test("each link shows whether it allows downloads", async () => {
     const { list } = render([json(200, [{...LINK, downloads: true}, {...LINK, token: "u".repeat(43)}])]);
     await settle();

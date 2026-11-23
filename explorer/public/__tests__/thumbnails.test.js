@@ -129,10 +129,9 @@ test("the Explorer Settings page saves a change at once and undoes it when savin
     expect(box.disabled).toBe(false);
 });
 
-test("the Public Address is saved when left or on Enter, shown as the server cleaned it, and put back when refused", async () => {
+test("the Public Address is saved when left or on Enter, shown as the server cleaned it, and kept with the server's reason when refused", async () => {
     document.body.innerHTML = `
-        <button type="button" data-explorer-settings-toggle aria-expanded="false">Settings</button>
-        <form data-settings-api="/api/plugins/explorer/settings/" data-error="Not saved." hidden>
+        <form data-settings-api="/api/plugins/explorer/settings/" data-error="Not saved.">
             <input type="hidden" name="csrfmiddlewaretoken" value="CSRF">
             <input type="checkbox" name="basemaps_on_links" checked>
             <input type="url" name="public_address" value="">
@@ -142,6 +141,7 @@ test("the Public Address is saved when left or on Enter, shown as the server cle
     init(document);
     const form = document.querySelector("form");
     const address = form.elements.public_address;
+    const error = form.querySelector(".explorer-settings-error");
     address.value = " https://Maps.Example.com/ ";
     address.dispatchEvent(new Event("change"));
     await settle(); await settle();
@@ -149,18 +149,50 @@ test("the Public Address is saved when left or on Enter, shown as the server cle
     expect(address.value).toBe("https://maps.example.com");
 
     // Enter submits the form: saved the same way, the page not reloaded; an unchanged value isn't sent again
-    window.fetch = jest.fn(() => Promise.resolve({ok: false, status: 400}));
+    window.fetch = jest.fn(() => Promise.resolve({ok: false, status: 400,
+        json: () => Promise.resolve({public_address: "Expected an address such as https://maps.example.com, or nothing."})}));
     const submit = new Event("submit", {cancelable: true});
     form.dispatchEvent(submit);
     expect(submit.defaultPrevented).toBe(true);
     expect(window.fetch).not.toHaveBeenCalled();
-    address.value = "maps.example.com";
+    address.value = "maps example";
     form.dispatchEvent(new Event("submit", {cancelable: true}));
+    address.dispatchEvent(new Event("change"));  // then the field is left: not sent twice
     await settle(); await settle(); await settle();
     expect(window.fetch).toHaveBeenCalledTimes(1);
-    expect(address.value).toBe("https://maps.example.com");
-    expect(form.querySelector(".explorer-settings-error").hidden).toBe(false);
+    expect(address.value).toBe("maps example");  // kept, to be corrected
+    expect(error.hidden).toBe(false);
+    expect(error.textContent).toBe("Expected an address such as https://maps.example.com, or nothing.");
     expect(address.disabled).toBe(false);
+    address.dispatchEvent(new Event("change"));  // left again unchanged: refused already
+    expect(window.fetch).toHaveBeenCalledTimes(1);
+
+    // Corrected: sent again; a failure without a reason says the page's own message
+    window.fetch = jest.fn(() => Promise.reject(new Error("offline")));
+    address.value = "https://maps.example.org";
+    address.dispatchEvent(new Event("input"));
+    address.dispatchEvent(new Event("change"));
+    await settle(); await settle(); await settle();
+    expect(window.fetch).toHaveBeenCalledTimes(1);
+    expect(error.textContent).toBe("Not saved.");
+});
+
+test("a switch keeps the keyboard focus while its change is saved", async () => {
+    document.body.innerHTML = `
+        <form data-settings-api="/api/plugins/explorer/settings/" data-error="Not saved.">
+            <input type="hidden" name="csrfmiddlewaretoken" value="CSRF">
+            <input type="checkbox" name="basemaps_on_links" checked>
+            <div class="explorer-settings-error" hidden></div>
+        </form>`;
+    window.fetch = jest.fn(() => ok({basemaps_on_links: false}));
+    init(document);
+    const box = document.querySelector("[name=basemaps_on_links]");
+    box.focus();
+    box.click();
+    expect(box.disabled).toBe(true);
+    await settle(); await settle(); await settle();
+    expect(box.disabled).toBe(false);
+    expect(document.activeElement).toBe(box);
 });
 
 test("Links for Public Projects Only is saved by its own name, beside Basemaps on Links", async () => {

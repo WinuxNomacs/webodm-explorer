@@ -7,6 +7,9 @@
 <meta name="twitter:card" content="summary_large_image">{% else %}<meta name="twitter:card" content="summary">{% endif %}
 <meta name="twitter:title" content="{{ meta.title }}">
 {% endif %}{% if embed %}<style>
-    /* An embed shows the view alone: WebODM's header and the link page's way back are left out */
+    /* An embed shows the view alone: WebODM's header and the link page's way back are left out. WebODM pulls its
+       page up 14 px to meet the header (in a stylesheet loaded after this one): without one, that would cut off the
+       top of the page. */
     #navbar-top { display: none; }
+    body #public-wrapper { top: 0; }
 </style>{% endif %}

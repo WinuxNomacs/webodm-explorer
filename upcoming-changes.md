@@ -3,7 +3,7 @@
 ## Phases (current and upcoming)
 
 Up next: **Release review fixes** (the user's request 2026-11-23, findings below), in four groups, each a branch:
-A. release blockers (done); B+C. viewer and server (done); D. pages and phones; E. release preparation. Then the first
+A. release blockers (done); B+C. viewer and server (done); D. pages and phones (done); E. release preparation. Then the first
 release.
 
 Built: **Code review fixes** (the user's review request 2026-11-22, findings below), in four groups, each a
@@ -786,6 +786,19 @@ The user chose to fix all four groups:
    of the plugin's folder (they survive upgrades).
 
 ## Done
+
+- **Release review fixes, group D: pages and phones** (findings 2026-11-23, branch `release-d`): an embed no longer
+  loses its top (WebODM pulls its page up 14 px to meet the header the embed hides: `meta.html`); the Explorer Settings
+  page keeps a refused Public Address as typed with the server's reason, sends Enter then leaving the field once, and
+  gives the focus back after saving; Allow Links reloads the project page with its Share panel open (`#share`) and
+  says a failure beside its box; revoking a link already gone lists the links as they are; the blocked notice uses
+  WebODM's theme; a link page's Download menus (cards and cover) open the other way past the screen's edge and wrap
+  long names (`linkpage.js` `keepOnScreen`, now on the link page too); the Embed picker shrinks at 320 px; the map's
+  status line stands beside Leaflet's zoom buttons on a phone, and a layer's failure checked after another layer was
+  chosen isn't shown (also in the 3D page). Tests: Jest `map.test.js`, `thumbnails.test.js`, `explorer.test.js`,
+  `links.test.js`, `linkpage.test.js` (the map test failed on the old code). Checked live: embed tops (cover 10 px,
+  bar 15 px, was -4 and -6), the Embed picker and the cover's Download menu at 320 px, the map's status line beside
+  the zoom, and the Settings page's refused address and focus (left as found).
 
 - **Release review fixes, groups B and C: viewer and server** (findings 2026-11-23, branch `release-bc`). Viewer
   (`public/viewer/scene.js`, `public/viewer-ui.js`): the tiles timeout runs only while the page is visible; failed

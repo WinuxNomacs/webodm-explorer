@@ -52,19 +52,25 @@
             .then(function (response) { return response.status !== 404; }, function () { return true; });
     }
 
-    // After a failure: "no longer valid" if the link is gone, otherwise the page's own error message.
-    function explainFailure(page, line) {
+    // After a failure: "no longer valid" if the link is gone, otherwise the page's own error message. The check takes
+    // a request: by its answer the visitor may have chosen another view, and stillWanted() then says false.
+    function explainFailure(page, line, stillWanted) {
         return linkIsValid(page.getAttribute("data-link")).then(function (valid) {
+            if (valid && stillWanted && !stillWanted()) return valid;
             line.show(page.getAttribute(valid ? "data-error" : "data-invalid"));
             return valid;
         });
     }
 
-    // The bar's menus open leftwards from their button (dropdown-menu-right); when the bar wraps on a phone and a
-    // button lands near the left edge, its menu opens rightwards instead, so none starts off the screen.
+    // A menu that would open past an edge of the screen opens the other way: the bar's menus open leftwards from
+    // their button (dropdown-menu-right), and when the bar wraps on a phone a button can land near the left edge; a
+    // card's or the cover's Download menu opens rightwards, and on a phone its button can be near the right edge.
     function keepOnScreen(menu) {
-        menu.classList.remove("explorer-menu-left");
-        if (menu.getBoundingClientRect().left < 0) menu.classList.add("explorer-menu-left");
+        menu.classList.remove("explorer-menu-left", "explorer-menu-right");
+        var box = menu.getBoundingClientRect();
+        var width = document.documentElement.clientWidth || window.innerWidth;
+        if (box.left < 0) menu.classList.add("explorer-menu-left");
+        else if (box.right > width) menu.classList.add("explorer-menu-right");
     }
 
     var api = {fitHeight: fitHeight, status: status, linkIsValid: linkIsValid, explainFailure: explainFailure,
@@ -75,7 +81,7 @@
         window.ExplorerLinkPage = api;
         // Bootstrap's dropdowns (WebODM's jQuery) say when one has opened
         if (window.jQuery) {
-            window.jQuery(document).on("shown.bs.dropdown", ".explorer-viewer-bar", function (event) {
+            window.jQuery(document).on("shown.bs.dropdown", ".explorer-viewer-bar, .explorer-public", function (event) {
                 var menu = event.target.querySelector(".dropdown-menu");
                 if (menu) keepOnScreen(menu);
             });
