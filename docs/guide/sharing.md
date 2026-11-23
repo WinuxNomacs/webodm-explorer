@@ -65,7 +65,8 @@ Assets**.
 A visitor who opens a link with **Require Sign-In** and isn't signed in to WebODM gets WebODM's sign-in page, then
 the link's page. Any account on your WebODM will do: the project doesn't need to be shared with that account in
 WebODM, and the link still opens only what it shares. Use it for clients or partners you give an account to, so a
-forwarded link is no use to anyone else. Such a link has no preview in chat apps.
+forwarded link is no use to anyone else. Such a link has no preview in chat apps. Where WebODM signs people in
+through an identity provider that creates their accounts (OpenID Connect), anyone with an account there counts.
 
 ### Previews in chat apps
 

@@ -169,10 +169,13 @@ class Plugin(PluginBase):
         def through_link(request, token, show):
             """
             A link page: shown through the link, or WebODM's login first (then back here) for a link that asks for one
-            and a visitor who isn't signed in. Any account will do: the link decides what it opens.
+            and a visitor who isn't signed in. Any active account will do: the link decides what it opens. (Active: a
+            session of a user deactivated since doesn't count, as in WebODM's API; its external sign-in backend loads
+            such users.)
             """
             project, link = links.resolve(token)
-            if project is not None and links.needs_sign_in(project, link) and not request.user.is_authenticated:
+            signed_in = request.user.is_authenticated and request.user.is_active
+            if project is not None and links.needs_sign_in(project, link) and not signed_in:
                 return link_headers(redirect_to_login(request.get_full_path()))
             return show(link_viewer(token, project, link))
 

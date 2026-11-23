@@ -240,7 +240,9 @@ class TokenTaskMixin:
         project, link = links.resolve(self.share_token)
         if project is None or not self.allowed or (self.needs_downloads and not links.allows_downloads(link)):
             raise exceptions.NotFound()
-        if links.needs_sign_in(project, link) and not (request.user and request.user.is_authenticated):
+        # Active as well: DRF's authentication already refuses inactive users; the same rule as the link pages
+        user = request.user
+        if links.needs_sign_in(project, link) and not (user and user.is_authenticated and user.is_active):
             raise exceptions.NotFound()
         try:
             task = self.queryset.annotate(**(annotate or {})).get(pk=pk, project=project)

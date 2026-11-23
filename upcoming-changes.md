@@ -823,6 +823,16 @@ The user chose to fix all four groups:
 
 ## Done
 
+- **Sign-in links: security review** (the user's request 2026-11-23, branch `sign-in-review`): an independent review
+  of the permission change found no high or medium issue; every token route and link page runs the sign-in check
+  (now tested route by route). Fixed: a session of a user deactivated since no longer counts as signed in (WebODM's
+  external sign-in backend loads inactive users; the link pages and token views both check `is_active`), and Not
+  Allowed keeps the older `public_projects_only` switch on, so a build from before installed over it still stops
+  private links. Documented: with an identity provider that creates accounts (OpenID Connect), anyone with an account
+  there counts as signed in. Left as notes: an embedded sign-in link shows WebODM's login in another site's frame
+  (the Embed note says to share the link instead); a session that ends mid-visit shows the general error rather than
+  asking to sign in again; a live sign-in link answers 302 where an unknown one answers 404 (needs the token).
+
 - **Sign-in links** (the request and answers 2026-11-23, branch `sign-in-links`): **Require Sign-In** on the Share
   panel's create form and on each link (`sign_in` in the link; links made before open without one); a visitor who
   isn't signed in gets WebODM's login and comes back (`plugin.py` `through_link`), the token views answer 404
