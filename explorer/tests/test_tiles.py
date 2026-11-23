@@ -30,6 +30,7 @@ out="$2"; for a in "$@"; do out="$a"; done
 obj=""; prev=""; for a in "$@"; do [ -n "$prev" ] && [ "$a" = "$out" ] && obj="$prev"; prev="$a"; done
 mode="${FAKE_MODE:-ok}"
 [ -n "$FAKE_PID" ] && echo "$$" > "$FAKE_PID"
+[ -n "$FAKE_OUT" ] && echo "$out" > "$FAKE_OUT"
 case "$mode" in
   exit) echo "Unhandled exception: boom"; exit 3 ;;
   stage) echo '{"stage":"error","message":"cannot read texture"}'; exit 1 ;;
@@ -110,7 +111,9 @@ class BuildTests(unittest.TestCase):
         return os.path.join(self.tiles, *paths)
 
     def assert_no_leftovers(self):
-        self.assertEqual([e for e in os.listdir(self.folder()) if e.startswith(".tmp-")], [])
+        for folder in (self.folder(), self.work):
+            if os.path.isdir(folder):
+                self.assertEqual([e for e in os.listdir(folder) if e.startswith(".tmp-")], [], folder)
 
     def test_a_build_packs_every_tile_simplifies_the_root_and_becomes_ready(self):
         result = self.run_build()
@@ -219,6 +222,47 @@ class BuildTests(unittest.TestCase):
         with self.assertRaises(FileNotFoundError):
             build.mark_failed(self.tiles, "1-1", "late")
         self.assertFalse(os.path.exists(os.path.dirname(self.tiles)))
+
+    def test_the_build_runs_in_the_work_folder_out_of_the_task_folder(self):
+        out = os.path.join(self.dir, "out")
+        os.environ["FAKE_OUT"] = out
+        self.addCleanup(os.environ.pop, "FAKE_OUT", None)
+        self.assertEqual(self.run_build()["state"], "ready")
+        with open(out) as f:
+            written = f.read().strip()
+        self.assertTrue(written.startswith(os.path.join(self.work, ".tmp-")), written)
+        self.assertFalse(written.startswith(os.path.dirname(self.tiles)), written)
+        self.assert_no_leftovers()
+
+    def test_a_folder_left_by_a_killed_build_goes_when_the_next_build_takes_the_lock(self):
+        stale = os.path.join(self.work, ".tmp-00000000-0000-4000-8000-000000000000-0123456789abcdef")
+        os.makedirs(os.path.join(stale, "tiles"))
+        old = os.path.join(self.tiles, ".tmp-0123456789abcdef")  # where an earlier version built
+        os.makedirs(old)
+        self.assertEqual(self.run_build()["state"], "ready")
+        self.assertFalse(os.path.exists(stale))
+        self.assertFalse(os.path.exists(old))
+
+    def test_a_failed_build_leaves_a_newer_queued_state_alone(self):
+        def reprocessed(tmp, obj, *args):
+            # The task is reprocessed during the build: its new mesh is queued (task_completed), and the build fails
+            with open(self.obj, "a") as f:
+                f.write("v 2 2 2\n")
+            build.claim(self.tiles, build.fingerprint(self.obj), obj=self.obj)
+            raise build.BuildError("boom")
+        with mock.patch.object(build, "build_into", side_effect=reprocessed):
+            self.assertEqual(build.build_one(self.work, self.tiles, self.obj, self.tools)["state"], "failed")
+        state = self.state()
+        self.assertEqual(state["state"], "queued")
+        self.assertEqual(state["fingerprint"], build.fingerprint(self.obj))
+
+    def test_a_mesh_that_cannot_be_read_for_now_keeps_the_tiles_built(self):
+        self.assertEqual(self.run_build()["state"], "ready")
+        ready = self.state()["build"]
+        with mock.patch.object(build, "fingerprint", side_effect=PermissionError("denied")):
+            self.assertEqual(build.build_one(self.work, self.tiles, self.obj, self.tools)["state"], "failed")
+        self.assertTrue(os.path.isfile(self.folder(ready, "tileset.json")))
+        self.assertEqual(self.state()["state"], "ready")
 
     def second_mesh(self, project="2"):
         other = "89d7617e-3032-4c21-b0be-bbb82d113ddb"

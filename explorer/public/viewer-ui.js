@@ -187,10 +187,14 @@
             var controls = Controls.init(page, {reset: function () { scene.reset(); }, resize: fit,
                 keys: {b: background.next}});
             var panel = cloudPanel(page, scene);
+            // While the graphics context is lost, its message stays: loads still running don't replace or clear it
+            var contextLost = false;
             if (scene.watchContext) {
                 scene.watchContext(function () {
+                    contextLost = true;
                     line.show(page.getAttribute("data-context-lost"));
                 }, function () {
+                    contextLost = false;
                     if (line.text() === page.getAttribute("data-context-lost")) line.hide();
                     // The view chosen, shown again (opened again where the lost context took it)
                     for (var i = 0; i < switches.length; i++) {
@@ -223,14 +227,14 @@
                     switches[i].classList.toggle("active", on);
                 }
                 var loading = page.getAttribute("data-loading");
-                line.show(loading);
+                if (!contextLost) line.show(loading);
                 scene.show(type, urlFor(button), function (fraction) {
-                    if (current === type && fraction !== null) line.show(loading + " " + Math.round(fraction * 100) + "%");
+                    if (current === type && fraction !== null && !contextLost) line.show(loading + " " + Math.round(fraction * 100) + "%");
                 }, function (status) {
                     // A point cloud node or a tile failed once the view was open: say so only if the link is gone
                     checkLink(type, status);
                 }, fallbackFor(button)).then(function () {
-                    if (current !== type) return;
+                    if (current !== type || contextLost) return;
                     panel.show(type === "cloud");
                     if (!button.hasAttribute("data-preparing")) return line.hide();
                     // The GLB shows while the tiles are built: say a faster view comes next time
@@ -239,7 +243,7 @@
                         if (current === type && line.text() === page.getAttribute("data-preparing")) line.hide();
                     }, NOTE_MS);
                 }, function () {
-                    if (current === type) helpers.explainFailure(page, line);
+                    if (current === type && !contextLost) helpers.explainFailure(page, line);
                 });
             }
 

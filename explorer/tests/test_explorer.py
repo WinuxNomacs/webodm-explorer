@@ -47,7 +47,7 @@ class ExplorerTestCase(BootTestCase):
         manifest = plugin.get_manifest()
         self.assertEqual(manifest["name"], "Explorer")
         self.assertTrue(manifest["experimental"])
-        self.assertEqual(manifest["webodmMinVersion"], "4.0.0")
+        self.assertEqual(manifest["webodmMinVersion"], "4.0.1")
 
     def test_the_main_menu_has_an_explorer_item_for_every_signed_in_user(self):
         response = self.client_for("testuser").get("/dashboard/")

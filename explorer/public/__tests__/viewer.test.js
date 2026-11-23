@@ -209,3 +209,24 @@ test("the tiles kept in memory are fewer on phones", () => {
     expect(viewer.tilesMemory("mobile")).toBeLessThan(viewer.tilesMemory(""));
     expect(viewer.create(page("mesh"), desktop).tilesMemory).toBe(viewer.tilesMemory(""));
 });
+
+test("the lost-context message stays over a load still running, and goes once the context is back", async () => {
+    const element = page("mesh");
+    element.setAttribute("data-context-lost", "Stopped.");
+    const scene = fakeScene();
+    let lost, restored;
+    scene.watchContext = (onLost, onRestored) => { lost = onLost; restored = onRestored; };
+    viewer.create(element, desktop).start(scene);
+    const status = element.querySelector(".explorer-status");
+    lost();
+    expect(status.textContent).toBe("Stopped.");
+    scene.calls[0].onProgress(0.8);
+    expect(status.textContent).toBe("Stopped.");
+    scene.calls[0].resolve();
+    await settle();
+    expect(status.hidden).toBe(false);
+    expect(status.textContent).toBe("Stopped.");
+    restored();
+    expect(scene.calls).toHaveLength(2);  // the view chosen, shown again
+    expect(status.textContent).toBe("Loading...");
+});

@@ -27,6 +27,10 @@ const TILES_ERROR_TARGET = 16;
 // Focus: the camera turns to a double-clicked point over this long; a point cloud's point counts within this many
 // pixels of the click; two taps this close in time and space are a double-tap
 const FOCUS_MS = 350;
+// Failed mesh tiles: tried again after this, doubling to the most, this many times
+const TILES_RETRY_MS = 5000;
+const TILES_RETRY_MAX_MS = 60000;
+const TILES_RETRIES = 6;
 const PICK_PIXELS = 6;
 const DOUBLE_TAP_MS = 300;
 const DOUBLE_TAP_PIXELS = 24;
@@ -127,7 +131,8 @@ function tilesFetch(url, options) {
 function createScene(container, options) {
     // Throws where WebGL 2 is unavailable (three.js needs it)
     const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    const pixelRatio = () => Math.min(window.devicePixelRatio || 1, 2);
+    renderer.setPixelRatio(pixelRatio());
     container.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
@@ -152,6 +157,8 @@ function createScene(container, options) {
     function resize() {
         const width = container.clientWidth || 1;
         const height = container.clientHeight || 1;
+        // Browser zoom, or the window moved to another screen, changes the pixel ratio
+        if (renderer.getPixelRatio() !== pixelRatio()) renderer.setPixelRatio(pixelRatio());
         renderer.setSize(width, height, false);
         camera.aspect = width / height;
         camera.updateProjectionMatrix();
@@ -173,9 +180,11 @@ function createScene(container, options) {
 
     // The model's radius, for the camera's clipping planes and how far out it can zoom
     let modelRadius = 1;
+    let focus = null; // {from, to, start}: a double-click's turn to a point
     function frame(box, floor) {
         if (!box || box.isEmpty()) return;
         moved = false;
+        focus = null; // a double-click's turn still running would pull the target back
         const center = box.getCenter(new THREE.Vector3());
         const radius = Math.max(box.getSize(new THREE.Vector3()).length() / 2, 0.01);
         modelRadius = radius;
@@ -241,8 +250,8 @@ function createScene(container, options) {
         return hits[0].point;
     }
 
-    // Double-click (double-tap): the camera turns to orbit the point under it, where there is one
-    let focus = null; // {from, to, start}
+    // Double-click (double-tap): the camera turns to orbit the point under it, where there is one (declared with the
+    // camera's state above, as framing cancels it)
     async function focusAt(clientX, clientY) {
         const point = await pick(clientX, clientY);
         if (!point) return;
@@ -251,9 +260,20 @@ function createScene(container, options) {
     }
     renderer.domElement.addEventListener("dblclick", (event) => focusAt(event.clientX, event.clientY));
     let lastTap = null;
+    let touchDown = null; // where and when the finger came down: a tap is short and still, a drag's end isn't one
+    renderer.domElement.addEventListener("pointerdown", (event) => {
+        if (event.pointerType === "touch") touchDown = { time: performance.now(), x: event.clientX, y: event.clientY };
+    });
     renderer.domElement.addEventListener("pointerup", (event) => {
         if (event.pointerType !== "touch") return;
         const now = performance.now();
+        const tap = touchDown && now - touchDown.time < DOUBLE_TAP_MS &&
+            Math.hypot(event.clientX - touchDown.x, event.clientY - touchDown.y) < DOUBLE_TAP_PIXELS / 2;
+        touchDown = null;
+        if (!tap) {
+            lastTap = null;
+            return;
+        }
         if (lastTap && now - lastTap.time < DOUBLE_TAP_MS &&
             Math.hypot(event.clientX - lastTap.x, event.clientY - lastTap.y) < DOUBLE_TAP_PIXELS) {
             lastTap = null;
@@ -294,10 +314,22 @@ function createScene(container, options) {
         // Z-up as WebODM's GLB, with tiles and their bounds still agreeing (checked on the user's meshes, 2026-11-21)
         opened.group.rotation.x = -Math.PI / 2;
         return new Promise((resolve, reject) => {
-            let shown = false;
-            const timer = setTimeout(() => fail(new Error("the mesh tiles took too long")), TILES_TIMEOUT_MS);
-            function fail(error) {
+            let shown = false, failed = false;
+            // Counted while the page is visible only: a hidden tab draws no frames, and the tiles load from frames
+            let timer = null;
+            const arm = () => {
                 clearTimeout(timer);
+                timer = document.hidden ? null : setTimeout(() => fail(new Error("the mesh tiles took too long")), TILES_TIMEOUT_MS);
+            };
+            const settled = () => {
+                clearTimeout(timer);
+                document.removeEventListener("visibilitychange", arm);
+            };
+            document.addEventListener("visibilitychange", arm);
+            arm();
+            function fail(error) {
+                failed = true;
+                settled();
                 opening.delete("mesh");
                 if (tiles === opened) tiles = null;
                 opened.dispose();
@@ -308,6 +340,7 @@ function createScene(container, options) {
             let framedOnRoot = false;
             // Frame on the tileset's bounds first: tiles outside the camera's view are never loaded, the root included
             opened.addEventListener("load-root-tileset", () => {
+                if (failed) return; // after the fallback: the model shown instead keeps the camera
                 const box = new THREE.Box3();
                 opened.group.updateMatrixWorld(true);
                 if (opened.getBoundingBox(box) && !framedOnRoot) {
@@ -320,6 +353,7 @@ function createScene(container, options) {
             // beat to it, then frames it on its points as the GLB is (stray fragments left out), unless the visitor
             // has moved the camera by then
             opened.addEventListener("load-model", (event) => {
+                if (failed) return;
                 opened.group.updateMatrixWorld(true);
                 if (!framedOnRoot && event.tile === opened.root) {
                     framedOnRoot = true;
@@ -334,16 +368,25 @@ function createScene(container, options) {
                 }
                 if (shown) return;
                 shown = true;
-                clearTimeout(timer);
+                settled();
                 opening.delete("mesh");
                 tiles = opened;
                 if (!view.box) view.box = new THREE.Box3().setFromObject(opened.group);
                 resolve(view);
             });
+            // A tile that fails once the view is open (a phone's connection dropping) is tried again after a pause that
+            // grows, as the point cloud's nodes are
+            let retries = 0, retry = null;
             opened.addEventListener("load-error", (event) => {
                 const status = event.error instanceof HttpError ? event.error.status : null;
-                if (!shown) fail(event.error || new Error("the mesh tiles failed"));
-                else onFailure(status);
+                if (!shown) return fail(event.error || new Error("the mesh tiles failed"));
+                onFailure(status);
+                if (retry || retries >= TILES_RETRIES || status === 404) return;
+                retry = setTimeout(() => {
+                    retry = null;
+                    retries += 1;
+                    if (tiles === opened) opened.resetFailedTiles();
+                }, Math.min(TILES_RETRY_MS * 2 ** retries, TILES_RETRY_MAX_MS));
             });
             opened.group.visible = current === "mesh";
             opening.set("mesh", opened.group);
@@ -444,7 +487,8 @@ function createScene(container, options) {
     async function show(type, url, onProgress, onFailure, fallback) {
         current = type;
         // With WebODM's offset known, the views line up, so a switch keeps the camera where the visitor left it
-        keeping = Boolean(offset && placed);
+        keeping = Boolean((offset || restoring) && placed);
+        restoring = false;
         for (const [other, object] of opening) object.visible = other === type;
         for (const [other, view] of Object.entries(views)) {
             if (other !== type) view.then((v) => { v.object.visible = current === other; }, () => {});
@@ -522,6 +566,7 @@ function createScene(container, options) {
     // restored() follows if the browser gives the context back, for the page to show its view again. The backgrounds
     // drawn into textures are drawn again; Spark doesn't rebuild its splats' textures, so the splats open again (their
     // file from the browser's cache)
+    let restoring = false; // the view shown again after a lost context: the same view, so the camera stays
     function watchContext(lost, restored) {
         renderer.domElement.addEventListener("webglcontextlost", (event) => {
             event.preventDefault(); // asks the browser to restore it
@@ -529,6 +574,7 @@ function createScene(container, options) {
         });
         renderer.domElement.addEventListener("webglcontextrestored", () => {
             backdrop.restore();
+            restoring = true;
             const splats = views.splats;
             if (splats) {
                 delete views.splats;

@@ -164,7 +164,8 @@ def link_summaries(user, project_ids):
     shareable = get_objects_for_user(user, "app.change_project", Project.objects.filter(id__in=project_ids),
                                      accept_global_perms=False).values_list("id", flat=True)
     result = {}
-    for project_id in shareable:
+    # Links that don't work (Links for Public Projects Only) get no badge: the project page says why
+    for project_id in links.links_work(shareable):
         try:
             result[project_id] = links.summary(project_id)
         except Exception as e:  # noqa: BLE001 - a store that can't be read leaves the badge out, never a page error

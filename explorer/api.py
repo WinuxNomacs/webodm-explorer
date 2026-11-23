@@ -49,6 +49,17 @@ def downloads_value(data):
     return value
 
 
+class NotCrossSite(BasePermission):
+    """
+    Refuses what the browser marks as another site's request (Sec-Fetch-Site): WebODM allows any origin with
+    credentials (CORS_ALLOW_ALL_ORIGINS, SameSite=None cookies), and these APIs return or change links and settings.
+    """
+    message = "Cross-site requests are refused."
+
+    def has_permission(self, request, view):
+        return request.META.get("HTTP_SEC_FETCH_SITE") != "cross-site"
+
+
 class IsSuperuser(BasePermission):
     """WebODM's admins: the users its Administration menu is for."""
 
@@ -61,7 +72,7 @@ class Settings(APIView):
     Explorer's settings: GET them, PATCH any of {"basemaps_on_links": true|false, "public_address": "https://...",
     "public_projects_only": true|false}.
     """
-    permission_classes = (IsSuperuser,)
+    permission_classes = (NotCrossSite, IsSuperuser)
     SWITCHES = (("basemaps_on_links", options.set_basemaps_on_links),
                 ("public_projects_only", links.set_public_projects_only))
 
@@ -94,7 +105,7 @@ class Settings(APIView):
 
 
 class ProjectLinksBase(APIView):
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (NotCrossSite, IsAuthenticated)
 
     def get_project(self, request, project_pk):
         """The project, if the user may change it: 404 if they can't see it, 403 if they can only see it."""
@@ -160,7 +171,7 @@ def prepare_tiles(project):
 
 class ProjectLinksAllowed(APIView):
     """A superuser allows links for a private project, or stops them: PATCH {"allowed": true|false}."""
-    permission_classes = (IsSuperuser,)
+    permission_classes = (NotCrossSite, IsSuperuser)
 
     def patch(self, request, project_pk=None):
         project = Project.objects.filter(pk=project_pk, deleting=False).first()
@@ -218,8 +229,11 @@ class TokenTaskMixin:
 
     def finalize_response(self, request, response, *args, **kwargs):
         response = super().finalize_response(request, response, *args, **kwargs)
-        # The token is in this request's URL: don't pass it on in Referer headers
+        # The token is in this request's URL: don't pass it on in Referer headers, nor keep the answer in a shared cache
+        # (a CDN in front of WebODM would serve it after the link is revoked); the visitor's own browser may keep it
         response["Referrer-Policy"] = "strict-origin"
+        if not response.has_header("Cache-Control"):
+            response["Cache-Control"] = "private"
         return response
 
 
@@ -249,7 +263,10 @@ class TokenTexturedModel(TokenTaskMixin, TaskSafeTexturedModel):
 
 # The asset paths a link page may stream: the splats and the EPT point cloud (mesh tiles: TokenMeshTiles).
 # WebODM's own TaskAssets serves anything under assets/ (the full point cloud, the report, camera positions).
-ALLOWED_ASSET = re.compile(r"^(splats/model\.rad|entwine_pointcloud/[A-Za-z0-9_.\-/]+)$")
+# Only what the viewer streams: the splats, and the point cloud's ept.json, hierarchy and nodes. Not ept-sources/ (the
+# processing node's file paths) nor ept-build.json
+ALLOWED_ASSET = re.compile(r"^(splats/model\.rad|entwine_pointcloud/(ept\.json|ept-hierarchy/[0-9-]+\.json"
+                           r"|ept-data/[0-9-]+\.laz))$")
 
 
 def asset_allowed(path):

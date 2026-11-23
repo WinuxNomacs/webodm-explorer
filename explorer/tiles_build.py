@@ -14,12 +14,15 @@ it when it is duplicated:
   retry_after (failed)}, changed only under .lock;
 - <build id>/: a finished build (tileset.json and its tiles), its id derived from the fingerprint and PIPELINE, so a
   URL's content never changes and browsers may keep it;
-- .tmp-<build id>/: a build in progress, renamed to <build id> once read back, removed on failure.
 The folder is created only inside an existing task folder: a build finishing after its task was removed writes
-nothing. The work folder (the plugin's persistent path) holds only .build.lock, held by the one build running at a
-time, and .bin, the tools' executable copies; both are made again when an upgrade removes them.
+nothing. The work folder (the plugin's persistent path) holds .build.lock, held by the one build running at a time,
+.bin, the tools' executable copies, and .tmp-<task id>-<build id>/, the build in progress: built there, out of the task
+folder (which WebODM copies, zips and removes as a whole), and moved into it as <build id> once read back. All three
+are made again when an upgrade removes them; a .tmp- folder left by a build that was killed goes when the next build
+takes the lock.
 """
 import contextlib
+import errno
 import fcntl
 import glob
 import hashlib
@@ -344,6 +347,7 @@ def run(work, folder, obj_path, tools_dir, folders, now=time.time):
         if fd is None:
             return summary or {"state": "queued", "deferred": True}
         try:
+            clear_stale(work)
             while job:
                 tried.add(os.path.normpath(job[0]))
                 result = build_one(work, job[0], job[1], tools_dir, now)
@@ -354,6 +358,14 @@ def run(work, folder, obj_path, tools_dir, folders, now=time.time):
         job = next_queued(folders, tried)
         if job is None:
             return summary
+
+
+def clear_stale(work):
+    """The work folder's .tmp- folders, with the build lock held: no build is running, so they are left by a killed one."""
+    with contextlib.suppress(OSError):
+        for entry in os.listdir(work):
+            if entry.startswith(".tmp-"):
+                shutil.rmtree(os.path.join(work, entry), ignore_errors=True)
 
 
 def try_build_lock(work):
@@ -391,9 +403,12 @@ def build_one(work, folder, obj_path, tools_dir, now=time.time):
     task_id = task_name(folder)
     try:
         fp = fingerprint(obj_path)
-    except OSError:
+    except FileNotFoundError:
         remove(folder)  # the mesh is gone: the task was removed or reprocessed without one
         return {"state": "gone"}
+    except OSError as e:
+        # Unreadable for now (permissions, network storage): the tiles built so far stay, and the task stays queued
+        return {"state": "failed", "error": f"the mesh can't be read: {e}"}
     build = build_id(fp)
     try:
         with task_lock(folder):
@@ -422,18 +437,37 @@ def build_one(work, folder, obj_path, tools_dir, now=time.time):
                 current["progress"] = progress
             write_state(folder, current)
 
-    tmp = os.path.join(folder, ".tmp-" + build)
+    def finish(state):
+        """Saves the build's outcome only while the saved state is still this build's: a newer queued one stays."""
+        with task_lock(folder):
+            current = read_state(folder)
+            if current is not None and (current["state"] != "building" or current["fingerprint"] != fp):
+                return False
+            write_state(folder, state)
+            return True
+
+    tmp = os.path.join(work, f".tmp-{re.sub(r'[^A-Za-z0-9-]', '_', task_id)}-{build}")
     try:
         started = time.monotonic()
         build_into(tmp, obj_path, tools_dir, work, beat)
         if not os.path.isfile(obj_path) or fingerprint(obj_path) != fp:
             raise BuildError("the mesh changed during the build")
+        if not os.path.isdir(folder):
+            raise FileNotFoundError(folder)  # the task was removed during the build
         final = os.path.join(folder, build)
         shutil.rmtree(final, ignore_errors=True)
-        os.replace(os.path.join(tmp, "tiles"), final)
-        with task_lock(folder):
-            write_state(folder, {"state": "ready", "fingerprint": fp, "build": build, "updated": now()})
+        try:
+            os.replace(os.path.join(tmp, "tiles"), final)
+        except OSError as e:
+            if e.errno != errno.EXDEV:
+                raise
+            shutil.copytree(os.path.join(tmp, "tiles"), final)  # the work folder on another filesystem
+        if not finish({"state": "ready", "fingerprint": fp, "build": build, "updated": now()}):
+            shutil.rmtree(final, ignore_errors=True)
+            return {"state": "superseded"}
         for entry in os.listdir(folder):
+            if entry.startswith(".tmp-"):  # left in the task folder by an earlier version
+                shutil.rmtree(os.path.join(folder, entry), ignore_errors=True)
             if BUILD_ID.match(entry) and entry != build:
                 shutil.rmtree(os.path.join(folder, entry), ignore_errors=True)
         seconds = round(time.monotonic() - started)
@@ -446,7 +480,8 @@ def build_one(work, folder, obj_path, tools_dir, now=time.time):
             return {"state": "gone"}
         logger.warning(f"Explorer: the mesh tiles of task {task_id} could not be built: {message}")
         with contextlib.suppress(OSError):
-            mark_failed(folder, fp, message)
+            finish({"state": "failed", "fingerprint": fp, "updated": time.time(), "error": message[:500],
+                    "retry_after": RETRY_FAILED})
         return {"state": "failed", "error": message}
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
@@ -512,9 +547,13 @@ def build_into(tmp, obj_path, tools_dir, work, beat):
             done[0] += 1
             beat(progress=80 + round(19 * done[0] / len(tiles)))
 
-    with ThreadPoolExecutor(max_workers=PACK_WORKERS) as pool:
+    # The first failure ends the build: the tiles not started yet are dropped rather than packed for nothing
+    pool = ThreadPoolExecutor(max_workers=PACK_WORKERS)
+    try:
         for future in [pool.submit(pack, path) for path in tiles]:
             future.result()
+    finally:
+        pool.shutdown(wait=True, cancel_futures=True)
 
     root_tile = tileset.get("root")
     if not isinstance(root_tile, dict):
