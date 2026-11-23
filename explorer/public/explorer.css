@@ -143,6 +143,11 @@ a.explorer-card-link:focus .explorer-card-title {
     margin-top: 8px;
 }
 
+/* Hidden while links aren't allowed (Links for Public Projects Only): display: flex would override the attribute */
+.explorer-link-form[hidden] {
+    display: none;
+}
+
 .explorer-link-form input[name=label] {
     flex: 1 1 160px;
     width: auto;

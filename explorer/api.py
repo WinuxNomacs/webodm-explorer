@@ -57,19 +57,25 @@ class IsSuperuser(BasePermission):
 
 
 class Settings(APIView):
-    """Explorer's settings: GET them, PATCH any of {"basemaps_on_links": true|false, "public_address": "https://..."}."""
+    """
+    Explorer's settings: GET them, PATCH any of {"basemaps_on_links": true|false, "public_address": "https://...",
+    "public_projects_only": true|false}.
+    """
     permission_classes = (IsSuperuser,)
+    SWITCHES = (("basemaps_on_links", options.set_basemaps_on_links),
+                ("public_projects_only", links.set_public_projects_only))
 
     def get(self, request):
         return Response(options.all_settings())
 
     def patch(self, request):
         data = request.data if isinstance(request.data, dict) else {}
-        if "basemaps_on_links" not in data and "public_address" not in data:
+        if not any(name in data for name in (*(name for name, _save in self.SWITCHES), "public_address")):
             raise exceptions.ValidationError({"detail": _("Nothing to change.")})
-        basemaps, address = data.get("basemaps_on_links"), data.get("public_address")
-        if "basemaps_on_links" in data and not isinstance(basemaps, bool):
-            raise exceptions.ValidationError({"basemaps_on_links": _("Expected true or false.")})
+        address = data.get("public_address")
+        for name, _save in self.SWITCHES:
+            if name in data and not isinstance(data[name], bool):
+                raise exceptions.ValidationError({name: _("Expected true or false.")})
         if "public_address" in data:
             try:
                 if not isinstance(address, str):
@@ -78,9 +84,10 @@ class Settings(APIView):
             except (TypeError, ValueError):
                 raise exceptions.ValidationError(
                     {"public_address": _("Expected an address such as https://maps.example.com, or nothing.")}) from None
-        # Both checked before either is saved
-        if "basemaps_on_links" in data:
-            options.set_basemaps_on_links(basemaps)
+        # All checked before any is saved
+        for name, save in self.SWITCHES:
+            if name in data:
+                save(data[name])
         if "public_address" in data:
             options.set_public_address(address)
         return Response(options.all_settings())
@@ -132,6 +139,9 @@ class ProjectLinks(ProjectLinksBase):
             expires = -1
         if expires not in links.EXPIRY_CHOICES:
             raise exceptions.ValidationError({"expires_days": _("Not a valid expiry.")})
+        if not links.links_allowed(project):
+            raise exceptions.PermissionDenied(_("Links are allowed only for public projects here. An administrator "
+                                                "can allow them for this project."))
         downloads = downloads_value(data)
         link = links.create_link(project.id, label, expires, request.user, downloads)
         prepare_tiles(project)
@@ -146,6 +156,21 @@ def prepare_tiles(project):
             store.prepare(card["task"] for card in pages.explorable_tasks([project]))
     except Exception as e:  # noqa: BLE001
         logger.warning(f"Explorer: could not queue the mesh tiles of project {project.id}: {e}")
+
+
+class ProjectLinksAllowed(APIView):
+    """A superuser allows links for a private project, or stops them: PATCH {"allowed": true|false}."""
+    permission_classes = (IsSuperuser,)
+
+    def patch(self, request, project_pk=None):
+        project = Project.objects.filter(pk=project_pk, deleting=False).first()
+        if project is None:
+            raise exceptions.NotFound()
+        allowed = object_body(request).get("allowed")
+        if not isinstance(allowed, bool):
+            raise exceptions.ValidationError({"allowed": _("Expected true or false.")})
+        links.set_project_allowed(project.id, allowed)
+        return Response({"allowed": links.project_allowed(project.id), "links_work": links.links_allowed(project)})
 
 
 class ProjectLink(ProjectLinksBase):

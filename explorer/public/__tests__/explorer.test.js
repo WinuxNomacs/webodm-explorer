@@ -140,3 +140,49 @@ test("a second Copy while the button says Copied still brings back its label", (
     expect(copy.textContent.trim()).toBe("Copy");
     expect(copy.querySelector("i")).not.toBeNull();  // its icon too
 });
+
+const okResponse = (body) => Promise.resolve({ok: true, status: 200, json: () => Promise.resolve(body)});
+const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+function allowPanel(checked) {
+    document.body.innerHTML = `
+        <form data-allowed-api="/api/plugins/explorer/projects/7/links-allowed/" data-error="Not saved.">
+            <input type="checkbox" name="allowed"${checked ? " checked" : ""}>
+        </form>
+        <form class="explorer-link-form"><input type="hidden" name="csrfmiddlewaretoken" value="CSRF"></form>
+        <div class="explorer-links-error" hidden></div>`;
+    return document.querySelector("input[name=allowed]");
+}
+
+test("Allow Links saves the change with the CSRF token, then loads the page again", async () => {
+    const box = allowPanel(false);
+    window.fetch = jest.fn(() => okResponse({allowed: true, links_work: true}));
+    const reload = jest.fn();
+    init(document, {reload});
+    box.click();
+    expect(box.disabled).toBe(true);
+    await settle();
+    const [url, options] = window.fetch.mock.calls[0];
+    expect(url).toBe("/api/plugins/explorer/projects/7/links-allowed/");
+    expect(options.method).toBe("PATCH");
+    expect(options.headers["X-CSRFToken"]).toBe("CSRF");
+    expect(JSON.parse(options.body)).toEqual({allowed: true});
+    expect(reload).toHaveBeenCalledTimes(1);
+    delete window.fetch;
+});
+
+test("Allow Links that can't be saved goes back and says so in the panel", async () => {
+    const box = allowPanel(true);
+    window.fetch = jest.fn(() => Promise.resolve({ok: false, status: 403}));
+    const reload = jest.fn();
+    init(document, {reload});
+    box.click();
+    await settle();
+    await settle();
+    expect(box.checked).toBe(true);
+    expect(box.disabled).toBe(false);
+    expect(document.querySelector(".explorer-links-error").hidden).toBe(false);
+    expect(document.querySelector(".explorer-links-error").textContent).toBe("Not saved.");
+    expect(reload).not.toHaveBeenCalled();
+    delete window.fetch;
+});

@@ -58,8 +58,19 @@
              data-error="{% trans "Something went wrong. Try again." %}">
             <h4>{% trans "Anyone with the Link" %}</h4>
             <p class="explorer-card-text">{% trans "Anyone with one of these links can open this project's maps and 3D views without signing in, until the link expires or is revoked. With Allow Downloads, they can also download the orthophoto, elevation models, point cloud and textured model." %}</p>
+            {% if allow_switch %}
+            <form class="explorer-links-allowed" data-allowed-api="{{ allowed_api }}" data-error="{% trans "The change could not be saved. Try again." %}">
+                <div class="checkbox">
+                    <label><input type="checkbox" name="allowed"{% if allowed %} checked{% endif %}> {% trans "Allow Links" %}</label>
+                </div>
+                <p class="explorer-card-text">{% trans "This project is private, and Explorer Settings allow links for public projects only: its links work only while this is ticked. Shown to administrators." %}</p>
+            </form>
+            {% endif %}
+            {% if not links_work %}
+            <p class="explorer-links-blocked alert alert-info">{% trans "Links are allowed only for public projects here: this project's links don't work, and no new ones can be made, until it is shared publicly in WebODM (the Dashboard: the project's Share, Enabled) or an administrator allows them." %}</p>
+            {% endif %}
             <div class="explorer-links-list" aria-live="polite"></div>
-            <form class="explorer-link-form">
+            <form class="explorer-link-form"{% if not links_work %} hidden{% endif %}>
                 {% csrf_token %}
                 <input name="label" class="form-control input-sm" maxlength="100" placeholder="{% trans "Label (optional)" %}" aria-label="{% trans "Label" %}">
                 <select name="expires_days" class="form-control input-sm" aria-label="{% trans "Expiry" %}">

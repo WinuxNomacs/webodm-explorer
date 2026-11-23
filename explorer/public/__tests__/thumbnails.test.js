@@ -162,3 +162,21 @@ test("the Public Address is saved when left or on Enter, shown as the server cle
     expect(form.querySelector(".explorer-settings-error").hidden).toBe(false);
     expect(address.disabled).toBe(false);
 });
+
+test("Links for Public Projects Only is saved by its own name, beside Basemaps on Links", async () => {
+    document.body.innerHTML = `
+        <form data-settings-api="/api/plugins/explorer/settings/" data-error="Not saved.">
+            <input type="hidden" name="csrfmiddlewaretoken" value="CSRF">
+            <input type="checkbox" name="basemaps_on_links" checked>
+            <input type="checkbox" name="public_projects_only">
+            <div class="explorer-settings-error" hidden></div>
+        </form>`;
+    window.fetch = jest.fn(() => ok({basemaps_on_links: true, public_projects_only: true}));
+    init(document);
+    const box = document.querySelector("[name=public_projects_only]");
+    box.click();
+    await settle(); await settle();
+    expect(JSON.parse(window.fetch.mock.calls[0][1].body)).toEqual({public_projects_only: true});
+    expect(box.checked).toBe(true);
+    expect(document.querySelector("[name=basemaps_on_links]").checked).toBe(true);
+});

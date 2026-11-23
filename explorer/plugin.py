@@ -138,6 +138,12 @@ class Plugin(PluginBase):
                 "can_share": can_share,
                 "links": pages.link_summaries(request.user, [project.id]).get(project.id) if can_share else None,
                 "links_api": f"/api/plugins/{links.NAMESPACE}/projects/{project.id}/links/",
+                # Links for Public Projects Only: whether this project's links work, and the superuser's switch
+                "links_work": links.links_allowed(project),
+                "allow_switch": (request.user.is_superuser and links.public_projects_only()
+                                 and not project.public),
+                "allowed": links.project_allowed(project.id),
+                "allowed_api": f"/api/plugins/{links.NAMESPACE}/projects/{project.id}/links-allowed/",
                 "public_address": options.public_address() if can_share else "",
                 "preview_path": f"{public}project/{project.id}/preview/",
                 "embed_views": pages.embed_views(cards),
@@ -323,6 +329,7 @@ class Plugin(PluginBase):
         return [
             MountPoint(r"settings/$", api.Settings.as_view()),
             MountPoint(r"projects/(?P<project_pk>[0-9]+)/links/$", api.ProjectLinks.as_view()),
+            MountPoint(r"projects/(?P<project_pk>[0-9]+)/links-allowed/$", api.ProjectLinksAllowed.as_view()),
             MountPoint(rf"projects/(?P<project_pk>[0-9]+)/links/{TOKEN}/$", api.ProjectLink.as_view()),
             # Preview: the mesh tiles for signed-in users who can view the project (everything else is WebODM's API)
             MountPoint(rf"projects/(?P<project_pk>[0-9]+)/tasks/{TASK}/tiles/(?P<build>[0-9a-f]{{16}})/"

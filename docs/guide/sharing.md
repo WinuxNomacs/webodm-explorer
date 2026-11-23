@@ -11,6 +11,9 @@ with. To share the project with someone, add them in WebODM's Dashboard: the pro
 ## Anyone with the Link
 
 Links that open the project without signing in. Only users who can change the project see this part of the panel.
+Where an admin turned on **Links for Public Projects Only** ([Administration](/guide/administration)), a private
+project's links work only once it is shared publicly in WebODM or a superuser ticks **Allow Links** here; until then
+the panel says so and offers no **Create Link**.
 
 ![The Share panel with two links: one expiring in 30 days with downloads, one that never expires](/images/share-panel.png)
 

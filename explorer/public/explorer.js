@@ -159,12 +159,16 @@
                 error.hidden = false;
             }).then(function () { field.disabled = false; });
         }
-        var box = form.elements.basemaps_on_links;
-        box.addEventListener("change", function () {
-            var wanted = box.checked;
-            save(box, {basemaps_on_links: wanted},
-                function (saved) { box.checked = saved.basemaps_on_links; },
-                function () { box.checked = !wanted; });
+        // Each switch (Basemaps on Links, Links for Public Projects Only) by its field's name
+        var boxes = form.querySelectorAll("input[type=checkbox]");
+        Array.prototype.forEach.call(boxes, function (box) {
+            box.addEventListener("change", function () {
+                var wanted = box.checked, change = {};
+                change[box.name] = wanted;
+                save(box, change,
+                    function (saved) { box.checked = saved[box.name]; },
+                    function () { box.checked = !wanted; });
+            });
         });
         // The address is saved when the field is left or Enter is pressed, shown as the server cleaned it
         var address = form.elements.public_address;
@@ -209,9 +213,39 @@
         }
     }
 
-    function init(root) {
+    // A superuser's Allow Links for a private project (Links for Public Projects Only): saved at once, then the page
+    // is loaded again, since what the Share panel offers depends on it.
+    function initAllowLinks(root, reload) {
+        var form = root.querySelector("[data-allowed-api]");
+        if (!form) return;
+        var box = form.elements.allowed;
+        var csrf = root.querySelector("input[name=csrfmiddlewaretoken]");
+        box.addEventListener("change", function () {
+            var wanted = box.checked;
+            box.disabled = true;
+            window.fetch(form.getAttribute("data-allowed-api"), {
+                method: "PATCH", credentials: "same-origin",
+                headers: {"Content-Type": "application/json", "X-CSRFToken": csrf ? csrf.value : ""},
+                body: JSON.stringify({allowed: wanted})
+            }).then(function (response) {
+                if (!response.ok) throw new Error(response.status);
+                (reload || function () { window.location.reload(); })();
+            }).catch(function () {
+                box.checked = !wanted;
+                box.disabled = false;
+                var error = root.querySelector(".explorer-links-error");
+                if (error) {
+                    error.textContent = form.getAttribute("data-error");
+                    error.hidden = false;
+                }
+            });
+        });
+    }
+
+    function init(root, options) {
         initToolbar(root);
         initSettings(root);
+        initAllowLinks(root, options && options.reload);
         watchThumbnails(root);
         initShare(root);
         initLinks(root);
