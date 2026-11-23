@@ -36,7 +36,8 @@ public: nothing private, nothing true only on one machine. Keep it short; edit i
 - **WebODM 4.0.0 and later, Docker installs only** (not the native Windows app): Python 3.14, Django 5.2, DRF 3.18,
   Postgres 18 without GIS, Linux x64 or arm64. The manifest's
   `webodmMinVersion` is 4.0.0; the dev stack runs the latest release (4.0.1). Ruff targets py314.
-- **Never push and never tag.** No workflow runs yet. A release: Claude prepares a `release/X.Y.Z` branch (manifest
+- **Never push and never tag.** One workflow: `.github/workflows/docs.yml` publishes the docs to GitHub Pages on a
+  pushed `v*` tag or by hand (Actions > Docs > Run workflow); a push to `main` runs nothing. A release: Claude prepares a `release/X.Y.Z` branch (manifest
   version, `CHANGELOG.md`, `README.md`), builds the zip with `dev/package.sh` (`dist/explorer-X.Y.Z.zip` and its
   sha256), runs the `release-check` skill and merges; the user tags `vX.Y.Z`, attaches the zip to the GitHub release
   and adds `{url, sha256}` to WebODM-Plugins' `directory.json`.
@@ -49,7 +50,8 @@ public: nothing private, nothing true only on one machine. Keep it short; edit i
   (panels, menus, settings) with neutral names only.
 - **`README.md` is the plugin's overview, `docs/` its documentation** (VitePress 1.6.4, `docs/.vitepress/config.mjs`;
   Getting Started, a guide per page, Developing). A feature change updates its guide page and the README on the same
-  branch. The site is published to GitHub Pages only once the repository is public (`upcoming-changes.md`).
+  branch. The site (https://winuxnomacs.github.io/webodm-explorer/) is published by the docs workflow: run it by hand
+  after a docs change that shouldn't wait for the next release.
 - **Names in the UI are in Title Case**: headings, buttons, menu items and setting names; descriptions and messages
   are sentences.
 - Planned in `upcoming-changes.md`; new requests arrive in `new.md` (untracked).

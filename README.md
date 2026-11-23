@@ -3,11 +3,11 @@
 A plugin for [WebODM](https://github.com/WebODM/WebODM) 4.0 and later, to browse and share a project's outputs.
 Under development.
 
-The documentation is in [docs/](docs/): [Getting Started](docs/getting-started.md) and guides to
-[Explorer's home](docs/guide/projects.md), [a project's page](docs/guide/project.md),
-[the viewers](docs/guide/viewers.md), [sharing](docs/guide/sharing.md) and
+The documentation is at **https://winuxnomacs.github.io/webodm-explorer/** (its sources in [docs/](docs/)):
+[Getting Started](docs/getting-started.md) and guides to [Explorer's home](docs/guide/projects.md),
+[a project's page](docs/guide/project.md), [the viewers](docs/guide/viewers.md), [sharing](docs/guide/sharing.md) and
 [administration](docs/guide/administration.md), and [Hosting on Linode](docs/hosting/linode.md): a script that sets up
-a server where only Explorer's links are public. It will be published to GitHub Pages.
+a server where only Explorer's links are public.
 
 ## Features
 

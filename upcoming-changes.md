@@ -5,8 +5,8 @@
 Built: **Code review fixes** (the user's review request 2026-11-22, findings below), in four groups, each a
 branch: 1. high; 2. the Linode script and guide; 3. viewer medium; 4. pages and phones (all done, see "Done").
 
-Then: **Documentation site** (the request 2026-11-22, plan below; decided). Its steps, each a phase:
-1. the site and its pages (Getting Started, usage guides; done); 2. the Linode hosting guide and its script (done); 3. publishing to GitHub Pages (once the repo is public).
+Built: **Documentation site** (the request 2026-11-22, plan below), all three steps: 1. the site and its pages;
+2. the Linode hosting guide and its script; 3. publishing to GitHub Pages (2026-11-23, see "Done").
 
 Built just before: **Keep the camera across 3D views** and **Space without the purple** (the request
 2026-11-22, below) and **3D backgrounds** are built (see "Done").
@@ -752,6 +752,12 @@ The user chose to fix all four groups:
    of the plugin's folder (they survive upgrades).
 
 ## Done
+
+- **Docs step 3: publishing to GitHub Pages** (the user, 2026-11-23, once the repo was public; `.github/workflows/docs.yml`,
+  as TweakUI's: a pushed `v*` tag or by hand, never on a push to `main`). Actions re-vetted 2026-11-23 from GitHub's
+  API: checkout v7.0.1, setup-node v7.1.0, configure-pages v6.0.0, upload-pages-artifact v5.0.0, deploy-pages v5.0.1,
+  each the latest release, each pinned hash its tag's commit, no security advisories. Pages source: GitHub Actions.
+  The site: https://winuxnomacs.github.io/webodm-explorer/.
 
 - **Links for public projects only** (the user, 2026-11-23, branch `public-only`; `links.py` `links_allowed` and
   `resolve`, `options.py`, `api.py` `Settings` and `ProjectLinksAllowed`, `plugin.py`, `templates/settings.html` and

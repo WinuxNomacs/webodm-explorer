@@ -1,6 +1,6 @@
 // The Explorer documentation site (VitePress): `npm run docs:dev`, `npm run docs:build` (into docs/.vitepress/dist,
-// failing on a dead link), `npm run docs:preview`. Published to GitHub Pages once the repository is public
-// (upcoming-changes.md, "Documentation site"). Screenshots show Explorer's interface only, never a model or a place.
+// failing on a dead link), `npm run docs:preview`. Published to GitHub Pages by .github/workflows/docs.yml (a v* tag,
+// or by hand). Screenshots show Explorer's interface only, never a model or a place.
 import { defineConfig } from "vitepress";
 
 const repo = "https://github.com/WinuxNomacs/webodm-explorer";

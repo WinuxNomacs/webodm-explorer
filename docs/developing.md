@@ -59,6 +59,10 @@ installed through WebODM's **Administration > Plugins > Load Plugin (.zip)**.
 The pages are Markdown in `docs/`. Screenshots show Explorer's interface only (panels, menus, settings) with neutral
 names: never a map, orthophoto, mesh, point cloud or splat, and never a place name or coordinates.
 
+`npm run docs:build` builds the site into `docs/.vitepress/dist` and fails on a dead link. The **Docs** workflow
+(`.github/workflows/docs.yml`) builds it and publishes it to GitHub Pages when a release tag (`v*`) is pushed, or
+when it is run by hand from the repository's **Actions** tab; pushes to `main` don't publish.
+
 ## Licence
 
 AGPL-3.0. Explorer is not part of WebODM.
