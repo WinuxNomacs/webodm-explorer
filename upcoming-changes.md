@@ -858,6 +858,20 @@ The user chose to fix all four groups:
 
 ## Done
 
+- **Dependabot review** (the user's request 2026-11-23, branch `dependabot-review`): the 10 open alerts (1 high,
+  8 moderate, 1 low) are all npm, development-only and transitive, in the repo's own `package-lock.json`, none from
+  WebODM: vite 5.4.21 and esbuild 0.21.5 under VitePress 1.6.4 (eight vite and launch-editor advisories, one esbuild:
+  all the dev server, several Windows-only; `docs:build` doesn't run it, and CLAUDE.md already says not to use
+  `docs:dev` or `docs:preview`), and minimatch 9.0.9 and 10.2.6 (a pattern DoS, GHSA-g3hv-75wg-m249, patched only in
+  11.0.1) under ESLint 10.12.0 and Jest 30.5.2, which match only our own config's patterns. **None reaches the
+  plugin**: the zip carries only `explorer/` and the mesh tools. What ships was checked against GitHub's advisory
+  database (2026-11-23, `gh api /advisories`, the query checked on vite 5.4.21, which returns 8): three 0.187.0, Spark
+  2.4.0, Leaflet 1.9.4, laz-perf 0.0.7, 3d-tiles-renderer 0.5.4, ktx-parse 2.0.0, zstddec 0.3.4, gltfpack 1.3.0
+  and Obj2Tiles 1.10.3 have none. No dependency changed: VitePress's latest is 1.6.4 (on vite ^5.4.14; 2.0 is
+  `2.0.0-alpha.21`), Jest's latest (30.5.2) still pulls minimatch 10 through glob 13 and test-exclude 8, and ESLint
+  10.15.0 (2026-11-16, minimatch ^11.0.5) alone wouldn't close the minimatch alert. Look again when VitePress 2 or a
+  Jest on glob 14 is released.
+
 - **Release 0.1.0** (2026-11-23, branch `release/0.1.0`, experimental): the changelog dated; the tests (Django 205
   plus WebODM's plugin tests, Jest 121); `dist/explorer-0.1.0.zip` (sha256
   `2ca4a34f4a428c2578c78431a6d754f880fee44634e6907a47355b33276a8607`) installed through Administration > Plugins on
