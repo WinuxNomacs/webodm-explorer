@@ -85,3 +85,14 @@ test("framing centres on most of the points and leaves stray fragments out", () 
     expect(found.radius).toBeGreaterThan(15);
     expect(Frame.sphere([], [], [])).toBeNull();
 });
+
+test("the Grid's floor is the model's lowest point, with stray fragments off to the side left out", () => {
+    // A 30 m survey: ground at 100 m, a building to 130 m, a skirt at one edge down to 95 m (few points), and a stray
+    // fragment 300 m away, 60 m under the ground
+    const xs = [], ys = [], zs = [];
+    for (let i = 0; i < 900; i++) { xs.push((i % 30) - 15); ys.push(Math.floor(i / 30) - 15); zs.push(i % 10 ? 100 : 100 + (i % 30)); }
+    for (let i = 0; i < 3; i++) { xs.push(15); ys.push(i); zs.push(95); }
+    for (let i = 0; i < 20; i++) { xs.push(300); ys.push(i); zs.push(40); }
+    expect(Frame.bottom(xs, ys, zs)).toBe(95);
+    expect(Frame.bottom([], [], [])).toBeNull();
+});

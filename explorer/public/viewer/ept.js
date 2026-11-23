@@ -4,8 +4,8 @@
  * laz-perf) and draws each as THREE.Points. Nodes that leave the view are freed once the cache is full.
  *
  * Failures: ept.json, the root's hierarchy, the root node or every worker failing rejects open(); a node or a subtree
- * file that fails is retried once after RETRY_DELAY_MS, then skipped, and onFailure(status) is called (the page then
- * checks whether the link was revoked); a worker that errs or takes over DECODE_TIMEOUT_MS is replaced.
+ * file that fails is retried once after RETRY_DELAY_MS, then set aside and tried again later (after 5 s, then longer,
+ * up to MAX_TRIES), and onFailure(status) is called (the page then checks whether the link was revoked); a worker that errs or takes over DECODE_TIMEOUT_MS is replaced.
  */
 import * as THREE from "three";
 
@@ -17,6 +17,11 @@ const MAX_FETCHES = 4;
 export const FETCH_TIMEOUT_MS = 60000;
 const DECODE_TIMEOUT_MS = 30000;
 const RETRY_DELAY_MS = 1000;
+// A failed node or subtree file is tried again after 5 s, doubling up to a minute, MAX_TRIES times in all (a phone's
+// short drop in coverage leaves no lasting hole)
+const AGAIN_MS = 5000;
+const AGAIN_MAX_MS = 60000;
+const MAX_TRIES = 6;
 // Loaded points kept beyond the budget, so turning back doesn't fetch again
 const CACHE_FACTOR = 1.5;
 // Point size in node spacings, and its limits in CSS pixels
@@ -43,11 +48,13 @@ async function fetchWithTimeout(url, as) {
     }
 }
 
-export async function withRetry(load) {
+// signal (optional): the caller's abort signal; a load it cancelled is not tried again
+export async function withRetry(load, signal) {
     try {
         return await load();
     } catch (e) {
         if (e instanceof HttpError && e.status === 404) throw e; // a revoked link: retrying won't help
+        if (signal && signal.aborted) throw e;
         await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
         return load();
     }
@@ -230,7 +237,7 @@ export class EptCloud {
         this.group = new THREE.Group();
         this.loaded = new Map(); // key -> {points, count, used}
         this.loading = new Set();
-        this.failed = new Set();
+        this.failed = new Map(); // key -> {tries, again (time it may be tried again)}
         this.hierarchyLoading = new Set();
         this.fetches = 0;
         this.dirty = true;
@@ -293,7 +300,7 @@ export class EptCloud {
         points.frustumCulled = false;
         points.visible = false;
         this.group.add(points);
-        this.loaded.set(node.key, { points, count: decoded.count, used: this.frameCount });
+        this.loaded.set(node.key, { points, count: decoded.count, used: this.frameCount, bounds: node.bounds });
         this.dirty = true;
     }
 
@@ -359,7 +366,7 @@ export class EptCloud {
         for (const node of selection.hierarchy) this.loadHierarchy(node);
         for (const node of selection.nodes) {
             if (this.fetches >= MAX_FETCHES) break;
-            if (!this.loaded.has(node.key) && !this.loading.has(node.key) && !this.failed.has(node.key)) this.loadNode(node);
+            if (!this.loaded.has(node.key) && !this.loading.has(node.key) && !this.setAside(node.key)) this.loadNode(node);
         }
         this.evict(showing);
     }
@@ -378,10 +385,53 @@ export class EptCloud {
         }
     }
 
+    // Whether a node or subtree file that failed waits before it is tried again (or has used its tries)
+    setAside(key) {
+        const failed = this.failed.get(key);
+        return Boolean(failed) && (failed.tries >= MAX_TRIES || performance.now() < failed.again);
+    }
+
     failure(key, error) {
-        this.failed.add(key);
-        console.warn("Explorer: point cloud node " + key + " skipped", error);
+        const tries = (this.failed.has(key) ? this.failed.get(key).tries : 0) + 1;
+        const wait = Math.min(AGAIN_MS * Math.pow(2, tries - 1), AGAIN_MAX_MS);
+        this.failed.set(key, { tries, again: performance.now() + wait });
+        // The next update after the wait picks it up again, even with the camera still
+        if (tries < MAX_TRIES) setTimeout(() => { this.dirty = true; }, wait);
+        console.warn("Explorer: point cloud node " + key + " failed (try " + tries + ")", error);
         this.onFailure(error instanceof HttpError ? error.status : null);
+    }
+
+    // The shown point nearest the camera within `threshold` (world units) of the ray, or null. Only the nodes whose
+    // bounds the ray crosses are searched, point by point with plain arithmetic (three's raycast would make an object
+    // per point near the ray, and a bounding sphere per node first)
+    pick(ray, threshold) {
+        // The group is only moved, never turned: the ray in the cloud's coordinates is the ray moved back
+        const origin = ray.origin.clone().sub(this.group.position);
+        const dir = ray.direction;
+        const local = new THREE.Ray(origin, dir);
+        const limit = threshold * threshold;
+        const entry = new THREE.Vector3();
+        let best = null, bestT = Infinity;
+        for (const node of this.loaded.values()) {
+            if (!node.points.visible) continue;
+            const b = node.bounds;
+            this.box.min.set(b[0] - threshold, b[1] - threshold, b[2] - threshold);
+            this.box.max.set(b[3] + threshold, b[4] + threshold, b[5] + threshold);
+            if (!this.box.containsPoint(origin)) {
+                if (!local.intersectBox(this.box, entry) || entry.distanceTo(origin) >= bestT) continue;
+            }
+            const p = node.points.geometry.attributes.position.array;
+            for (let i = 0; i < p.length; i += 3) {
+                const x = p[i] - origin.x, y = p[i + 1] - origin.y, z = p[i + 2] - origin.z;
+                const t = x * dir.x + y * dir.y + z * dir.z;
+                if (t <= 0 || t >= bestT) continue;
+                if (x * x + y * y + z * z - t * t < limit) {
+                    bestT = t;
+                    best = [p[i], p[i + 1], p[i + 2]];
+                }
+            }
+        }
+        return best ? new THREE.Vector3(...best).add(this.group.position) : null;
     }
 
     async loadNode(node) {
@@ -396,7 +446,10 @@ export class EptCloud {
                 this.fetches--;
             }
             const decoded = await this.pool.decode(buffer, this.info.origin, this.sixteenBit);
-            if (!this.disposed) this.add(node, decoded);
+            if (!this.disposed) {
+                this.add(node, decoded);
+                this.failed.delete(node.key);
+            }
         } catch (e) {
             if (!this.disposed) this.failure(node.key, e);
         } finally {
@@ -406,11 +459,14 @@ export class EptCloud {
     }
 
     async loadHierarchy(node) {
-        if (this.hierarchyLoading.has(node.key) || this.failed.has(node.key)) return;
+        if (this.hierarchyLoading.has(node.key) || this.setAside(node.key)) return;
         this.hierarchyLoading.add(node.key);
         try {
             const json = await withRetry(() => fetchWithTimeout(this.base + "ept-hierarchy/" + node.key + ".json", "json"));
-            if (!this.disposed) Tree.addHierarchy(this.tree, json);
+            if (!this.disposed) {
+                Tree.addHierarchy(this.tree, json);
+                this.failed.delete(node.key);
+            }
         } catch (e) {
             if (!this.disposed) this.failure(node.key, e);
         } finally {

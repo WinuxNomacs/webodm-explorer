@@ -268,8 +268,9 @@ export function createBackdrop(scene, renderer, camera, options = {}) {
         else scene.background = dome(kind);
     }
 
-    // The floor under the box the view is framed on: just below its bottom, so flat ground doesn't flicker against it
-    function fit(box) {
+    // The floor under the view: just below its bottom (floor: the model's lowest height, frame.js; else the box's), so
+    // flat ground doesn't flicker against it
+    function fit(box, floor) {
         if (!box || box.isEmpty()) return;
         const size = box.getSize(new THREE.Vector3());
         const center = box.getCenter(new THREE.Vector3());
@@ -284,7 +285,8 @@ export function createBackdrop(scene, renderer, camera, options = {}) {
         u.fadeStart.value = radius * FADE_START;
         u.fadeEnd.value = half;
         grid.scale.set(half, half, 1);
-        grid.position.set(center.x, center.y, box.min.z - Math.max(size.z, radius) * 0.01);
+        const bottom = Number.isFinite(floor) ? floor : box.min.z;
+        grid.position.set(center.x, center.y, bottom - radius * 0.01);
         grid.updateMatrixWorld();
         fitted = true;
         grid.visible = chosen === "grid";
@@ -298,5 +300,11 @@ export function createBackdrop(scene, renderer, camera, options = {}) {
         stars.material.uniforms.pixelRatio.value = renderer.getPixelRatio();
     }
 
-    return { set, fit, update, chosen: () => chosen };
+    // After a lost WebGL context comes back: the gradients drawn into textures are gone, so they are drawn again
+    function restore() {
+        for (const kind of Object.keys(domes)) delete domes[kind];
+        if (chosen) set(chosen);
+    }
+
+    return { set, fit, update, restore, chosen: () => chosen };
 }
