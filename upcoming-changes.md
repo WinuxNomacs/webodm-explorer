@@ -2,7 +2,14 @@
 
 ## Phases (current and upcoming)
 
-Up next: **the first release** (0.1.0): a `release/0.1.0` branch, the zip, the `release-check` skill.
+Up next: **the first release** (0.1.0, still experimental): a `release/0.1.0` branch, the zip, the `release-check`
+skill.
+
+Then: **the road to 1.0.0** (the user, 2026-11-23: recorded as phases after 0.1.0; some are taken up before 1.0 and
+each is discussed when it comes up; plan below). In order: 1. field use of 0.1.0; 2. a versioned saved-data format and
+an upgrade rehearsal; 3. a check against new WebODM releases; 4. a browser and device pass; 5. the mesh parsing gap;
+6. sign-in links on the Linode setup; 7. link activity and administration; 8. accessibility and translations; 9. an
+outside security review. 1.0.0 drops `"experimental"` from the manifest once the chosen ones are done.
 
 Built: **Sign-in links** (the user's request 2026-11-23, plan below; see "Done").
 
@@ -717,6 +724,34 @@ processing wants 16 GB and more).
   a download failing (retries, then stops naming the step), DNS not yet pointing at the Linode (Caddy keeps retrying
   the certificate; the script says so instead of failing), a rerun (each step checks before changing), no SSH key
   (stops before touching SSH).
+
+### Plan: the road to 1.0.0 (the review and the user's answer, 2026-11-23)
+
+The review (2026-11-23) found the code ready for a first release but short of 1.0.0 on evidence rather than features:
+no one has used it yet (first commit 2026-11-21); the upgrade path has never run; it subclasses WebODM's tile, asset
+and download views and uses its Basemap model (approved exceptions), tested only against 4.0.1; every live check ran in
+headless Chromium on macOS (no Safari, iOS, Firefox or Android; the arm64 Obj2Tiles build never ran); one mesh drops to
+about 30 fps while its tiles parse (see "Later"); the 153 template strings are marked for translation but there is no
+`locale` folder; no accessibility audit. The user (2026-11-23): record these as phases after 0.1.0, which stays
+experimental; some are done before 1.0, each discussed when it comes up. Each phase is planned with the user first.
+
+1. **Field use of 0.1.0:** the user's own projects shared with real visitors, ideally on the Linode setup, and another
+   install if one can be found; what they turn up goes to the front of Up next.
+2. **Saved-data format and upgrades:** a format version on link entries and settings in the data stores (and the tiles'
+   `state.json`), an upgrade rehearsal from 0.1.0, and what 1.0 promises to keep (links, settings, tiles), in the docs.
+3. **New WebODM releases:** a script or skill that runs the tests and a live check against a newer WebODM image, and a
+   supported-versions line in the docs and the manifest.
+4. **Browsers and devices:** Safari (macOS and iOS), Firefox and an Android phone; the viewer's smoothness measured on
+   at least one phone; a mesh built with the arm64 Obj2Tiles.
+5. **The mesh parsing gap:** the 30 fps while ~200-260 tiles parse (task 89d7617e), the parse queue and tile count.
+6. **Sign-in links on the Linode setup:** `/login/` public with a rate limit in the Caddyfile, or the guide saying the
+   setup doesn't support them (today it says so).
+7. **Link activity and administration:** when each link was last used and how often, in the Share panel; a log of
+   link changes (created, revoked, changed, by whom); a superuser view of every active link across projects, with
+   bulk revoke.
+8. **Accessibility and translations:** a WCAG 2.1 AA pass (screen reader, keyboard, contrast in both themes) and a
+   `locale` folder with at least one language besides English.
+9. **An outside security review** of the link and token views and the hosting setup.
 
 ### Plan: sign-in links (the request and the user's answers, 2026-11-23; built: see "Done")
 
