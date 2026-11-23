@@ -145,6 +145,17 @@ class EmbedTests(LinkTestMixin, BootTestCase):
         self.assertIn("#navbar-top { display: none; }", html)
         self.assertIn("explorer-cover", html)
 
+    def test_the_views_an_embedded_link_page_opens_stay_embedded(self):
+        def views(html):
+            return re.findall(rf'href="({re.escape(self.path)}(?:map|3d)/[^"]*)"', html)
+        embedded = views(Client().get(f"{self.path}?embed=1").content.decode())
+        # The cover's picture and buttons, and the other task's card: its picture, title and buttons
+        self.assertGreaterEqual(len(embedded), 6)
+        for url in embedded:
+            self.assertTrue(url.endswith(("?embed=1", "&amp;embed=1")), url)
+        for url in views(Client().get(self.path).content.decode()):
+            self.assertNotIn("embed", url)
+
     def test_signed_in_pages_ignore_embed(self):
         own = f"/plugins/explorer/project/{self.project.id}/"
         client = self.client_for("testuser")

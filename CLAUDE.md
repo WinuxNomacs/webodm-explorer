@@ -76,8 +76,9 @@ public: nothing private, nothing true only on one machine. Keep it short; edit i
   `dev/tools.sh` (pinned versions and sha256) into `explorer/bin/`, which is git-ignored; `dev/package.sh` adds them
   to the zip. The build (`explorer/tiles_build.py`) runs in the worker through `run_function_async`, which sends
   only a function's source: it is standard library only, loaded by its file path, and the worker needs no restart to
-  pick up a change. Builds and their state live in the plugin's persistent path
-  (`app/media/plugins/explorer/tiles/<task id>/`, `state.json` inside); bump `PIPELINE` when the tools or their
+  pick up a change. Builds and their state live in each task's folder
+  (`app/media/project/<project>/task/<task>/explorer-tiles/`, `state.json` inside; the build lock in the plugin's
+  persistent path), so plugin upgrades keep them; bump `PIPELINE` when the tools or their
   options change, so every mesh is rebuilt under a new build id.
 - Browser libraries (three.js, Spark, Leaflet, laz-perf, 3DTilesRendererJS) are vendored in `explorer/public/vendor/` by `dev/vendor.sh`,
   which pins their versions; the 3D page's import map and data attributes (`explorer/templates/link_3d.html`) and the

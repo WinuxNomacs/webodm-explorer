@@ -105,6 +105,13 @@ class ProjectLinksBase(APIView):
         return super().handle_exception(exc)
 
 
+def object_body(request):
+    """The request's fields; a JSON body that is not an object (a list, a string) is refused, not a server error."""
+    if not isinstance(request.data, dict):
+        raise exceptions.ValidationError({"detail": _("Expected an object.")})
+    return request.data
+
+
 class ProjectLinks(ProjectLinksBase):
     def get(self, request, project_pk=None):
         project = self.get_project(request, project_pk)
@@ -112,8 +119,9 @@ class ProjectLinks(ProjectLinksBase):
 
     def post(self, request, project_pk=None):
         project = self.get_project(request, project_pk)
-        label = request.data.get("label", "")
-        expires = request.data.get("expires_days", links.DEFAULT_EXPIRY)
+        data = object_body(request)
+        label = data.get("label", "")
+        expires = data.get("expires_days", links.DEFAULT_EXPIRY)
         if not isinstance(label, str):
             raise exceptions.ValidationError({"label": _("Not a valid label.")})
         if expires in ("", "never"):
@@ -124,7 +132,7 @@ class ProjectLinks(ProjectLinksBase):
             expires = -1
         if expires not in links.EXPIRY_CHOICES:
             raise exceptions.ValidationError({"expires_days": _("Not a valid expiry.")})
-        downloads = downloads_value(request.data)
+        downloads = downloads_value(data)
         link = links.create_link(project.id, label, expires, request.user, downloads)
         prepare_tiles(project)
         return Response(link_json(link), status=status.HTTP_201_CREATED)
@@ -143,9 +151,10 @@ def prepare_tiles(project):
 class ProjectLink(ProjectLinksBase):
     def patch(self, request, project_pk=None, token=None):
         project = self.get_project(request, project_pk)
-        if "downloads" not in request.data:
+        data = object_body(request)
+        if "downloads" not in data:
             raise exceptions.ValidationError({"downloads": _("This field is required.")})
-        link = links.set_downloads(project.id, token, downloads_value(request.data))
+        link = links.set_downloads(project.id, token, downloads_value(data))
         if link is None:
             raise exceptions.NotFound()
         return Response(link_json(link))
@@ -253,16 +262,19 @@ TILE_TYPES = {".json": "application/json", ".glb": "model/gltf-binary"}
 
 
 class MeshTilesView(APIView):
-    """A file of a task's mesh tiles (tiles_build.py), from the plugin's persistent path."""
+    """A file of a task's mesh tiles (tiles_build.py), from the task's own folder."""
     queryset = Task.objects.all()
 
     def serve(self, task, build, path):
         store = tiles.Tiles.current()
-        file = store.file(task.id, build, path) if store else None
+        file = store.file(task, build, path) if store else None
         if file is None:
             raise exceptions.NotFound()
-        # FileResponse closes the file once sent
-        response = FileResponse(open(file, "rb"), content_type=TILE_TYPES[os.path.splitext(file)[1]])  # noqa: SIM115
+        try:
+            handle = open(file, "rb")  # noqa: SIM115 - FileResponse closes the file once sent
+        except OSError:
+            raise exceptions.NotFound() from None  # removed meanwhile: a rebuild, or the task removed
+        response = FileResponse(handle, content_type=TILE_TYPES[os.path.splitext(file)[1]])
         # A build's files never change (its id comes from the mesh's), so the browser keeps them; private, since the
         # URL holds the token
         response["Cache-Control"] = "private, max-age=31536000, immutable"

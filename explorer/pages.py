@@ -348,15 +348,19 @@ def model_offset(task):
     return f"{x:.3f} {y:.3f}" if math.isfinite(x) and math.isfinite(y) else None
 
 
-def link_outputs(task, link_path):
-    """The buttons a link page's card gets; link_path is the link page's path, ending in a slash."""
+def link_outputs(task, link_path, embed=False):
+    """
+    The buttons a link page's card gets; link_path is the link page's path, ending in a slash. In an embed, they keep
+    ?embed=1, so a click inside the host site's frame stays without WebODM's header.
+    """
     outputs = []
     layers = map_layers(task)
     if layers:
         outputs.append({"label": _("Map"), "detail": ", ".join(label for _type, label in layers),
-                        "icon": "fa fa-globe", "url": f"{link_path}map/{task.id}/"})
+                        "icon": "fa fa-globe", "url": f"{link_path}map/{task.id}/" + ("?embed=1" if embed else "")})
     for kind, label, icon in viewer_types(task):
-        outputs.append({"label": label, "detail": "", "icon": icon, "url": f"{link_path}3d/{task.id}/?t={kind}"})
+        outputs.append({"label": label, "detail": "", "icon": icon,
+                        "url": f"{link_path}3d/{task.id}/?t={kind}" + ("&embed=1" if embed else "")})
     return outputs
 
 

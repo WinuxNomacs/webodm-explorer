@@ -23,6 +23,8 @@
         function fallback() {
             input.focus();
             input.select();
+            // iOS Safari selects nothing in a read-only field with select() alone, yet execCommand says it copied
+            if (input.setSelectionRange) input.setSelectionRange(0, input.value.length);
             try {
                 return document.execCommand("copy");
             } catch (e) {
@@ -215,14 +217,17 @@
         initLinks(root);
     }
 
-    // The button says "Copied" for a moment after a copy; a copy the browser refuses leaves the text selected.
+    // The button says "Copied" for a moment after a copy; a copy the browser refuses leaves the text selected. Its
+    // label is kept once, so a second click while it says "Copied" doesn't keep "Copied" for good.
     function wireCopy(button, input, copiedText) {
+        var label = button.innerHTML;
+        var timer = null;
         button.addEventListener("click", function () {
-            var label = button.innerHTML;
             copyText(input, function (ok) {
                 if (!ok) return;
                 button.textContent = copiedText;
-                setTimeout(function () { button.innerHTML = label; }, 1500);
+                clearTimeout(timer);
+                timer = setTimeout(function () { button.innerHTML = label; }, 1500);
             });
         });
     }
@@ -370,7 +375,7 @@
             heading.appendChild(downloadsToggle(link));
             row.appendChild(heading);
 
-            var group = element("div", "input-group input-group-sm");
+            var group = element("div", "input-group input-group-sm explorer-link-group");
             var input = element("input", "form-control explorer-link-address");
             input.type = "text";
             input.readOnly = true;

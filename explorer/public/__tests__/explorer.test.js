@@ -127,3 +127,16 @@ test("the toolbar leaves empty and default values out of the address", () => {
     form.dispatchEvent(new Event("submit"));
     expect([...form.elements].filter((f) => !f.disabled).map((f) => f.name)).toEqual(["sort"]);
 });
+
+test("a second Copy while the button says Copied still brings back its label", () => {
+    jest.useFakeTimers();
+    document.execCommand = jest.fn(() => true);
+    const { copy } = render();
+    copy.click();
+    jest.advanceTimersByTime(500);
+    copy.click();
+    expect(copy.textContent).toBe("Copied");
+    jest.advanceTimersByTime(1500);
+    expect(copy.textContent.trim()).toBe("Copy");
+    expect(copy.querySelector("i")).not.toBeNull();  // its icon too
+});

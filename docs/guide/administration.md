@@ -33,13 +33,19 @@ map does.
 ## Storage and work on the server
 
 - **3D Tiles**: the first time a task's textured model is shared or opened, Explorer builds 3D Tiles from it in
-  WebODM's worker, one mesh at a time, at low priority. They are kept in the plugin's folder in WebODM's media
-  (`plugins/explorer/tiles/<task id>/`) until the task is removed. Deleting or reinstalling the plugin removes them;
-  they are built again on demand.
+  WebODM's worker, one mesh at a time, at low priority. They are kept in the task's own folder in WebODM's media
+  (`project/<project id>/task/<task id>/explorer-tiles/`), so they survive upgrading Explorer, count towards the
+  project owner's storage quota like the task's other files, are removed with the task and copied when it is
+  duplicated.
 - **Links and settings** are kept in WebODM's database (the plugin's data stores), unencrypted.
 - Nothing else is stored: maps, point clouds and splats are served from the task's own outputs.
 
 ## Removing Explorer
 
-In **Administration > Plugins**, disable or delete Explorer. Deleting it removes its folder, with the built 3D
-Tiles. Its links and settings stay in the database, unused; links stop working once the plugin is gone.
+In **Administration > Plugins**, disable or delete Explorer. Its links and settings stay in the database, unused;
+links stop working once the plugin is gone. The built 3D Tiles stay in each task's folder, as `explorer-tiles/`; to
+free that space, delete those folders on the server (WebODM's container is named `webapp`):
+
+```bash
+docker exec webapp sh -c 'rm -rf /webodm/app/media/project/*/task/*/explorer-tiles'
+```

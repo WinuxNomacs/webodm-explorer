@@ -60,10 +60,25 @@
         });
     }
 
-    var api = {fitHeight: fitHeight, status: status, linkIsValid: linkIsValid, explainFailure: explainFailure};
+    // The bar's menus open leftwards from their button (dropdown-menu-right); when the bar wraps on a phone and a
+    // button lands near the left edge, its menu opens rightwards instead, so none starts off the screen.
+    function keepOnScreen(menu) {
+        menu.classList.remove("explorer-menu-left");
+        if (menu.getBoundingClientRect().left < 0) menu.classList.add("explorer-menu-left");
+    }
+
+    var api = {fitHeight: fitHeight, status: status, linkIsValid: linkIsValid, explainFailure: explainFailure,
+               keepOnScreen: keepOnScreen};
     if (typeof module !== "undefined" && module.exports) {
         module.exports = api;
     } else {
         window.ExplorerLinkPage = api;
+        // Bootstrap's dropdowns (WebODM's jQuery) say when one has opened
+        if (window.jQuery) {
+            window.jQuery(document).on("shown.bs.dropdown", ".explorer-viewer-bar", function (event) {
+                var menu = event.target.querySelector(".dropdown-menu");
+                if (menu) keepOnScreen(menu);
+            });
+        }
     }
 })();

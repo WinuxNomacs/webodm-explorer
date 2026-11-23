@@ -37,7 +37,7 @@ a server where only Explorer's links are public. It will be published to GitHub 
   uses: 10 million points on a computer, 2 million on a phone, 1 million on iOS), **Textured Model** and **Gaussian
   Splats**. The textured model streams as 3D Tiles (only what is on screen, finer close up), which Explorer builds
   from the task's mesh in WebODM's worker the first time it is shared or opened (a minute or two per mesh, at low
-  priority, one at a time, kept in the plugin's folder in WebODM's media until the task is removed); until they are
+  priority, one at a time, kept in the task's own folder in WebODM's media, so they survive upgrades); until they are
   ready, the link shows WebODM's own model. A link serves only what these views stream, unless it has
   **Allow Downloads** (ticked when creating it, or on the link later): its task cards and views then get a **Download** menu
   with the orthophoto, DSM, DTM, point cloud (LAZ) and textured model (zip and glTF), but not the report, camera
