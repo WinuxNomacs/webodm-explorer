@@ -82,3 +82,21 @@ live), the checks and packaging.
 ## Licence
 
 AGPL-3.0, see [LICENSE](LICENSE).
+
+## Thanks
+
+Explorer is built on these projects. Thank you to everyone who works on them.
+
+- [WebODM](https://github.com/WebODM/WebODM): the platform Explorer extends, its plugin system, map tiles and assets.
+- [ODX](https://github.com/WebODM/ODX) and [NodeODX](https://github.com/WebODM/NodeODX): the processing that makes
+  the orthophotos, elevation models, point clouds, meshes and splats Explorer shows.
+- [WebODM Docs](https://github.com/WebODM/Docs) and [WebODM-Plugins](https://github.com/WebODM/WebODM-Plugins): the
+  plugin development guide and the plugin directory.
+- [Obj2Tiles](https://github.com/OpenDroneMap/Obj2Tiles): splits textured meshes into 3D Tiles.
+- [three.js](https://github.com/mrdoob/three.js), with the [Draco](https://github.com/google/draco) and
+  [Basis Universal](https://github.com/BinomialLLC/basis_universal) decoders it ships: the 3D viewer.
+- [Spark](https://github.com/sparkjsdev/spark): Gaussian splats.
+- [3DTilesRendererJS](https://github.com/NASA-AMMOS/3DTilesRendererJS): streaming the textured model's tiles.
+- [laz-perf](https://github.com/hobuinc/laz-perf): decoding the point cloud.
+- [meshoptimizer](https://github.com/zeux/meshoptimizer)'s gltfpack: compressing the tiles.
+- [Leaflet](https://github.com/Leaflet/Leaflet): the maps.
