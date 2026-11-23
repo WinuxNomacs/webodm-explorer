@@ -15,6 +15,10 @@
             <label><input type="checkbox" name="basemaps_on_links"{% if settings.basemaps_on_links %} checked{% endif %}> {% trans "Basemaps on Links" %}</label>
         </div>
         <p class="explorer-card-text">{% trans "Maps opened from links and with View as Visitor show the basemaps set in Administration, Basemaps. Each visitor's browser then loads them from their provider, which sees the visitor's address and the area viewed." %}</p>
+        <div class="checkbox">
+            <label><input type="checkbox" name="public_projects_only"{% if settings.public_projects_only %} checked{% endif %}> {% trans "Links for Public Projects Only" %}</label>
+        </div>
+        <p class="explorer-card-text">{% trans "Anyone-with-the-link links work only for projects shared publicly in WebODM (the Dashboard: the project's Share, Enabled), and for private projects an administrator allows in the project's Explorer Share panel. Links of other projects stop working until then; none are deleted." %}</p>
         <div class="form-group">
             <label for="explorer-public-address">{% trans "Public Address" %}</label>
             <input id="explorer-public-address" class="form-control input-sm" type="url" name="public_address" maxlength="200"

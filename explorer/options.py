@@ -4,6 +4,7 @@ Explorer's settings, set by WebODM's admins on the Explorer page and kept in the
   decided 2026-11-21: a basemap sends visitors' map views to its provider, so an install can turn it off).
 - public address: the address the Share panel's link copies and embed code start with, for a WebODM reached through
   an internal address or an SSH tunnel (the user, 2026-11-22); empty means the browser's address.
+- links for public projects only (links.py keeps it, as links.resolve reads it; the user, 2026-11-23).
 """
 from urllib.parse import urlsplit
 
@@ -61,7 +62,8 @@ def set_public_address(value):
 
 
 def all_settings():
-    return {"basemaps_on_links": basemaps_on_links(), "public_address": public_address()}
+    return {"basemaps_on_links": basemaps_on_links(), "public_address": public_address(),
+            "public_projects_only": links.public_projects_only()}
 
 
 def link_basemaps():

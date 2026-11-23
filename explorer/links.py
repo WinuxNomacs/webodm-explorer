@@ -6,7 +6,10 @@ Links live in the plugin's global data store, which has no listing or locking:
   downloads} (`downloads` is missing on links made before downloads existed, which means off);
 - `token:<token>` holds the project id, to find a link from its token;
 - `index:linked` holds the ids of the projects that have links (some may have only expired ones), for the Explorer
-  home's Shared by Link filter. Links saved before it existed are found once, by reading every project's links.
+  home's Shared by Link filter. Links saved before it existed are found once, by reading every project's links;
+- `settings:public_projects_only` (Links for Public Projects Only, off by default) and `allowed:<project id>` (a
+  private project a superuser allowed links for): with the setting on, only public projects (WebODM's project Share
+  toggle) and allowed ones have working links (upcoming-changes.md, "Plan: links for public projects only").
 
 Every write takes one transaction-scoped Postgres advisory lock (WebODM's Docker installs always run Postgres), so
 a revoke and a create at the same moment can't bring a revoked link back. Reads take no lock: a link is valid
@@ -53,6 +56,36 @@ def token_key(token):
 
 
 INDEX_KEY = "index:linked"
+PUBLIC_ONLY_KEY = "settings:public_projects_only"
+
+
+def allowed_key(project_id):
+    return f"allowed:{int(project_id)}"
+
+
+def public_projects_only():
+    return store().get_bool(PUBLIC_ONLY_KEY, False)
+
+
+def set_public_projects_only(value):
+    store().set_bool(PUBLIC_ONLY_KEY, bool(value))
+
+
+def project_allowed(project_id):
+    """Whether a superuser allowed links for this (private) project."""
+    return store().get_bool(allowed_key(project_id), False)
+
+
+def set_project_allowed(project_id, value):
+    if value:
+        store().set_bool(allowed_key(project_id), True)
+    else:
+        store().del_key(allowed_key(project_id))
+
+
+def links_allowed(project):
+    """Whether the project's links work: always, unless Links for Public Projects Only is on and it is private."""
+    return project.public or not public_projects_only() or project_allowed(project.id)
 
 
 def _parse_time(value):
@@ -257,4 +290,6 @@ def resolve(token):
         except LinkStoreBusy:
             pass
         return None, None
+    if not links_allowed(project):
+        return None, None  # kept, and working again once the project is public or allowed
     return project, link

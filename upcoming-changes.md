@@ -711,6 +711,23 @@ processing wants 16 GB and more).
   the certificate; the script says so instead of failing), a rerun (each step checks before changing), no SSH key
   (stops before touching SSH).
 
+### Plan: links for public projects only (the request and the user's answers, 2026-11-23; built: see "Done")
+
+The request: a setting for admins that, when on, lets Explorer share only projects that are public in WebODM, so an
+admin has to allow links for a private project on purpose. The user's answers:
+
+- **Public** means the project's own WebODM share toggle (`Project.public`: the Dashboard's Share, Enabled). A public
+  task in a private project doesn't make the project public.
+- **Existing links** of a private project that isn't allowed stop working at once (checked in `links.resolve`, so
+  every link page, view and file answers "no longer valid"); nothing is deleted, and they work again once the project
+  is public or allowed.
+- **Allowing a project**: an **Allow Links** switch in the project's Explorer Share panel, for superusers only, shown
+  while the setting is on and the project is private. The setting, **Links for Public Projects Only** on the Explorer
+  Settings page, is off by default, so upgrading changes nothing.
+- Data: the setting and each allowed project in the plugin's GlobalDataStore (`settings:public_projects_only`,
+  `allowed:<project id>`). Creating a link on a project that isn't allowed is a 403 with the reason; its links stay
+  listed in the Share panel so they can be revoked, and the panel says why they don't work.
+
 ### Code review findings (2026-11-22)
 
 Four reviewers (server, 3D viewer, pages, the Linode script), each finding checked against the code before fixing.
@@ -735,6 +752,16 @@ The user chose to fix all four groups:
    of the plugin's folder (they survive upgrades).
 
 ## Done
+
+- **Links for public projects only** (the user, 2026-11-23, branch `public-only`; `links.py` `links_allowed` and
+  `resolve`, `options.py`, `api.py` `Settings` and `ProjectLinksAllowed`, `plugin.py`, `templates/settings.html` and
+  `project.html`, `explorer.js` `initSettings` and `initAllowLinks`, `explorer.css`; tests in `test_public_only.py`,
+  `explorer.test.js`, `thumbnails.test.js`): the setting on Explorer Settings (off by default), the superuser's
+  **Allow Links** in a private project's Share panel (the page reloads after a change), a 403 with the reason on
+  Create Link, and `resolve` refusing the links of a private project that isn't allowed (every link page, view and
+  file answers "no longer valid"; nothing deleted). Checked live: a link on private project 1 answered 404 with the
+  setting on and 200 again once allowed. Docs: Administration (Settings), Sharing, the README; the settings
+  screenshot retaken (the form only).
 
 - **Code review fixes, group 4: pages and phones** (findings 2026-11-22, branch `review-pages`; `tiles_build.py`,
   `tiles.py`, `api.py`, `pages.py`, `plugin.py`, `explorer.js`, `linkpage.js`, `map.js`, `explorer.css`): the mesh
