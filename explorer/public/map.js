@@ -143,8 +143,8 @@
             if (shown && shown.bounds) map.fitBounds(shown.bounds);
         }});
 
-        function failed() {
-            helpers.explainFailure(page, line);
+        function failed(type) {
+            helpers.explainFailure(page, line, function () { return current === type; });
         }
 
         // A tile can fail on its own (the tiler at an edge); only a link that is gone is worth saying.
@@ -220,7 +220,7 @@
             }).catch(function () {
                 // Tried again when chosen again; said only while it is the layer chosen
                 delete layers[type];
-                if (current === type) failed();
+                if (current === type) failed(type);
             });
         }
 

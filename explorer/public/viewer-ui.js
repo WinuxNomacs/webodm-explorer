@@ -243,7 +243,8 @@
                         if (current === type && line.text() === page.getAttribute("data-preparing")) line.hide();
                     }, NOTE_MS);
                 }, function () {
-                    if (current === type && !contextLost) helpers.explainFailure(page, line);
+                    if (current !== type || contextLost) return;
+                    helpers.explainFailure(page, line, function () { return current === type && !contextLost; });
                 });
             }
 

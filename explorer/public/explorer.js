@@ -137,27 +137,50 @@
         for (var j = 0; j < drawn.length; j++) drawWhenSeen(drawn[j]);
     }
 
-    // The Explorer Settings page, for WebODM's superusers: each change is saved at once, and undone on the page if it
-    // couldn't be saved.
+    // A field disabled while its change is saved loses the keyboard focus: given back when it is enabled again
+    function busy(field, on) {
+        if (on) {
+            field.explorerHadFocus = document.activeElement === field;
+            field.disabled = true;
+            return;
+        }
+        field.disabled = false;
+        if (field.explorerHadFocus && document.activeElement === document.body) field.focus();
+        field.explorerHadFocus = false;
+    }
+
+    // The server's reason for refusing a change (DRF: {"detail": ...} or {"<field>": message or [messages]}), else null
+    function refusal(response, field) {
+        return response.json().then(function (data) {
+            var said = data && (data[field] || data.detail);
+            if (Array.isArray(said)) said = said[0];
+            return typeof said === "string" && said ? said : null;
+        }, function () { return null; });
+    }
+
+    // The Explorer Settings page, for WebODM's superusers: each change is saved at once. A switch that couldn't be
+    // saved goes back; an address the server refuses stays in the field with the server's reason, to be corrected.
     function initSettings(root) {
         var form = root.querySelector("[data-settings-api]");
         if (!form) return;
         var error = form.querySelector(".explorer-settings-error");
         function save(field, change, apply, undo) {
-            field.disabled = true;
+            busy(field, true);
             error.hidden = true;
-            window.fetch(form.getAttribute("data-settings-api"), {
+            return window.fetch(form.getAttribute("data-settings-api"), {
                 method: "PATCH", credentials: "same-origin",
                 headers: {"Content-Type": "application/json", "X-CSRFToken": form.elements.csrfmiddlewaretoken.value},
                 body: JSON.stringify(change)
             }).then(function (response) {
-                if (!response.ok) throw new Error(response.status);
-                return response.json();
-            }).then(apply, function () {
+                if (response.ok) return response.json();
+                return refusal(response, field.name).then(function (said) { throw new Error(said || ""); });
+            }, function () {
+                throw new Error("");
+            }).then(apply, function (e) {
                 undo();
-                error.textContent = form.getAttribute("data-error");
+                error.textContent = e.message || form.getAttribute("data-error");
                 error.hidden = false;
-            }).then(function () { field.disabled = false; });
+            }).then(function () { busy(field, false); });
         }
         // Each switch (Basemaps on Links, Links for Public Projects Only) by its field's name
         var boxes = form.querySelectorAll("input[type=checkbox]");
@@ -170,17 +193,26 @@
                     function () { box.checked = !wanted; });
             });
         });
-        // The address is saved when the field is left or Enter is pressed, shown as the server cleaned it
+        // The address is saved when the field is left or Enter is pressed, shown as the server cleaned it. Enter then
+        // leaving the field asks once: a value being saved, or refused already, isn't sent again.
         var address = form.elements.public_address;
         if (address) {
             var savedAddress = address.value;
+            var sent = null;
             var saveAddress = function () {
-                if (address.value.trim() === savedAddress) return;
-                save(address, {public_address: address.value.trim()},
-                    function (saved) { savedAddress = address.value = saved.public_address; },
-                    function () { address.value = savedAddress; });
+                var value = address.value.trim();
+                if (value === savedAddress || value === sent) return;
+                sent = value;
+                save(address, {public_address: value},
+                    function (saved) {
+                        savedAddress = address.value = saved.public_address;
+                        sent = null;
+                    },
+                    function () { /* kept as typed, with the reason above */ });
             };
             address.addEventListener("change", saveAddress);
+            // Typing again after a refusal makes the value worth sending
+            address.addEventListener("input", function () { if (address.value.trim() !== sent) sent = null; });
             form.addEventListener("submit", function (event) {
                 event.preventDefault();
                 saveAddress();
@@ -213,8 +245,12 @@
         }
     }
 
+    // The address of the project page with its Share panel open (after Allow Links reloads it)
+    var SHARE_OPEN = "#share";
+
     // A superuser's Allow Links for a private project (Links for Public Projects Only): saved at once, then the page
-    // is loaded again, since what the Share panel offers depends on it.
+    // is loaded again with the Share panel open, since what the panel offers depends on it. A failure says so beside
+    // the box.
     function initAllowLinks(root, reload) {
         var form = root.querySelector("[data-allowed-api]");
         if (!form) return;
@@ -229,11 +265,15 @@
                 body: JSON.stringify({allowed: wanted})
             }).then(function (response) {
                 if (!response.ok) throw new Error(response.status);
-                (reload || function () { window.location.reload(); })();
+                (reload || function () {
+                    window.location.hash = SHARE_OPEN;
+                    window.location.reload();
+                })();
             }).catch(function () {
                 box.checked = !wanted;
                 box.disabled = false;
-                var error = root.querySelector(".explorer-links-error");
+                box.focus();
+                var error = form.querySelector(".explorer-allowed-error");
                 if (error) {
                     error.textContent = form.getAttribute("data-error");
                     error.hidden = false;
@@ -277,12 +317,15 @@
         // attribute, not the field: a browser restoring the field's value on reload or back would double the origin.
         input.value = window.location.origin + (input.getAttribute("data-path") || input.value);
 
-        shareButton.addEventListener("click", function () {
-            var opening = panel.hidden;
+        function show(opening) {
             panel.hidden = !opening;
             shareButton.setAttribute("aria-expanded", opening ? "true" : "false");
-            if (opening) input.select();
+        }
+        shareButton.addEventListener("click", function () {
+            show(panel.hidden);
+            if (!panel.hidden) input.select();
         });
+        if (window.location.hash === SHARE_OPEN) show(true);
 
         wireCopy(copyButton, input, copyButton.getAttribute("data-copied"));
     }
@@ -338,10 +381,15 @@
             }
             return window.fetch(url, options).then(function (response) {
                 if (response.ok) return response.status === 204 ? null : response.json();
+                function failure(message) {
+                    var error = new Error(message);
+                    error.status = response.status;
+                    return error;
+                }
                 return response.json().then(function (data) {
-                    throw new Error((data && data.detail) || text("error"));
+                    throw failure((data && data.detail) || text("error"));
                 }, function () {
-                    throw new Error(text("error"));
+                    throw failure(text("error"));
                 });
             });
         }
@@ -428,6 +476,8 @@
                 request("DELETE", api + link.token + "/").then(load, function (e) {
                     revoke.disabled = false;
                     showError(e.message);
+                    // Revoked or expired meanwhile (another tab, another admin): the list as it is now
+                    if (e.status === 404) load().then(function () { showError(e.message); });
                 });
             });
             // The link page as anyone with the link sees it, in a new tab (this user's session changes nothing there)

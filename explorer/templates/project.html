@@ -64,10 +64,11 @@
                     <label><input type="checkbox" name="allowed"{% if allowed %} checked{% endif %}> {% trans "Allow Links" %}</label>
                 </div>
                 <p class="explorer-card-text">{% trans "This project is private, and Explorer Settings allow links for public projects only: its links work only while this is ticked. Shown to administrators." %}</p>
+                <div class="explorer-allowed-error alert alert-warning" role="alert" hidden></div>
             </form>
             {% endif %}
             {% if not links_work %}
-            <p class="explorer-links-blocked alert alert-info">{% trans "Links are allowed only for public projects here: this project's links don't work, and no new ones can be made, until it is shared publicly in WebODM (the Dashboard: the project's Share, Enabled) or an administrator allows them." %}</p>
+            <p class="explorer-links-blocked alert theme-border-secondary-07">{% trans "Links are allowed only for public projects here: this project's links don't work, and no new ones can be made, until it is shared publicly in WebODM (the Dashboard: the project's Share, Enabled) or an administrator allows them." %}</p>
             {% endif %}
             <div class="explorer-links-list" aria-live="polite"></div>
             <form class="explorer-link-form"{% if not links_work %} hidden{% endif %}>

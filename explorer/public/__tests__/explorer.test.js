@@ -69,6 +69,14 @@ test("a copy the browser refuses leaves the button as it was and the link select
     expect(input.selectionEnd).toBe(input.value.length);
 });
 
+test("the project page opens with its Share panel open at #share (after Allow Links reloads it)", () => {
+    window.history.replaceState(null, "", "#share");
+    const { share, panel } = render();
+    expect(panel.hidden).toBe(false);
+    expect(share.getAttribute("aria-expanded")).toBe("true");
+    window.history.replaceState(null, "", window.location.pathname);
+});
+
 test("a thumbnail that fails to load becomes the card's placeholder", () => {
     document.body.innerHTML = `<div class="explorer-card">
         <img class="explorer-thumbnail" alt="" data-placeholder-icon="fa fa-cube" src="/thumbnail">
@@ -148,6 +156,7 @@ function allowPanel(checked) {
     document.body.innerHTML = `
         <form data-allowed-api="/api/plugins/explorer/projects/7/links-allowed/" data-error="Not saved.">
             <input type="checkbox" name="allowed"${checked ? " checked" : ""}>
+            <div class="explorer-allowed-error" hidden></div>
         </form>
         <form class="explorer-link-form"><input type="hidden" name="csrfmiddlewaretoken" value="CSRF"></form>
         <div class="explorer-links-error" hidden></div>`;
@@ -171,7 +180,7 @@ test("Allow Links saves the change with the CSRF token, then loads the page agai
     delete window.fetch;
 });
 
-test("Allow Links that can't be saved goes back and says so in the panel", async () => {
+test("Allow Links that can't be saved goes back and says so beside the box", async () => {
     const box = allowPanel(true);
     window.fetch = jest.fn(() => Promise.resolve({ok: false, status: 403}));
     const reload = jest.fn();
@@ -181,8 +190,9 @@ test("Allow Links that can't be saved goes back and says so in the panel", async
     await settle();
     expect(box.checked).toBe(true);
     expect(box.disabled).toBe(false);
-    expect(document.querySelector(".explorer-links-error").hidden).toBe(false);
-    expect(document.querySelector(".explorer-links-error").textContent).toBe("Not saved.");
+    expect(document.querySelector(".explorer-allowed-error").hidden).toBe(false);
+    expect(document.querySelector(".explorer-allowed-error").textContent).toBe("Not saved.");
+    expect(document.querySelector(".explorer-links-error").hidden).toBe(true);
     expect(reload).not.toHaveBeenCalled();
     delete window.fetch;
 });
