@@ -108,7 +108,7 @@ found": that is expected.
 ## 5. Install Explorer and set its public address
 
 1. In WebODM (through the tunnel), **Administration > Plugins > Load Plugin (.zip)**, with Explorer's zip.
-2. WebODM asks for a restart. From your computer:
+2. Restart WebODM (it doesn't ask, but its other processes only know Explorer after a restart). From your computer:
 
    ```bash
    ssh odm@maps.example.com sudo webodm restart
@@ -186,7 +186,7 @@ The first time a textured model is opened, Explorer builds its 3D Tiles on the s
 | `DOMAIN` | none | The server's DNS name |
 | `EMAIL` | none | For Let's Encrypt's notices |
 | `ADMIN_USER` | `odm` | The user you log in as (sudo; gets root's SSH keys when the script creates it) |
-| `WEBODM_VERSION` | `4.0.1` | The WebODM release to run (4.0.0 or later) |
+| `WEBODM_VERSION` | `4.0.1` | The WebODM release to run (4.0.1 or later) |
 | `TLS` | `acme` | `acme` for Let's Encrypt; `internal` for a test server without public DNS |
 | `SWAP_GB` | `2` | Swap the server has in all: a swap file tops up Linode's own swap disk; `0` adds none |
 | `AUTO_REBOOT` | `yes` | Reboot at 04:00 when an update needs it |

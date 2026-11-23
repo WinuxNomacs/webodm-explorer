@@ -109,7 +109,7 @@ if [[ "$TLS" == acme ]]; then
 fi
 [[ "$ADMIN_USER" =~ ^[a-z_][a-z0-9_-]{0,31}$ && "$ADMIN_USER" != root ]] || fail "ADMIN_USER must be a plain user name, not root"
 [[ "$WEBODM_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || fail "WEBODM_VERSION is a release number such as 4.0.1"
-[[ "$WEBODM_VERSION" =~ ^([4-9]|[1-9][0-9])\. ]] || fail "Explorer needs WebODM 4.0.0 or later"
+printf '%s\n' 4.0.1 "$WEBODM_VERSION" | sort -V -C || fail "Explorer needs WebODM 4.0.1 or later"
 [[ "$SWAP_GB" =~ ^[0-9]+$ ]] || fail "SWAP_GB is a number"
 [[ "$AUTO_REBOOT" == yes || "$AUTO_REBOOT" == no ]] || fail "AUTO_REBOOT is yes or no"
 # SSH logins are turned to keys only below: refuse now rather than lock you out
@@ -425,8 +425,8 @@ The server is ready. From your own computer:
      first visitor through the tunnel creates it (no one else can reach that page).
 
   2. In WebODM: Administration > Plugins > Load Plugin (.zip), with Explorer's zip. Then restart WebODM
-     (it asks to): ssh $ADMIN_USER@$DOMAIN sudo webodm restart
-  3. Explorer > Settings: Public Address https://$DOMAIN
+     (it doesn't ask, but needs it): ssh $ADMIN_USER@$DOMAIN sudo webodm restart
+  3. Explorer Settings (in the sidebar): Public Address https://$DOMAIN
   4. Import your processed tasks, then share links: they open at https://$DOMAIN/...
 
 Root and password logins are off: log in as $ADMIN_USER with your SSH key. This log: $LOG

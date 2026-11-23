@@ -1,6 +1,6 @@
 # Explorer
 
-A plugin for [WebODM](https://github.com/WebODM/WebODM) 4.0 and later, to browse and share a project's outputs.
+A plugin for [WebODM](https://github.com/WebODM/WebODM) 4.0.1 and later, to browse and share a project's outputs.
 Under development.
 
 The documentation is at **https://winuxnomacs.github.io/webodm-explorer/** (its sources in [docs/](docs/)):

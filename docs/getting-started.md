@@ -2,7 +2,7 @@
 
 ## Requirements
 
-- **WebODM 4.0.0 or later**, installed with Docker (`webodm.sh`) on Linux, macOS or Windows (WSL). The native
+- **WebODM 4.0.1 or later**, installed with Docker (`webodm.sh`) on Linux, macOS or Windows (WSL). The native
   Windows app is not supported.
 - An administrator account in WebODM, to install the plugin.
 - For visitors: a browser with WebGL 2 for the 3D views (any current desktop or mobile browser). Maps work
@@ -14,15 +14,19 @@
    [releases](https://github.com/WinuxNomacs/webodm-explorer/releases) (the newest one, unless you need an older
    version).
 2. In WebODM, open **Administration > Plugins** and choose **Load Plugin (.zip)**.
-3. Pick the zip. WebODM installs and enables it; **Explorer** appears in the main menu.
+3. Pick the zip. WebODM installs and enables it.
+4. Restart WebODM (`./webodm.sh restart` in WebODM's folder). WebODM doesn't ask for it, but until then only some of
+   its processes know Explorer: its pages can answer "not found" and the menu item come and go. After the restart,
+   **Explorer** is in the main menu, and **Explorer Settings** for administrators.
 
 The zip includes the tools Explorer uses to build 3D Tiles from textured models (for Linux x64 and arm64), so
 nothing else needs installing.
 
 ::: tip Upgrading
 WebODM refuses a zip for a plugin that is already installed. In **Administration > Plugins**, delete Explorer, then
-load the newer zip. Links and settings are kept (they are in WebODM's database), and so are the 3D Tiles built from
-textured models (they are in each task's folder). If WebODM asks for a restart, restart it (`./webodm.sh restart`).
+load the newer zip, and restart WebODM (`./webodm.sh restart`) every time: until then the old version keeps running.
+Links and settings are kept (they are in WebODM's database), and so are the 3D Tiles built from textured models (they
+are in each task's folder).
 :::
 
 ## A first look
