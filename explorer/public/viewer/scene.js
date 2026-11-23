@@ -34,14 +34,25 @@ const DOUBLE_TAP_PIXELS = 24;
 // A cube around where most of the sampled points are (frame.js), its diagonal the frame's diameter; null without
 // points. frame() fits a box's diagonal, so the camera fits that sphere.
 export function robustBox(xs, ys, zs) {
-    const found = window.ExplorerFrame.sphere(xs, ys, zs);
+    return cubeAround(window.ExplorerFrame.sphere(xs, ys, zs));
+}
+
+function cubeAround(found) {
     if (!found) return null;
     const center = new THREE.Vector3(...found.center);
     const half = Math.max(found.radius, 0.01) / Math.sqrt(3);
     return new THREE.Box3(center.clone().subScalar(half), center.clone().addScalar(half));
 }
 
-function meshFrameBox(object) {
+// A view's frame from sampled points (world coordinates): {box: robustBox's cube, floor: the points' bottom (frame.js),
+// where the Grid goes}, or null without points. The cube's own bottom is far below a wide, flat model.
+function frameOf(xs, ys, zs) {
+    const found = window.ExplorerFrame.sphere(xs, ys, zs);
+    return found ? { box: cubeAround(found), floor: window.ExplorerFrame.bottom(xs, ys, zs, found) } : null;
+}
+
+// parent (optional): a matrix applied after the object's own, for a tile not yet in its turned group
+function meshFrame(object, parent) {
     const xs = [], ys = [], zs = [];
     const point = new THREE.Vector3();
     object.updateMatrixWorld(true);
@@ -53,44 +64,52 @@ function meshFrameBox(object) {
         const positions = child.geometry.attributes.position;
         for (let i = 0; i < positions.count; i += step) {
             point.fromBufferAttribute(positions, i).applyMatrix4(child.matrixWorld);
+            if (parent) point.applyMatrix4(parent);
             xs.push(point.x); ys.push(point.y); zs.push(point.z);
         }
     });
-    return robustBox(xs, ys, zs) || new THREE.Box3().setFromObject(object);
+    return frameOf(xs, ys, zs) || { box: new THREE.Box3().setFromObject(object), floor: null };
 }
 
-function splatFrameBox(mesh) {
+// One pass over the loaded splats, sampled evenly: Spark decodes every splat it visits, and can't skip any
+function splatFrame(mesh, count) {
     const xs = [], ys = [], zs = [];
+    const point = new THREE.Vector3();
+    const step = Math.max(1, Math.ceil(count / FRAME_SAMPLES));
+    mesh.updateMatrixWorld(true);
     try {
         mesh.forEachSplat((index, center) => {
-            if (xs.length < FRAME_SAMPLES) { xs.push(center.x); ys.push(center.y); zs.push(center.z); }
+            if (index % step) return;
+            point.copy(center).applyMatrix4(mesh.matrixWorld);
+            xs.push(point.x); ys.push(point.y); zs.push(point.z);
         });
     } catch (e) {
         console.warn("Explorer: framing the splats by their bounds", e);
     }
-    const box = robustBox(xs, ys, zs) || mesh.getBoundingBox(true);
-    return box.applyMatrix4(mesh.matrixWorld);
+    return frameOf(xs, ys, zs) || { box: mesh.getBoundingBox(true).applyMatrix4(mesh.matrixWorld), floor: null };
 }
 
-function cloudFrameBox(positions) {
+function cloudFrame(positions) {
     const xs = [], ys = [], zs = [];
     const count = positions.length / 3;
     const step = Math.max(1, Math.floor(count / FRAME_SAMPLES));
     for (let i = 0; i < count; i += step) {
         xs.push(positions[i * 3]); ys.push(positions[i * 3 + 1]); zs.push(positions[i * 3 + 2]);
     }
-    return robustBox(xs, ys, zs);
+    return frameOf(xs, ys, zs) || { box: new THREE.Box3(), floor: null };
 }
 
-// Tile requests as point cloud nodes: a deadline, one retry (not on 404), and the renderer's own abort signal
+// Tile requests as point cloud nodes: a deadline, one retry (not on 404), and the renderer's own abort signal; a tile
+// the renderer cancelled is not tried again, so it frees its download slot at once
 function tilesFetch(url, options) {
+    const signal = options && options.signal;
     return withRetry(async () => {
         const controller = new AbortController();
         const abort = () => controller.abort();
         const timer = setTimeout(abort, FETCH_TIMEOUT_MS);
-        if (options && options.signal) {
-            if (options.signal.aborted) abort();
-            options.signal.addEventListener("abort", abort, { once: true });
+        if (signal) {
+            if (signal.aborted) abort();
+            signal.addEventListener("abort", abort, { once: true });
         }
         try {
             const response = await fetch(url, { ...options, credentials: "same-origin", signal: controller.signal });
@@ -98,8 +117,9 @@ function tilesFetch(url, options) {
             return response;
         } finally {
             clearTimeout(timer);
+            if (signal) signal.removeEventListener("abort", abort);
         }
-    });
+    }, signal);
 }
 
 // options: {draco (the decoder's folder), basis (the KTX2 transcoder's folder), cloud: {scripts, budget} for ept.js,
@@ -135,6 +155,8 @@ function createScene(container, options) {
         renderer.setSize(width, height, false);
         camera.aspect = width / height;
         camera.updateProjectionMatrix();
+        // The tiles refine for the canvas's size: after Fullscreen, a turned phone or a resized window too
+        if (tiles) tiles.setResolutionFromRenderer(camera, renderer);
     }
     new ResizeObserver(resize).observe(container);
     resize();
@@ -149,11 +171,14 @@ function createScene(container, options) {
     const offset = options.offset ? new THREE.Vector3(...options.offset) : null;
     controls.addEventListener("start", () => { moved = true; });
 
-    function frame(box) {
+    // The model's radius, for the camera's clipping planes and how far out it can zoom
+    let modelRadius = 1;
+    function frame(box, floor) {
         if (!box || box.isEmpty()) return;
         moved = false;
         const center = box.getCenter(new THREE.Vector3());
         const radius = Math.max(box.getSize(new THREE.Vector3()).length() / 2, 0.01);
+        modelRadius = radius;
         // Fit the narrower of the two angles: on a phone held upright, the horizontal one
         const vertical = THREE.MathUtils.degToRad(camera.fov);
         const horizontal = 2 * Math.atan(Math.tan(vertical / 2) * camera.aspect);
@@ -161,26 +186,38 @@ function createScene(container, options) {
         // From the south-east and above, as an oblique aerial view
         const direction = new THREE.Vector3(0.6, -0.6, 0.55).normalize();
         camera.position.copy(center).addScaledVector(direction, distance);
-        camera.near = Math.max(distance / 1000, 0.01);
-        camera.far = distance * 20;
-        camera.updateProjectionMatrix();
+        controls.maxDistance = distance * 20;
         controls.target.copy(center);
         controls.update();
-        backdrop.fit(box);
+        clip();
+        backdrop.fit(box, floor);
+    }
+
+    // The clipping planes follow the camera's distance: the model never vanishes zoomed out, nor clips zoomed in
+    let clipDistance = 0;
+    function clip() {
+        const distance = Math.max(camera.position.distanceTo(controls.target), 0.01);
+        if (Math.abs(distance - clipDistance) < distance * 0.01) return;
+        clipDistance = distance;
+        camera.near = Math.max(distance / 500, 0.01);
+        camera.far = distance + modelRadius * 10;
+        camera.updateProjectionMatrix();
     }
 
     // A switch to another view of the same model: the camera stays, the grid goes under the new view, and a late,
     // better frame doesn't move it
-    function keep(box) {
+    function keep(box, floor) {
         if (!box || box.isEmpty()) return;
         moved = true;
-        backdrop.fit(box);
+        modelRadius = Math.max(box.getSize(new THREE.Vector3()).length() / 2, modelRadius);
+        clipDistance = 0;
+        backdrop.fit(box, floor);
     }
 
     // Reset View: the shown view framed again
     function reset() {
         const view = current && views[current];
-        if (view) view.then((v) => frame(v.box), () => {});
+        if (view) view.then((v) => frame(v.box, v.floor), () => {});
     }
 
     // The point of the shown model under a screen position (client pixels), or null: three's raycast on the mesh, its
@@ -192,14 +229,13 @@ function createScene(container, options) {
         const rect = renderer.domElement.getBoundingClientRect();
         const ndc = new THREE.Vector2((clientX - rect.left) / rect.width * 2 - 1, -(clientY - rect.top) / rect.height * 2 + 1);
         raycaster.setFromCamera(ndc, camera);
-        let targets = [view.object];
         if (current === "cloud" && cloud) {
+            // ept.js's own search: only the nodes the ray crosses, with no object made per point
             const distance = camera.position.distanceTo(controls.target);
             const perPixel = 2 * distance * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) / rect.height;
-            raycaster.params.Points.threshold = perPixel * PICK_PIXELS;
-            targets = cloud.group.children.filter((points) => points.visible);
+            return cloud.pick(raycaster.ray, perPixel * PICK_PIXELS);
         }
-        const hits = raycaster.intersectObjects(targets, true).filter((hit) => hit.point && isFinite(hit.point.x));
+        const hits = raycaster.intersectObjects([view.object], true).filter((hit) => hit.point && isFinite(hit.point.x));
         if (!hits.length) return null;
         hits.sort((a, b) => a.distance - b.distance);
         return hits[0].point;
@@ -234,7 +270,7 @@ function createScene(container, options) {
     async function loadGlb(url, onProgress) {
         const gltf = await gltfLoader.loadAsync(url, progress(onProgress));
         scene.add(gltf.scene);
-        return { object: gltf.scene, box: meshFrameBox(gltf.scene) };
+        return { object: gltf.scene, ...meshFrame(gltf.scene) };
     }
 
     // The mesh tiles, open once the root tile shows; rejects if the tileset or the root can't load
@@ -263,11 +299,12 @@ function createScene(container, options) {
             function fail(error) {
                 clearTimeout(timer);
                 opening.delete("mesh");
+                if (tiles === opened) tiles = null;
                 opened.dispose();
                 scene.remove(opened.group);
                 reject(error);
             }
-            const view = { object: opened.group, box: null };
+            const view = { object: opened.group, box: null, floor: null };
             let framedOnRoot = false;
             // Frame on the tileset's bounds first: tiles outside the camera's view are never loaded, the root included
             opened.addEventListener("load-root-tileset", () => {
@@ -286,12 +323,14 @@ function createScene(container, options) {
                 opened.group.updateMatrixWorld(true);
                 if (!framedOnRoot && event.tile === opened.root) {
                     framedOnRoot = true;
-                    // The tile may not be in the (turned) group yet: its box then needs the group's turn added
-                    const box = meshFrameBox(event.scene);
+                    // The tile may not be in the (turned) group yet: its points then need the group's turn added
                     let attached = false;
                     for (let node = event.scene.parent; node; node = node.parent) attached = attached || node === opened.group;
-                    view.box = attached ? box : box.applyMatrix4(opened.group.matrixWorld);
-                    if (shown && current === "mesh" && !moved) frame(view.box);
+                    Object.assign(view, meshFrame(event.scene, attached ? null : opened.group.matrixWorld));
+                    if (shown && current === "mesh") {
+                        if (moved) keep(view.box, view.floor);
+                        else frame(view.box, view.floor);
+                    }
                 }
                 if (shown) return;
                 shown = true;
@@ -343,13 +382,16 @@ function createScene(container, options) {
             }
             throw e;
         }).finally(() => opening.delete("splats"));
+        // Waits for the first pages by the splat count, which is cheap to read (bounds decode every splat each time)
+        const count = () => {
+            const n = mesh.splats && mesh.splats.numSplats;
+            if (Number.isFinite(n)) return n;
+            return mesh.getBoundingBox().isEmpty() ? 0 : FRAME_SAMPLES;
+        };
         const until = performance.now() + BOUNDS_WAIT_MS;
-        let box = mesh.getBoundingBox();
-        while (box.isEmpty() && performance.now() < until) {
-            await new Promise((r) => setTimeout(r, 200));
-            box = mesh.getBoundingBox();
-        }
-        return { object: mesh, box: box.isEmpty() ? box : splatFrameBox(mesh) };
+        while (!count() && performance.now() < until) await new Promise((r) => setTimeout(r, 200));
+        const n = count();
+        return { object: mesh, ...(n ? splatFrame(mesh, n) : { box: new THREE.Box3(), floor: null }) };
     }
 
     async function loadCloud(url, onProgress, onFailure) {
@@ -365,13 +407,13 @@ function createScene(container, options) {
         cloud = opened;
         opened.setStyle(cloudStyle);
         // The cloud is drawn relative to its centre; WebODM's offset puts it where the mesh and the splats are
-        const box = cloudFrameBox(positions);
+        const { box, floor } = cloudFrame(positions);
         if (offset) {
             opened.group.position.set(...opened.info.origin).sub(offset);
             box.translate(opened.group.position);
         }
         scene.add(opened.group);
-        return { object: opened.group, box };
+        return { object: opened.group, box, floor: floor === null ? null : floor + opened.group.position.z };
     }
 
     const loaders = { cloud: loadCloud, mesh: loadMesh, splats: loadSplats };
@@ -399,10 +441,13 @@ function createScene(container, options) {
         }
         view.object.visible = current === type;
         if (current !== type) return;
-        if (keeping) keep(view.box);
-        else frame(view.box);
-        placed = true;
-        shownBox = view.box;
+        if (keeping) keep(view.box, view.floor);
+        else frame(view.box, view.floor);
+        // A view with no bounds (splats whose pages never came) leaves the camera unplaced, for the next view to frame
+        if (view.box && !view.box.isEmpty()) {
+            placed = true;
+            shownBox = view.box;
+        }
     }
 
     renderer.setAnimationLoop(() => {
@@ -412,6 +457,7 @@ function createScene(container, options) {
             if (t >= 1) focus = null;
         }
         controls.update();
+        clip();
         if (cloud && current === "cloud") cloud.update(camera, renderer);
         if (tiles && (current === "mesh" || opening.has("mesh"))) {
             camera.updateMatrixWorld();
@@ -449,7 +495,27 @@ function createScene(container, options) {
         return cloud ? cloud.elevationRange() : null;
     }
 
-    return { show, resize, stats, place, reset, setCloudStyle, cloudRange, pick, setBackground: backdrop.set };
+    // A lost WebGL context (a phone short of graphics memory): three stops drawing; lost() lets the page say so, and
+    // restored() follows if the browser gives the context back, for the page to show its view again. The backgrounds
+    // drawn into textures are drawn again; Spark doesn't rebuild its splats' textures, so the splats open again (their
+    // file from the browser's cache)
+    function watchContext(lost, restored) {
+        renderer.domElement.addEventListener("webglcontextlost", (event) => {
+            event.preventDefault(); // asks the browser to restore it
+            lost();
+        });
+        renderer.domElement.addEventListener("webglcontextrestored", () => {
+            backdrop.restore();
+            const splats = views.splats;
+            if (splats) {
+                delete views.splats;
+                splats.then((view) => { scene.remove(view.object); view.object.dispose(); }, () => {});
+            }
+            restored();
+        });
+    }
+
+    return { show, resize, stats, place, reset, setCloudStyle, cloudRange, pick, watchContext, setBackground: backdrop.set };
 }
 
 // "x y" (the page's data-offset) as [x, y, 0], or null

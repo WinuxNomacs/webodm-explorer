@@ -30,7 +30,7 @@ The map shows one layer at a time: the **Orthophoto**, **DSM**, **DTM**, or a th
 |---|---|---|
 | Orbit | Left drag | One finger |
 | Pan | Right drag, or Shift and drag | Two fingers |
-| Zoom | Wheel | Pinch |
+| Zoom | Wheel (out to about 20 times the first view's distance) | Pinch |
 | Focus | Double-click a point to orbit around it | Double-tap a point |
 
 Keys: **R** resets the view, **F** turns fullscreen on and off, **B** changes the background. The "?" button shows
@@ -40,7 +40,8 @@ these controls on the page.
   **Plain** (the page's own colour).
 - **Point Cloud**: the panel at the bottom left sets the **Point Size** and the **Colour**: **Photo Colours** or
   **Elevation**, with a legend in metric or imperial units. The cloud streams node by node within a point budget:
-  10 million points on a computer, 2 million on a phone, 1 million on iOS (the same as WebODM's own 3D page).
+  10 million points on a computer, 2 million on a phone, 1 million on iOS (the same as WebODM's own 3D page). A part
+  that fails to load (a phone's connection dropping) is tried again a few times, after a pause that grows.
 - **Textured Model**: streams as 3D Tiles, only what is on screen, finer close up. The first time a model is
   opened, Explorer builds its tiles in WebODM's worker (a minute or two per mesh, one at a time, at low priority);
   until they are ready the view shows WebODM's own model, with a message that a faster view is being prepared.
@@ -54,3 +55,5 @@ Point size, colour, background, opacity, basemap and units are remembered in the
 - "This browser can't show 3D views": the browser has no WebGL 2. Maps still work.
 - "This view could not be loaded": the output is missing or damaged. Check the task in WebODM.
 - "This link is no longer valid": the link was revoked or has expired. Ask whoever sent it for a new one.
+- "The 3D view stopped": the device ran short of graphics memory (most often a phone with several views opened).
+  If the browser recovers, the view comes back by itself; otherwise reload the page.

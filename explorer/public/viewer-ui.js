@@ -148,6 +148,9 @@
 
     // How long the note that a faster view is being prepared stays
     var NOTE_MS = 8000;
+    // A failed node or tile checks the link with the server: one check at a time, at most this often unless the server
+    // answered 404 (a revoked link), and none once the link is known to be gone
+    var CHECK_MS = 10000;
 
     function meshUrl(url, kind) {
         return kind ? url + "?platform=" + kind : url;
@@ -184,6 +187,29 @@
             var controls = Controls.init(page, {reset: function () { scene.reset(); }, resize: fit,
                 keys: {b: background.next}});
             var panel = cloudPanel(page, scene);
+            if (scene.watchContext) {
+                scene.watchContext(function () {
+                    line.show(page.getAttribute("data-context-lost"));
+                }, function () {
+                    if (line.text() === page.getAttribute("data-context-lost")) line.hide();
+                    // The view chosen, shown again (opened again where the lost context took it)
+                    for (var i = 0; i < switches.length; i++) {
+                        if (switches[i].getAttribute("data-type") === current) select(switches[i]);
+                    }
+                });
+            }
+            var lastCheck = -Infinity, checking = false, gone = false;
+            function checkLink(type, status) {
+                var now = Date.now();
+                if (gone || checking || (status !== 404 && now - lastCheck < CHECK_MS)) return;
+                lastCheck = now;
+                checking = true;
+                helpers.linkIsValid(page.getAttribute("data-link")).then(function (valid) {
+                    checking = false;
+                    gone = !valid;
+                    if (!valid && current === type) line.show(page.getAttribute("data-invalid"));
+                });
+            }
 
             function select(button) {
                 var type = button.getAttribute("data-type");
@@ -200,11 +226,9 @@
                 line.show(loading);
                 scene.show(type, urlFor(button), function (fraction) {
                     if (current === type && fraction !== null) line.show(loading + " " + Math.round(fraction * 100) + "%");
-                }, function () {
-                    // A point cloud node failed once the view was open: say so only if the link is gone
-                    helpers.linkIsValid(page.getAttribute("data-link")).then(function (valid) {
-                        if (!valid && current === type) line.show(page.getAttribute("data-invalid"));
-                    });
+                }, function (status) {
+                    // A point cloud node or a tile failed once the view was open: say so only if the link is gone
+                    checkLink(type, status);
                 }, fallbackFor(button)).then(function () {
                     if (current !== type) return;
                     panel.show(type === "cloud");

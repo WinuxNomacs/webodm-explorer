@@ -3,7 +3,7 @@
 ## Phases (current and upcoming)
 
 Up next: **Code review fixes** (the user's review request 2026-11-22, findings below), in four groups, each a
-branch: 1. high (done); 2. the Linode script and guide (done); 3. viewer medium; 4. pages and phones.
+branch: 1. high (done); 2. the Linode script and guide (done); 3. viewer medium (done); 4. pages and phones.
 
 Then: **Documentation site** (the request 2026-11-22, plan below; decided). Its steps, each a phase:
 1. the site and its pages (Getting Started, usage guides; done); 2. the Linode hosting guide and its script (done); 3. publishing to GitHub Pages (once the repo is public).
@@ -16,7 +16,9 @@ steps (see "Done"). Its steps, each a phase: 1. defects (single-band colours and
 framing; done); 2. navigation hub (home and project pages, with Explorer's viewer for signed-in users and Open in
 WebODM; done); 3. viewer polish (done); 4. showcase (link landing page, embed; done).
 
-Later: COPC point clouds and a Range/caching asset endpoint (only if EPT through WebODM proves too slow);
+Later: the mesh tiles of task 89d7617e (the dev stack) drop to 30 fps while ~200-260 tiles parse, when loading, orbiting
+and idle (p95 33 ms, measured 2026-11-22 on `main` and after group 3 alike): look at the parse queue and the tile
+count; COPC point clouds and a Range/caching asset endpoint (only if EPT through WebODM proves too slow);
 the docs site moved to Up next.
 
 ## Explorer: sharing streamed viewers of a project's outputs
@@ -733,6 +735,24 @@ The user chose to fix all four groups:
    of the plugin's folder (they survive upgrades).
 
 ## Done
+
+- **Code review fixes, group 3: viewer medium** (findings 2026-11-22, branch `review-viewer`; `viewer/scene.js`,
+  `viewer/ept.js`, `viewer/backdrop.js`, `viewer-ui.js`, `frame.js`, `link_3d.html`): the tiles' resolution follows
+  resizes; the Grid's floor is each view's lowest sampled point within 1.5 times its frame's radius, measured
+  across (`frame.js` `bottom`), not the frame cube's bottom (hundreds of metres down on a wide survey); a double-click
+  on the cloud searches only the nodes the ray crosses (`EptCloud.pick`, no object per point); the splats wait on
+  their count, not on `getBoundingBox` every 200 ms, and are framed in one evenly sampled pass (Spark has no cheaper
+  public way); a failed cloud node or subtree is tried again after 5 s, doubling to a minute, 6 tries; the link check
+  after failures runs one at a time, at most every 10 s unless a 404, and stops once the link is gone; a lost WebGL
+  context shows a message, and when the browser restores it the backgrounds are redrawn and the view shown again
+  (the splats opened again: Spark doesn't rebuild them); also, from the same review: a tile the renderer cancels is
+  not retried, the clipping planes follow the camera with a zoom-out limit (20x the frame), and a view with no bounds
+  no longer marks the camera placed. Not done: finding 12 (render only when something changes), a design change.
+  Checked live (task 89d7617e): the cloud's node failing once loads on the retry; double-click pick with no long
+  task; splats open with no long task (one of 114 ms before); context lost and restored on all three views; the
+  floor under the cloud and the mesh (the mesh's skirt stays above it). Perf (`link-perf.js`, M4 Pro): cloud and
+  splats steady at 16.7 ms; this task's mesh drops frames while its tiles parse (p95 33 ms), the same on `main`
+  (see "Later").
 
 - **Code review fixes, group 2: the Linode script and guide** (findings 2026-11-22, branch `review-linode`;
   `docs/public/linode/setup.sh`, `docs/hosting/linode.md`, `dev/linode-vm/vm.sh`): the settings of the last run are

@@ -68,6 +68,33 @@ test("a point cloud node that fails says the link is gone only when it is", asyn
     expect(status.textContent).toBe("Gone.");
 });
 
+test("failures check the link at most every 10 seconds, a 404 at once, and not at all once it is gone", async () => {
+    const element = page("mesh");
+    const scene = fakeScene();
+    viewer.create(element, desktop).start(scene);
+    scene.calls[0].resolve();
+    await settle();
+    let now = 1000000;
+    const clock = jest.spyOn(Date, "now").mockImplementation(() => now);
+    window.fetch = jest.fn(() => Promise.resolve({status: 200}));
+    for (let i = 0; i < 20; i++) scene.calls[0].onFailure(null); // a burst while offline
+    await settle();
+    expect(window.fetch).toHaveBeenCalledTimes(1);
+    now += 10001;
+    scene.calls[0].onFailure(500);
+    await settle();
+    expect(window.fetch).toHaveBeenCalledTimes(2);
+    window.fetch = jest.fn(() => Promise.resolve({status: 404}));
+    scene.calls[0].onFailure(404);
+    await settle();
+    expect(window.fetch).toHaveBeenCalledTimes(1);
+    now += 60000;
+    for (let i = 0; i < 5; i++) scene.calls[0].onFailure(404);
+    await settle();
+    expect(window.fetch).toHaveBeenCalledTimes(1);
+    clock.mockRestore();
+});
+
 test("a failure from a type no longer shown changes nothing", async () => {
     const element = page("mesh");
     const scene = fakeScene();

@@ -27,7 +27,22 @@
         return {center: center, radius: distances[at]};
     }
 
-    var Frame = {sphere: sphere, SHARE: SHARE};
+    // The model's bottom, for the Grid's floor: the lowest sampled point within BOTTOM_REACH times the frame's radius of
+    // its centre (measured across, not up), so stray fragments off to the side don't pull it down, while the model's
+    // own low edges (a mesh's skirt, with few points) stay above it; null without points
+    var BOTTOM_REACH = 1.5;
+    function bottom(xs, ys, zs, found) {
+        found = found || sphere(xs, ys, zs);
+        if (!found) return null;
+        var reach = BOTTOM_REACH * found.radius, lowest = Infinity;
+        for (var i = 0; i < zs.length; i++) {
+            var dx = xs[i] - found.center[0], dy = ys[i] - found.center[1];
+            if (zs[i] < lowest && dx * dx + dy * dy <= reach * reach) lowest = zs[i];
+        }
+        return lowest === Infinity ? found.center[2] : lowest;
+    }
+
+    var Frame = {sphere: sphere, bottom: bottom, SHARE: SHARE};
     if (typeof module !== "undefined" && module.exports) {
         module.exports = Frame;
     } else {
