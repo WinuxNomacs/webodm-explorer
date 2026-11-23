@@ -78,7 +78,7 @@ class PublicProjectsOnlyTests(LinkTestMixin, BootTestCase):
 
     def test_the_setting_is_a_superusers_switch_on_explorer_settings(self):
         admin = self.client_for("testsuperuser")
-        self.assertIn('name="public_projects_only"', admin.get("/plugins/explorer/settings/").content.decode())
+        self.assertIn('<option value="none">', admin.get("/plugins/explorer/settings/").content.decode())
         response = admin.patch(SETTINGS_API, {"public_projects_only": True}, content_type="application/json")
         self.assertTrue(response.json()["public_projects_only"])
         self.assertTrue(links.public_projects_only())

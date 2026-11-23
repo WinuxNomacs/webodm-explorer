@@ -15,10 +15,15 @@
             <label><input type="checkbox" name="basemaps_on_links"{% if settings.basemaps_on_links %} checked{% endif %}> {% trans "Basemaps on Links" %}</label>
         </div>
         <p class="explorer-card-text">{% trans "Maps opened from links and with View as Visitor show the basemaps set in Administration, Basemaps. Each visitor's browser then loads them from their provider, which sees the visitor's address and the area viewed." %}</p>
-        <div class="checkbox">
-            <label><input type="checkbox" name="public_projects_only"{% if settings.public_projects_only %} checked{% endif %}> {% trans "Links for Public Projects Only" %}</label>
+        <div class="form-group">
+            <label for="explorer-private-links">{% trans "Links to Private Projects" %}</label>
+            <select id="explorer-private-links" class="form-control input-sm explorer-settings-choice" name="private_links">
+                <option value="anyone"{% if settings.private_links == "anyone" %} selected{% endif %}>{% trans "Anyone with the Link" %}</option>
+                <option value="signed_in"{% if settings.private_links == "signed_in" %} selected{% endif %}>{% trans "Signed-In Users Only" %}</option>
+                <option value="none"{% if settings.private_links == "none" %} selected{% endif %}>{% trans "Not Allowed" %}</option>
+            </select>
         </div>
-        <p class="explorer-card-text">{% trans "Anyone-with-the-link links work only for projects shared publicly in WebODM (the Dashboard: the project's Share, Enabled), and for private projects an administrator allows in the project's Explorer Share panel. Links of other projects stop working until then; none are deleted." %}</p>
+        <p class="explorer-card-text">{% trans "Links of projects shared publicly in WebODM (the Dashboard: the project's Share, Enabled) always work as made. For private projects: Anyone with the Link lets each link open without a login unless it requires sign-in; Signed-In Users Only makes every link ask for a WebODM login (any account), including the links made before; Not Allowed stops their links, except for projects an administrator allows in the project's Explorer Share panel. No link is deleted: changing this back restores them." %}</p>
         <div class="form-group">
             <label for="explorer-public-address">{% trans "Public Address" %}</label>
             <input id="explorer-public-address" class="form-control input-sm" type="url" name="public_address" maxlength="200"

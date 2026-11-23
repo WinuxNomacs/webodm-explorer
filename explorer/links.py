@@ -3,13 +3,15 @@
 
 Links live in the plugin's global data store, which has no listing or locking:
 - `links:<project id>` holds the project's links, a JSON list of {token, label, created, expires, created_by,
-  downloads} (`downloads` is missing on links made before downloads existed, which means off);
+  downloads, sign_in} (`downloads` and `sign_in` are missing on links made before they existed, which means off);
 - `token:<token>` holds the project id, to find a link from its token;
 - `index:linked` holds the ids of the projects that have links (some may have only expired ones), for the Explorer
   home's Shared by Link filter. Links saved before it existed are found once, by reading every project's links;
-- `settings:public_projects_only` (Links for Public Projects Only, off by default) and `allowed:<project id>` (a
-  private project a superuser allowed links for): with the setting on, only public projects (WebODM's project Share
-  toggle) and allowed ones have working links (upcoming-changes.md, "Plan: links for public projects only").
+- `settings:private_links` (Links to Private Projects: `anyone`, the default; `signed_in`, their links ask for a
+  WebODM login; `none`, only public projects, WebODM's project Share toggle, and allowed ones have working links) and
+  `allowed:<project id>` (a private project a superuser allowed links for). It replaced `settings:public_projects_only`
+  (on reads as `none`), dropped when the new setting is saved (upcoming-changes.md, "Plan: links for public projects
+  only" and "Plan: sign-in links").
 
 Every write takes one transaction-scoped Postgres advisory lock (WebODM's Docker installs always run Postgres), so
 a revoke and a create at the same moment can't bring a revoked link back. Reads take no lock: a link is valid
@@ -56,19 +58,51 @@ def token_key(token):
 
 
 INDEX_KEY = "index:linked"
-PUBLIC_ONLY_KEY = "settings:public_projects_only"
+PUBLIC_ONLY_KEY = "settings:public_projects_only"  # before Links to Private Projects
+PRIVATE_LINKS_KEY = "settings:private_links"
+ANYONE, SIGNED_IN, NONE = "anyone", "signed_in", "none"
+PRIVATE_LINKS = (ANYONE, SIGNED_IN, NONE)
 
 
 def allowed_key(project_id):
     return f"allowed:{int(project_id)}"
 
 
+def private_links():
+    """Links to Private Projects: ANYONE (the default), SIGNED_IN or NONE; the older switch on reads as NONE."""
+    value = store().get_string(PRIVATE_LINKS_KEY, "")
+    if value in PRIVATE_LINKS:
+        return value
+    return NONE if store().get_bool(PUBLIC_ONLY_KEY, False) else ANYONE
+
+
+def set_private_links(value):
+    if value not in PRIVATE_LINKS:
+        raise ValueError("private_links")
+    store().set_string(PRIVATE_LINKS_KEY, value)
+    store().del_key(PUBLIC_ONLY_KEY)
+
+
 def public_projects_only():
-    return store().get_bool(PUBLIC_ONLY_KEY, False)
+    return private_links() == NONE
 
 
 def set_public_projects_only(value):
-    store().set_bool(PUBLIC_ONLY_KEY, bool(value))
+    """The older switch, for a Settings page from before: on is NONE; off undoes NONE only."""
+    if value:
+        set_private_links(NONE)
+    elif private_links() == NONE:
+        set_private_links(ANYONE)
+
+
+def sign_in_forced(project):
+    """Whether every link of this project asks for a login: a private project under Signed-In Users Only."""
+    return not project.public and private_links() == SIGNED_IN
+
+
+def needs_sign_in(project, link):
+    """Whether a visitor must be signed in to WebODM to open this link (any account)."""
+    return requires_sign_in(link) or sign_in_forced(project)
 
 
 def project_allowed(project_id):
@@ -110,7 +144,8 @@ def _valid_entry(entry):
     try:
         _parse_time(entry["expires"])
         return (isinstance(entry["token"], str) and isinstance(entry["label"], str)
-                and _parse_time(entry["created"]) is not None and isinstance(entry.get("downloads", False), bool))
+                and _parse_time(entry["created"]) is not None and isinstance(entry.get("downloads", False), bool)
+                and isinstance(entry.get("sign_in", False), bool))
     except (KeyError, TypeError, ValueError):
         return False
 
@@ -129,6 +164,11 @@ def _read(project_id):
 
 def allows_downloads(link):
     return link.get("downloads") is True
+
+
+def requires_sign_in(link):
+    """The link's own Require Sign-In (Links to Private Projects can ask for it too: needs_sign_in)."""
+    return link.get("sign_in") is True
 
 
 def is_expired(link, now=None):
@@ -224,12 +264,12 @@ def summary(project_id):
             "expires_soon": any(link["expires"] and _parse_time(link["expires"]) <= soon for link in live)}
 
 
-def create_link(project_id, label, expiry_days, user, downloads=False):
+def create_link(project_id, label, expiry_days, user, downloads=False, sign_in=False):
     """A new link for the project; expiry_days is one of EXPIRY_CHOICES."""
     if expiry_days not in EXPIRY_CHOICES:
         raise ValueError("expiry_days")
-    if not isinstance(downloads, bool):
-        raise TypeError("downloads")
+    if not isinstance(downloads, bool) or not isinstance(sign_in, bool):
+        raise TypeError("downloads, sign_in")
     now = timezone.now()
     link = {
         "token": secrets.token_urlsafe(32),
@@ -238,6 +278,7 @@ def create_link(project_id, label, expiry_days, user, downloads=False):
         "expires": (now + timedelta(days=expiry_days)).isoformat() if expiry_days else None,
         "created_by": user.id if user else None,
         "downloads": downloads,
+        "sign_in": sign_in,
     }
     with _locked():
         links = _read(project_id)
@@ -261,14 +302,22 @@ def revoke_link(project_id, token):
 
 def set_downloads(project_id, token, downloads):
     """Allows or stops downloads through the link; the updated link, or None if the project has no such live link."""
-    if not isinstance(downloads, bool):
-        raise TypeError("downloads")
+    return set_options(project_id, token, downloads=downloads)
+
+
+def set_options(project_id, token, **changes):
+    """
+    Changes the link's Allow Downloads (downloads) and Require Sign-In (sign_in), each a bool; the updated link, or
+    None if the project has no such live link.
+    """
+    if not changes or set(changes) - {"downloads", "sign_in"} or not all(isinstance(v, bool) for v in changes.values()):
+        raise TypeError("downloads, sign_in")
     with _locked():
         links = _read(project_id)
         link = next((link for link in links if link["token"] == token and not is_expired(link)), None)
         if link is None:
             return None
-        link["downloads"] = downloads
+        link.update(changes)
         _write(project_id, links)
     return link
 

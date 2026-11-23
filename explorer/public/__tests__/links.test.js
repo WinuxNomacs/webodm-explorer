@@ -11,7 +11,7 @@ function json(status, body) {
 // Lets every pending promise callback run
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-function render(responses, origin) {
+function render(responses, origin, forced) {
     window.fetch = jest.fn(() => responses.shift());
     document.body.innerHTML = `
         <div id="explorer-share">
@@ -19,7 +19,9 @@ function render(responses, origin) {
             <button type="button" data-explorer-copy data-copied="Copied">Copy</button>
             <div class="explorer-links" data-links-api="${API}"${origin ? ` data-origin="${origin}"` : ""} data-copy="Copy" data-copied="Copied" data-revoke="Revoke"
                  data-confirm-revoke="Revoke?" data-untitled="Untitled Link" data-never="Never expires"
-                 data-expires="Expires %(date)s" data-none="No links yet." data-downloads="Allow Downloads"
+                 data-expires="Expires %(date)s" data-none="No links yet." data-downloads="Allow Downloads" data-sign-in="Require Sign-In"
+                 ${forced ? 'data-sign-in-forced data-sign-in-forced-title="Every link asks for a login."' : ""}
+                 data-embed-sign-in="Asks for a login.""
                  data-open="Open" data-open-title="Open the link as visitors see it"
                  data-error="Something went wrong.">
                 <div class="explorer-links-list"></div>
@@ -27,6 +29,7 @@ function render(responses, origin) {
                     <input type="hidden" name="csrfmiddlewaretoken" value="csrf-value">
                     <input name="label"><select name="expires_days"><option value="30" selected>30</option><option value="never">never</option></select>
                     <input type="checkbox" name="downloads">
+                    <input type="checkbox" name="sign_in"${forced ? " checked disabled" : ""}>
                     <button type="submit">Create Link</button>
                 </form>
                 <div class="explorer-links-error" hidden></div>
@@ -87,7 +90,7 @@ test("creating a link posts the label and expiry with the CSRF token, then selec
     expect(url).toBe(API);
     expect(options.method).toBe("POST");
     expect(options.headers["X-CSRFToken"]).toBe("csrf-value");
-    expect(JSON.parse(options.body)).toEqual({label: "Client", expires_days: "never", downloads: true});
+    expect(JSON.parse(options.body)).toEqual({label: "Client", expires_days: "never", downloads: true, sign_in: false});
     expect(form.elements.label.value).toBe("");
     expect(form.elements.downloads.checked).toBe(false);
     expect(form.querySelector("[type=submit]").disabled).toBe(false);
@@ -142,7 +145,7 @@ test("revoking a link that is already gone lists the links as they are now, and 
 test("each link shows whether it allows downloads", async () => {
     const { list } = render([json(200, [{...LINK, downloads: true}, {...LINK, token: "u".repeat(43)}])]);
     await settle();
-    const boxes = list.querySelectorAll(".explorer-link-downloads input[type=checkbox]");
+    const boxes = list.querySelectorAll(".explorer-link-downloads input[name=downloads]");
     expect([...boxes].map((box) => box.checked)).toEqual([true, false]);
     expect(list.querySelector(".explorer-link-downloads").textContent).toContain("Allow Downloads");
 });
@@ -188,4 +191,61 @@ test("with a Public Address set, the links are copied with it instead of the bro
     render([json(200, [LINK])], "https://maps.example.com");
     await settle();
     expect(document.querySelector(".explorer-link-address").value).toBe("https://maps.example.com" + LINK.path);
+});
+
+test("each link shows whether it requires sign-in, and ticking it changes the link at once", async () => {
+    const { list } = render([json(200, [{...LINK, sign_in: true}, {...LINK, token: "u".repeat(43)}]),
+        json(200, {...LINK, token: "u".repeat(43), sign_in: true})]);
+    await settle();
+    const boxes = list.querySelectorAll("input[name=sign_in]");
+    expect([...boxes].map((box) => box.checked)).toEqual([true, false]);
+    expect(boxes[0].parentNode.textContent).toContain("Require Sign-In");
+    boxes[1].checked = true;
+    boxes[1].dispatchEvent(new Event("change"));
+    await settle(); await settle();
+    const [url, options] = window.fetch.mock.calls[1];
+    expect(url).toBe(API + "u".repeat(43) + "/");
+    expect(JSON.parse(options.body)).toEqual({sign_in: true});
+    expect(boxes[1].checked).toBe(true);
+    expect(boxes[1].disabled).toBe(false);
+});
+
+test("creating a link with Require Sign-In ticked asks for one", async () => {
+    const { form } = render([json(200, []), json(201, {...LINK, sign_in: true}), json(200, [{...LINK, sign_in: true}])]);
+    await settle();
+    form.elements.sign_in.checked = true;
+    form.dispatchEvent(new Event("submit", {cancelable: true}));
+    await settle(); await settle();
+    expect(JSON.parse(window.fetch.mock.calls[1][1].body).sign_in).toBe(true);
+    expect(form.elements.sign_in.checked).toBe(false);  // the form is ready for the next link
+});
+
+test("where every link must ask for a login, Require Sign-In is ticked and fixed on the form and on each link", async () => {
+    const { form, list } = render([json(200, [LINK]), json(201, {...LINK, sign_in: true}), json(200, [LINK])], null, true);
+    await settle();
+    const box = list.querySelector("input[name=sign_in]");
+    expect(box.checked).toBe(true);
+    expect(box.disabled).toBe(true);
+    expect(box.parentNode.title).toBe("Every link asks for a login.");
+    form.dispatchEvent(new Event("submit", {cancelable: true}));
+    await settle(); await settle();
+    expect(JSON.parse(window.fetch.mock.calls[1][1].body).sign_in).toBe(true);
+    expect(form.elements.sign_in.checked).toBe(true);
+});
+
+test("Embed under a link that asks for a login says it shows only to signed-in visitors", async () => {
+    const { list } = render([json(200, [LINK]), json(200, {...LINK, sign_in: true})]);
+    await settle();
+    const row = list.querySelector(".explorer-link");
+    const note = [...row.querySelectorAll(".explorer-embed p")].find((p) => p.textContent === "Asks for a login.");
+    const embed = row.querySelector("button[aria-expanded]");
+    embed.click();
+    expect(note.hidden).toBe(true);
+    embed.click();
+    const box = row.querySelector("input[name=sign_in]");
+    box.checked = true;
+    box.dispatchEvent(new Event("change"));
+    await settle(); await settle();
+    embed.click();
+    expect(note.hidden).toBe(false);
 });

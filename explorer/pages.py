@@ -68,6 +68,7 @@ class Viewer(NamedTuple):
     downloads: bool
     preview: bool
     signed_in: bool = False
+    sign_in_link: bool = False  # a link that asks for a WebODM login: no preview in chat apps
 
 
 class HomeQuery(NamedTuple):

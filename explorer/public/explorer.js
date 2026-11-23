@@ -182,7 +182,19 @@
                 error.hidden = false;
             }).then(function () { busy(field, false); });
         }
-        // Each switch (Basemaps on Links, Links for Public Projects Only) by its field's name
+        // Each choice (Links to Private Projects) by its field's name; back to the saved one if it can't be saved
+        var choices = form.querySelectorAll("select");
+        Array.prototype.forEach.call(choices, function (select) {
+            var saved = select.value;
+            select.addEventListener("change", function () {
+                var change = {};
+                change[select.name] = select.value;
+                save(select, change,
+                    function (result) { saved = select.value = result[select.name]; },
+                    function () { select.value = saved; });
+            });
+        });
+        // Each switch (Basemaps on Links) by its field's name
         var boxes = form.querySelectorAll("input[type=checkbox]");
         Array.prototype.forEach.call(boxes, function (box) {
             box.addEventListener("change", function () {
@@ -438,11 +450,17 @@
             group.appendChild(buttons);
             panel.appendChild(group);
             panel.appendChild(element("p", "explorer-card-text", text("embed-note")));
+            // A link that asks for a login shows in another site's frame only to visitors signed in to this WebODM
+            // in the same browser, which most browsers prevent (third-party cookies)
+            var signInNote = element("p", "explorer-card-text", text("embed-sign-in"));
+            panel.appendChild(signInNote);
             function update() {
+                signInNote.hidden = !(link.sign_in || signInForced);
                 code.value = embedCode(origin + link.path, select.value, text("project-name") || "");
             }
             select.addEventListener("change", update);
             update();
+            panel.explorerRefresh = update;  // the link's Require Sign-In may have changed since
             return panel;
         }
 
@@ -454,7 +472,8 @@
             heading.appendChild(element("span", "explorer-card-text", link.expires
                 ? text("expires").replace("%(date)s", new Date(link.expires).toLocaleDateString())
                 : text("never")));
-            heading.appendChild(downloadsToggle(link));
+            heading.appendChild(linkToggle(link, "downloads", text("downloads")));
+            heading.appendChild(linkToggle(link, "sign_in", text("sign-in")));
             row.appendChild(heading);
 
             var group = element("div", "input-group input-group-sm explorer-link-group");
@@ -494,7 +513,9 @@
             embed.addEventListener("click", function () {
                 embedPanel.hidden = !embedPanel.hidden;
                 embed.setAttribute("aria-expanded", embedPanel.hidden ? "false" : "true");
-                if (!embedPanel.hidden) embedPanel.querySelector("textarea").select();
+                if (embedPanel.hidden) return;
+                embedPanel.explorerRefresh();
+                embedPanel.querySelector("textarea").select();
             });
             buttons.appendChild(open);
             buttons.appendChild(embed);
@@ -506,25 +527,35 @@
             return row;
         }
 
-        // Allows or stops downloads through the link at once; the box goes back if the change fails.
-        function downloadsToggle(link) {
+        // Every link of this project asks for a login (a private project under Signed-In Users Only)
+        var signInForced = box.hasAttribute("data-sign-in-forced");
+
+        // A link's Allow Downloads or Require Sign-In (name), changed at once; the box goes back if the change fails.
+        // Require Sign-In stays ticked, and can't be unticked, while every link of the project asks for a login.
+        function linkToggle(link, name, caption) {
             var label = element("label", "explorer-link-downloads explorer-card-text");
-            var box = element("input");
-            box.type = "checkbox";
-            box.checked = !!link.downloads;
-            box.addEventListener("change", function () {
-                var wanted = box.checked;
-                box.disabled = true;
-                request("PATCH", api + link.token + "/", {downloads: wanted}).then(function (updated) {
+            var toggle = element("input");
+            toggle.type = "checkbox";
+            toggle.name = name;
+            var forced = name === "sign_in" && signInForced;
+            toggle.checked = !!link[name] || forced;
+            toggle.disabled = forced;
+            if (forced) label.title = text("sign-in-forced-title") || "";
+            toggle.addEventListener("change", function () {
+                var wanted = toggle.checked, change = {};
+                change[name] = wanted;
+                busy(toggle, true);
+                request("PATCH", api + link.token + "/", change).then(function (updated) {
                     showError("");
-                    box.checked = !!updated.downloads;
+                    link[name] = !!updated[name];
+                    toggle.checked = link[name];
                 }, function (e) {
-                    box.checked = !wanted;
+                    toggle.checked = !wanted;
                     showError(e.message);
-                }).then(function () { box.disabled = false; });
+                }).then(function () { busy(toggle, false); });
             });
-            label.appendChild(box);
-            label.appendChild(document.createTextNode(" " + text("downloads")));
+            label.appendChild(toggle);
+            label.appendChild(document.createTextNode(" " + caption));
             return label;
         }
 
@@ -546,11 +577,13 @@
         form.addEventListener("submit", function (e) {
             e.preventDefault();
             submit.disabled = true;
+            var signIn = form.elements.sign_in;
             request("POST", api, {label: form.elements.label.value, expires_days: form.elements.expires_days.value,
-                downloads: form.elements.downloads.checked})
+                downloads: form.elements.downloads.checked, sign_in: signIn ? signIn.checked : false})
                 .then(function (link) {
                     form.elements.label.value = "";
                     form.elements.downloads.checked = false;
+                    if (signIn && !signInForced) signIn.checked = false;
                     return load().then(function () {
                         var input = list.querySelector('[data-token="' + link.token + '"] .explorer-link-address');
                         if (input) input.select();
