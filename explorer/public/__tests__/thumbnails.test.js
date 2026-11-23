@@ -100,21 +100,16 @@ test("a drawing waits until its card is near the screen", async () => {
     expect(window.fetch).toHaveBeenCalledTimes(1);
 });
 
-test("the admins' Settings panel saves a change at once and undoes it when saving fails", async () => {
+test("the Explorer Settings page saves a change at once and undoes it when saving fails", async () => {
     document.body.innerHTML = `
-        <button type="button" data-explorer-settings-toggle aria-expanded="false">Settings</button>
-        <form data-settings-api="/api/plugins/explorer/settings/" data-error="Not saved." hidden>
+        <form data-settings-api="/api/plugins/explorer/settings/" data-error="Not saved.">
             <input type="hidden" name="csrfmiddlewaretoken" value="CSRF">
             <input type="checkbox" name="basemaps_on_links" checked>
             <div class="explorer-settings-error" hidden></div>
         </form>`;
     window.fetch = jest.fn(() => ok({basemaps_on_links: false}));
     init(document);
-    const toggle = document.querySelector("[data-explorer-settings-toggle]");
     const form = document.querySelector("form");
-    toggle.click();
-    expect(form.hidden).toBe(false);
-    expect(toggle.getAttribute("aria-expanded")).toBe("true");
 
     const box = form.elements.basemaps_on_links;
     box.click();

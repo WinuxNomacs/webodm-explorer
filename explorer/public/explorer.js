@@ -135,17 +135,12 @@
         for (var j = 0; j < drawn.length; j++) drawWhenSeen(drawn[j]);
     }
 
-    // The Explorer home's Settings panel, for WebODM's admins: each change is saved at once, and undone on the page if
-    // it couldn't be saved.
+    // The Explorer Settings page, for WebODM's superusers: each change is saved at once, and undone on the page if it
+    // couldn't be saved.
     function initSettings(root) {
-        var toggle = root.querySelector("[data-explorer-settings-toggle]");
         var form = root.querySelector("[data-settings-api]");
-        if (!toggle || !form) return;
+        if (!form) return;
         var error = form.querySelector(".explorer-settings-error");
-        toggle.addEventListener("click", function () {
-            form.hidden = !form.hidden;
-            toggle.setAttribute("aria-expanded", form.hidden ? "false" : "true");
-        });
         function save(field, change, apply, undo) {
             field.disabled = true;
             error.hidden = true;

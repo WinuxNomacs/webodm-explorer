@@ -97,7 +97,7 @@ class BasemapAndSettingsTests(LinkTestMixin, BootTestCase):
         # WebODM's CSRF check applies to the plugin's API
         self.assertEqual(admin.patch(SETTINGS_API, {"basemaps_on_links": False},
                                      content_type="application/json").status_code, 403)
-        admin.get("/plugins/explorer/")
+        admin.get("/plugins/explorer/settings/")
         csrf = admin.cookies["csrftoken"].value
         response = admin.patch(SETTINGS_API, {"basemaps_on_links": False}, content_type="application/json",
                                HTTP_X_CSRFTOKEN=csrf)
@@ -137,10 +137,20 @@ class BasemapAndSettingsTests(LinkTestMixin, BootTestCase):
         self.assertNotIn("data-origin", self.client_for("testuser").get(own).content.decode())
         options.set_public_address("https://maps.example.com")
         self.assertIn('data-origin="https://maps.example.com"', self.client_for("testuser").get(own).content.decode())
-        html = self.client_for("testsuperuser").get("/plugins/explorer/").content.decode()
+        html = self.client_for("testsuperuser").get("/plugins/explorer/settings/").content.decode()
         self.assertIn('name="public_address"', html)
         self.assertIn('value="https://maps.example.com"', html)
 
-    def test_the_settings_panel_shows_on_the_explorer_home_for_admins_only(self):
-        self.assertIn("data-settings-api", self.client_for("testsuperuser").get("/plugins/explorer/").content.decode())
-        self.assertNotIn("data-settings-api", self.client_for("testuser").get("/plugins/explorer/").content.decode())
+    def test_explorer_settings_is_a_page_and_a_menu_item_of_its_own_for_superusers_only(self):
+        admin = self.client_for("testsuperuser")
+        page = admin.get("/plugins/explorer/settings/")
+        self.assertEqual(page.status_code, 200)
+        self.assertIn("data-settings-api", page.content.decode())
+        self.assertEqual(page["X-Frame-Options"], "SAMEORIGIN")
+        self.assertIn('href="/plugins/explorer/settings/"', admin.get("/dashboard/").content.decode())
+        # Not on Explorer's home any more
+        self.assertNotIn("data-settings-api", admin.get("/plugins/explorer/").content.decode())
+        user = self.client_for("testuser")
+        self.assertEqual(user.get("/plugins/explorer/settings/").status_code, 404)
+        self.assertNotIn('href="/plugins/explorer/settings/"', user.get("/dashboard/").content.decode())
+        self.assertEqual(Client().get("/plugins/explorer/settings/").status_code, 302)
