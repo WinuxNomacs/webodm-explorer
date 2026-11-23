@@ -39,12 +39,12 @@ class PreviewTests(LinkTestMixin, BootTestCase):
         self.addCleanup(shutil.rmtree, task.task_path(), True)
         fp = build.fingerprint(obj)
         build_id = build.build_id(fp)
-        folder = os.path.join(self.store.root, str(task.id), build_id)
+        folder = os.path.join(tiles.folder(task), build_id)
         os.makedirs(folder)
         with open(os.path.join(folder, "tileset.json"), "w") as f:
             f.write('{"root": {}}')
-        build.write_state(self.store.root, task.id, {"state": "ready", "fingerprint": fp, "build": build_id,
-                                                     "updated": time.time()})
+        build.write_state(tiles.folder(task), {"state": "ready", "fingerprint": fp, "build": build_id,
+                                                   "updated": time.time()})
         return build_id
 
     def test_the_project_page_offers_a_preview(self):

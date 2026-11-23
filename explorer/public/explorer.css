@@ -7,6 +7,16 @@
     gap: 8px;
 }
 
+/* Names and descriptions people type: an unbroken one (a file-like name, a URL) wraps instead of widening the page */
+.explorer-header h3,
+.explorer h2,
+.explorer h3,
+.explorer-cover-text,
+.explorer > p {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
 .explorer-actions {
     display: flex;
     flex-wrap: wrap;
@@ -161,6 +171,32 @@ a.explorer-card-link:focus .explorer-card-title {
     margin: 8px 0 0;
 }
 
+/* On a phone, a link's buttons go on a row of their own under its address, which keeps the panel's width */
+@media (max-width: 480px) {
+    .explorer-link-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    .explorer-link-group > .form-control {
+        flex: 1 1 100%;
+        border-radius: 3px;
+    }
+
+    .explorer-link-group > .input-group-btn {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        width: auto;
+    }
+
+    .explorer-link-group > .input-group-btn > .btn {
+        margin-left: 0;
+        border-radius: 3px;
+    }
+}
+
 /* Link pages */
 .explorer-public {
     padding-top: 14px;
@@ -172,7 +208,10 @@ a.explorer-card-link:focus .explorer-card-title {
 }
 
 
+/* Above the map: Bootstrap's menus and Leaflet's zoom buttons both stand at z-index 1000, and the map comes later */
 .explorer-viewer-bar {
+    position: relative;
+    z-index: 1001;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -183,6 +222,11 @@ a.explorer-card-link:focus .explorer-card-title {
 
 .explorer-viewer-title {
     overflow-wrap: anywhere;
+}
+
+.explorer-viewer-bar .dropdown-menu.explorer-menu-left {
+    left: 0;
+    right: auto;
 }
 
 .explorer-viewer-page {

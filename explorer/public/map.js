@@ -180,10 +180,15 @@
             Object.keys(layers).forEach(function (k) {
                 if (k !== type && layers[k].layer) map.removeLayer(layers[k].layer);
             });
+            // The status line speaks for the layer shown: one already loaded clears it, one still loading says so
             if (layers[type]) {
                 if (layers[type].layer) {
+                    line.hide();
                     layers[type].layer.addTo(map);
                     key.show(type, layers[type].metadata, bands);
+                } else {
+                    key.hide();
+                    line.show(page.getAttribute("data-loading"));
                 }
                 return;
             }
@@ -203,8 +208,8 @@
                 layer.on("tileerror", tileFailed);
                 layers[type].layer = layer;
                 layers[type].metadata = metadata;
-                line.hide();
                 if (current === type) {
+                    line.hide();
                     layer.addTo(map);
                     key.show(type, metadata, bands);
                 }
@@ -213,8 +218,9 @@
                     fitted = true;
                 }
             }).catch(function () {
+                // Tried again when chosen again; said only while it is the layer chosen
                 delete layers[type];
-                failed();
+                if (current === type) failed();
             });
         }
 

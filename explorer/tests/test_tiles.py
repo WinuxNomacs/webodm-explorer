@@ -20,6 +20,7 @@ from app.tests.classes import BootTestCase
 from coreplugins.explorer import tiles
 from coreplugins.explorer import tiles_build as build
 from coreplugins.explorer.tests.test_links import LinkTestMixin
+from django.conf import settings
 
 # Obj2Tiles' stand-in: writes a two-level tileset shaped as Obj2Tiles 1.10.3 writes them (root.glb, LOD-0/, a null
 # transform and null children on leaves, as captured from the user's meshes), with its progress lines, unless
@@ -36,6 +37,7 @@ case "$mode" in
   slow) while true; do echo '{"stage":"tiling","done":1,"total":9,"percent":50}'; sleep 0.2; done ;;
   touch) sleep 1.1; echo "x" >> "$obj" ;;
   remove) rm -f "$obj" ;;
+  removetask) rm -rf "$(dirname "$(dirname "$(dirname "$obj")")")" ;;
 esac
 mkdir -p "$out/LOD-0"
 printf 'glTF-root' > "$out/root.glb"
@@ -76,28 +78,36 @@ class BuildTests(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, self.dir, True)
-        self.root = os.path.join(self.dir, "tiles")
+        self.work = os.path.join(self.dir, "work")
         self.tools = os.path.join(self.dir, "bin")
         fake_tools(self.tools)
-        self.obj = os.path.join(self.dir, "mesh", "odm_textured_model_geo.obj")
-        os.makedirs(os.path.dirname(self.obj))
+        # WebODM's media layout: the tiles in the task's own folder, beside its assets
+        self.folders = os.path.join(self.dir, "media", "project", "*", "task", "*", build.FOLDER)
+        self.task = "358acbe0-a940-46c7-95f3-bbc53f3c2620"
+        self.tiles, self.obj = self.mesh(self.task)
         with open(self.obj, "w") as f:
             f.write("v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3\n")
-        self.task = "358acbe0-a940-46c7-95f3-bbc53f3c2620"
         self.env = mock.patch.dict(os.environ, {"FAKE_MODE": "ok", "FAKE_PACK": "ok",
                                                 "FAKE_PID": os.path.join(self.dir, "pid")})
         self.env.start()
         self.addCleanup(self.env.stop)
 
+    def mesh(self, task, project="1"):
+        """(tiles folder, mesh path) of a task folder made with its mesh's folder."""
+        task_folder = os.path.join(self.dir, "media", "project", project, "task", task)
+        obj = os.path.join(task_folder, "assets", "odm_texturing", "odm_textured_model_geo.obj")
+        os.makedirs(os.path.dirname(obj))
+        return os.path.join(task_folder, build.FOLDER), obj
+
     def run_build(self, **env):
         os.environ.update(env)
-        return build.run(self.root, self.task, self.obj, self.tools)
+        return build.run(self.work, self.tiles, self.obj, self.tools, self.folders)
 
     def state(self):
-        return build.read_state(self.root, self.task)
+        return build.read_state(self.tiles)
 
     def folder(self, *paths):
-        return os.path.join(self.root, self.task, *paths)
+        return os.path.join(self.tiles, *paths)
 
     def assert_no_leftovers(self):
         self.assertEqual([e for e in os.listdir(self.folder()) if e.startswith(".tmp-")], [])
@@ -188,7 +198,7 @@ class BuildTests(unittest.TestCase):
     def test_a_tool_unzipped_without_its_executable_bit_gets_it_back(self):
         tools = os.path.join(self.dir, "unzipped")
         exe = fake_tools(tools, executable=False)
-        self.assertEqual(build.run(self.root, self.task, self.obj, tools)["state"], "ready")
+        self.assertEqual(build.run(self.work, self.tiles, self.obj, tools, self.folders)["state"], "ready")
         self.assertTrue(os.access(exe, os.X_OK))
 
     def test_a_mesh_changed_during_the_build_is_not_published(self):
@@ -201,51 +211,74 @@ class BuildTests(unittest.TestCase):
         self.assertEqual(result["state"], "gone")
         self.assertFalse(os.path.exists(self.folder()))
 
-    def second_mesh(self):
+    def test_a_task_folder_removed_during_the_build_is_not_made_again(self):
+        result = self.run_build(FAKE_MODE="removetask")
+        self.assertEqual(result["state"], "gone")
+        self.assertFalse(os.path.exists(os.path.dirname(self.tiles)))
+        # Nor by a state written afterwards (a heartbeat, a failure)
+        with self.assertRaises(FileNotFoundError):
+            build.mark_failed(self.tiles, "1-1", "late")
+        self.assertFalse(os.path.exists(os.path.dirname(self.tiles)))
+
+    def second_mesh(self, project="2"):
         other = "89d7617e-3032-4c21-b0be-bbb82d113ddb"
-        obj = os.path.join(self.dir, "mesh2", "odm_textured_model_geo.obj")
-        os.makedirs(os.path.dirname(obj))
+        tiles_folder, obj = self.mesh(other, project)
         shutil.copy(self.obj, obj)
-        return other, obj
+        return tiles_folder, obj
 
     def test_a_job_finding_a_build_running_leaves_its_task_queued_and_ends_at_once(self):
         other, obj = self.second_mesh()
-        build.claim(self.root, other, build.fingerprint(obj), obj=obj)
-        fd = build.try_build_lock(self.root)
+        build.claim(other, build.fingerprint(obj), obj=obj)
+        fd = build.try_build_lock(self.work)
         try:
             started = time.monotonic()
-            self.assertEqual(build.run(self.root, other, obj, self.tools), {"state": "queued", "deferred": True})
+            self.assertEqual(build.run(self.work, other, obj, self.tools, self.folders),
+                             {"state": "queued", "deferred": True})
             self.assertLess(time.monotonic() - started, 1)  # no worker slot held while another build runs
-            self.assertEqual(build.read_state(self.root, other)["state"], "queued")
+            self.assertEqual(build.read_state(other)["state"], "queued")
         finally:
             os.close(fd)
 
-    def test_the_running_job_builds_the_tasks_queued_meanwhile_before_it_ends(self):
+    def test_the_running_job_builds_the_tasks_queued_meanwhile_in_any_project_before_it_ends(self):
         other, obj = self.second_mesh()
-        build.claim(self.root, other, build.fingerprint(obj), obj=obj)
-        build.claim(self.root, self.task, build.fingerprint(self.obj), obj=self.obj)
+        build.claim(other, build.fingerprint(obj), obj=obj)
+        build.claim(self.tiles, build.fingerprint(self.obj), obj=self.obj)
         self.assertEqual(self.run_build()["state"], "ready")
         self.assertEqual(self.state()["state"], "ready")
-        self.assertEqual(build.read_state(self.root, other)["state"], "ready")  # built by the same job
-        self.assertIsNotNone(build.try_build_lock(self.root))  # and the lock let go
+        self.assertEqual(build.read_state(other)["state"], "ready")  # built by the same job
+        self.assertIsNotNone(build.try_build_lock(self.work))  # and the lock let go
 
     def test_a_queued_task_whose_mesh_is_gone_does_not_stop_the_queue(self):
         other, obj = self.second_mesh()
-        build.claim(self.root, other, build.fingerprint(obj), obj=obj)
+        build.claim(other, build.fingerprint(obj), obj=obj)
         os.remove(obj)
         self.assertEqual(self.run_build()["state"], "ready")
-        self.assertIsNone(build.read_state(self.root, other))  # removed, as for a removed task
+        self.assertIsNone(build.read_state(other))  # removed, as for a removed task
+
+    def test_a_duplicated_tasks_queued_state_names_its_own_mesh(self):
+        build.claim(self.tiles, build.fingerprint(self.obj), obj=self.obj)
+        copy_tiles, copy_obj = self.mesh("00000000-0000-4000-8000-000000000001")
+        os.rmdir(os.path.dirname(copy_obj))
+        shutil.copytree(os.path.dirname(self.obj), os.path.dirname(copy_obj))
+        shutil.copytree(self.tiles, copy_tiles, copy_function=os.link)  # as WebODM duplicates a task
+        found = {build.next_queued(self.folders, tried={os.path.normpath(self.tiles)}),
+                 build.next_queued(self.folders, tried={os.path.normpath(copy_tiles)})}
+        self.assertEqual(found, {(os.path.normpath(copy_tiles), os.path.normpath(copy_obj)),
+                                 (os.path.normpath(self.tiles), os.path.normpath(self.obj))})
+        # A state naming a mesh outside its task's folder is not built
+        build.write_state(copy_tiles, dict(build.read_state(copy_tiles), mesh="../../../../etc/passwd"))
+        self.assertEqual(build.next_queued(self.folders, tried={os.path.normpath(self.tiles)}), None)
 
 
 class StateTests(unittest.TestCase):
     def setUp(self):
         self.root = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, self.root, True)
-        self.task = "89d7617e-3032-4c21-b0be-bbb82d113ddb"
+        self.tiles = os.path.join(self.root, build.FOLDER)
 
     def test_only_the_first_request_queues_a_build(self):
-        self.assertEqual(build.claim(self.root, self.task, "1-1"), ("queue", None))
-        self.assertEqual(build.claim(self.root, self.task, "1-1"), ("building", None))
+        self.assertEqual(build.claim(self.tiles, "1-1"), ("queue", None))
+        self.assertEqual(build.claim(self.tiles, "1-1"), ("building", None))
 
     def test_a_build_abandoned_by_a_restarted_worker_is_queued_again(self):
         now = time.time()
@@ -264,34 +297,32 @@ class StateTests(unittest.TestCase):
 
     def test_a_ready_build_whose_folder_is_gone_is_built_again(self):
         state = {"state": "ready", "fingerprint": "1-1", "updated": time.time(), "build": "0123456789abcdef"}
-        build.write_state(self.root, self.task, state)
-        self.assertEqual(build.claim(self.root, self.task, "1-1"), ("queue", None))
+        build.write_state(self.tiles, state)
+        self.assertEqual(build.claim(self.tiles, "1-1"), ("queue", None))
 
     def test_a_state_file_that_does_not_read_is_set_aside(self):
-        os.makedirs(os.path.join(self.root, self.task))
+        os.makedirs(self.tiles)
         for bad in ("{not json", '{"state": "odd", "fingerprint": "1", "updated": 1}', "[]"):
-            with open(os.path.join(self.root, self.task, "state.json"), "w") as f:
+            with open(os.path.join(self.tiles, "state.json"), "w") as f:
                 f.write(bad)
-            self.assertIsNone(build.read_state(self.root, self.task))
-            self.assertTrue(os.path.exists(os.path.join(self.root, self.task, "state.json.bad")))
+            self.assertIsNone(build.read_state(self.tiles))
+            self.assertTrue(os.path.exists(os.path.join(self.tiles, "state.json.bad")))
 
     def test_tile_urls_reach_only_tile_files_inside_a_finished_build(self):
         good = "0123456789abcdef"
-        base = os.path.join(self.root, self.task, good)
+        base = os.path.join(self.tiles, good)
         os.makedirs(os.path.join(base, "LOD-0"))
         for name in ("tileset.json", "LOD-0/a.glb", "notes.txt"):
             with open(os.path.join(base, name), "w") as f:
                 f.write("x")
         os.symlink("/etc/passwd", os.path.join(base, "LOD-0", "escape.glb"))
-        with open(os.path.join(self.root, self.task, "state.json"), "w") as f:
+        with open(os.path.join(self.tiles, "state.json"), "w") as f:
             f.write("{}")
-        self.assertEqual(build.tile_file(self.root, self.task, good, "LOD-0/a.glb"), os.path.join(base, "LOD-0/a.glb"))
+        self.assertEqual(build.tile_file(self.tiles, good, "LOD-0/a.glb"), os.path.join(base, "LOD-0/a.glb"))
         for build_id, path in ((good, "../state.json"), (good, "LOD-0/../tileset.json"), (good, "/etc/passwd"),
                                (good, "notes.txt"), (good, "LOD-0/escape.glb"), (good, "missing.glb"),
                                ("../" + good, "tileset.json"), ("0123", "tileset.json"), (good, "LOD-0//a.glb")):
-            self.assertIsNone(build.tile_file(self.root, self.task, build_id, path), (build_id, path))
-        with self.assertRaises(ValueError):
-            build.task_dir(self.root, "../other")
+            self.assertIsNone(build.tile_file(self.tiles, build_id, path), (build_id, path))
 
 
 class TilesPageTests(LinkTestMixin, BootTestCase):
@@ -325,13 +356,13 @@ class TilesPageTests(LinkTestMixin, BootTestCase):
         """A finished build for the mesh task, as the worker leaves it."""
         fp = build.fingerprint(self.mesh_task.assets_path(*tiles.MESH))
         build_id = build.build_id(fp)
-        folder = os.path.join(self.store.root, str(self.mesh_task.id), build_id)
+        folder = os.path.join(tiles.folder(self.mesh_task), build_id)
         os.makedirs(os.path.join(folder, "LOD-0"))
         with open(os.path.join(folder, "tileset.json"), "w") as f:
             f.write('{"root": {}}')
         with open(os.path.join(folder, "LOD-0", "a.glb"), "wb") as f:
             f.write(b"glTF")
-        build.write_state(self.store.root, self.mesh_task.id,
+        build.write_state(tiles.folder(self.mesh_task),
                           {"state": "ready", "fingerprint": fp, "build": build_id, "updated": time.time()})
         return build_id
 
@@ -343,9 +374,11 @@ class TilesPageTests(LinkTestMixin, BootTestCase):
         self.assertNotIn("data-fallback", html)
         self.assertRegex(html, r'data-type="mesh"[^>]*data-preparing')
         self.assertEqual(self.queued.call_count, 1)
-        func, module_path, root, task_id, _obj, _tools = self.queued.call_args.args
+        func, module_path, work, folder, _obj, _tools, folders = self.queued.call_args.args
         self.assertIs(func, tiles.build_tiles)
-        self.assertEqual((root, task_id), (self.store.root, str(self.mesh_task.id)))
+        self.assertEqual((work, folder), (self.store.work, self.mesh_task.task_path("explorer-tiles")))
+        self.assertTrue(folder.startswith(os.path.join(settings.MEDIA_ROOT, "project", str(self.project.id))))
+        self.assertEqual(folders, os.path.join(settings.MEDIA_ROOT, "project", "*", "task", "*", "explorer-tiles"))
         self.assertTrue(module_path.endswith("tiles_build.py"))
         self.page()
         self.assertEqual(self.queued.call_count, 1)  # queued already: not again
@@ -363,7 +396,7 @@ class TilesPageTests(LinkTestMixin, BootTestCase):
     def test_a_queue_that_cannot_be_reached_leaves_the_glb_and_tries_again_soon(self):
         self.queued.side_effect = ConnectionError("broker down")
         self.assertEqual(self.page().status_code, 200)
-        state = build.read_state(self.store.root, self.mesh_task.id)
+        state = build.read_state(tiles.folder(self.mesh_task))
         self.assertEqual(state["state"], "failed")
         self.assertEqual(state["retry_after"], tiles.QUEUE_RETRY)
 
@@ -390,7 +423,7 @@ class TilesPageTests(LinkTestMixin, BootTestCase):
         self.task("No mesh", assets=["orthophoto.tif"])
         response = self.client_for("testuser").post(self.links_api(), {"expires_days": "30"}, content_type="application/json")
         self.assertEqual(response.status_code, 201)
-        self.assertEqual([call.args[3] for call in self.queued.call_args_list], [str(self.mesh_task.id)])
+        self.assertEqual([call.args[3] for call in self.queued.call_args_list], [tiles.folder(self.mesh_task)])
 
     def test_a_link_is_made_even_when_queuing_fails(self):
         with mock.patch.object(self.store, "prepare", side_effect=RuntimeError("boom")):
@@ -404,5 +437,19 @@ class TilesPageTests(LinkTestMixin, BootTestCase):
         signals.task_completed.send_robust(sender=Task, task_id=self.mesh_task.id)
         self.assertEqual(self.queued.call_count, 1)
         self.ready()
-        signals.task_removing.send_robust(sender=Task, task_id=self.mesh_task.id)
-        self.assertFalse(os.path.exists(os.path.join(self.store.root, str(self.mesh_task.id))))
+        tiles_folder = tiles.folder(self.mesh_task)
+        self.assertTrue(os.path.isdir(tiles_folder))
+        self.mesh_task.delete()  # WebODM removes the task's folder, the tiles with it
+        self.assertFalse(os.path.exists(tiles_folder))
+
+    def test_a_tile_removed_between_its_check_and_its_read_is_a_404(self):
+        build_id = self.ready()
+        self.token = self.link()["token"]
+        url = f"/api/plugins/explorer/s/{self.token}/tasks/{self.mesh_task.id}/tiles/{build_id}/LOD-0/a.glb"
+        real_open = open
+        def vanished(path, *args, **kwargs):
+            if str(path).endswith("a.glb"):
+                raise FileNotFoundError(path)
+            return real_open(path, *args, **kwargs)
+        with mock.patch("builtins.open", vanished):
+            self.assertEqual(self.client.get(url).status_code, 404)

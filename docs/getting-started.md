@@ -21,9 +21,8 @@ nothing else needs installing.
 
 ::: tip Upgrading
 WebODM refuses a zip for a plugin that is already installed. In **Administration > Plugins**, delete Explorer, then
-load the newer zip. Links and settings are kept (they are in WebODM's database); the 3D Tiles built from textured
-models are in the plugin's folder, so they are removed and built again the next time each model is opened. If WebODM
-asks for a restart, restart it (`./webodm.sh restart`).
+load the newer zip. Links and settings are kept (they are in WebODM's database), and so are the 3D Tiles built from
+textured models (they are in each task's folder). If WebODM asks for a restart, restart it (`./webodm.sh restart`).
 :::
 
 ## A first look

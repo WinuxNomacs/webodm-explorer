@@ -222,7 +222,9 @@ class Plugin(PluginBase):
         def list_page(request, viewer):
             if viewer is None:
                 return invalid_link(request)
-            cards = pages.explorable_tasks([viewer.project], lambda task: pages.link_outputs(task, viewer.path),
+            embed = embedded(request, viewer)
+            cards = pages.explorable_tasks([viewer.project],
+                                           lambda task: pages.link_outputs(task, viewer.path, embed),
                                            (lambda task: pages.link_downloads(task, viewer.api)) if viewer.downloads
                                            else None)
             # The landing page's cover: the newest task with outputs, its picture and buttons; the Overview Map only
@@ -232,8 +234,7 @@ class Plugin(PluginBase):
             footprints = pages.link_footprints(cards) if basemaps and len(cards) > 1 else []
             return link_headers(render(request, self.template_path("link.html"), viewer_context(
                 viewer, title=viewer.project.name, cards=cards[1:] if cover else [], cover=cover,
-                facts=pages.cover_facts(cards), footprints=footprints, basemaps=basemaps,
-                embed=embedded(request, viewer),
+                facts=pages.cover_facts(cards), footprints=footprints, basemaps=basemaps, embed=embed,
                 meta=preview_meta(request, viewer, viewer.project.name, cover and cover["task"],
                                   cover and cover["picture"]))))
 
@@ -339,13 +340,6 @@ class Plugin(PluginBase):
             MountPoint(rf"{base}tiles/(?P<build>[0-9a-f]{{16}})/(?P<path>[A-Za-z0-9_\-/.]+)$",
                        api.TokenMeshTiles.as_view()),
         ]
-
-
-@receiver(signals.task_removing, dispatch_uid="explorer_task_removing")
-def remove_tiles(sender, task_id, **kwargs):
-    store = tiles.Tiles.current()
-    if store:
-        store.remove(task_id)
 
 
 @receiver(signals.task_completed, dispatch_uid="explorer_task_completed")

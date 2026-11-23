@@ -2,8 +2,8 @@
 
 ## Phases (current and upcoming)
 
-Up next: **Code review fixes** (the user's review request 2026-11-22, findings below), in four groups, each a
-branch: 1. high (done); 2. the Linode script and guide (done); 3. viewer medium (done); 4. pages and phones.
+Built: **Code review fixes** (the user's review request 2026-11-22, findings below), in four groups, each a
+branch: 1. high; 2. the Linode script and guide; 3. viewer medium; 4. pages and phones (all done, see "Done").
 
 Then: **Documentation site** (the request 2026-11-22, plan below; decided). Its steps, each a phase:
 1. the site and its pages (Getting Started, usage guides; done); 2. the Linode hosting guide and its script (done); 3. publishing to GitHub Pages (once the repo is public).
@@ -735,6 +735,25 @@ The user chose to fix all four groups:
    of the plugin's folder (they survive upgrades).
 
 ## Done
+
+- **Code review fixes, group 4: pages and phones** (findings 2026-11-22, branch `review-pages`; `tiles_build.py`,
+  `tiles.py`, `api.py`, `pages.py`, `plugin.py`, `explorer.js`, `linkpage.js`, `map.js`, `explorer.css`): the mesh
+  tiles moved from the plugin's persistent path (its own code folder, replaced by every upgrade) to each task's folder,
+  `<task folder>/explorer-tiles/` (the user's choice, 2026-11-23: removed and duplicated with the task, counted in the
+  owner's quota, left in task folders after uninstalling; the guide gives the command that removes them); the build
+  lock and the tools' copies stay in the persistent path, the queue is found by globbing the tasks' folders, a queued
+  state names its mesh from the task folder (a duplicated task's copy builds its own), a build never re-creates a
+  removed task's folder, and WebODM's own folder removal replaces the `task_removing` hook; a tile removed between its
+  check and its read is a 404, not a 500. Embeds stay embedded: the link page's cover, cards and Overview Map open
+  views with `?embed=1`. The Share panel's link buttons go on their own row under 480 px; the viewer bar sits above
+  the map (Bootstrap's menus and Leaflet's controls both at z-index 1000), and a bar menu that would open off the left
+  edge opens rightwards. Long names and descriptions wrap. Copy keeps its label once (a second click no longer leaves
+  "Copied"), and selects with `setSelectionRange` for iOS. The map's status line speaks for the chosen layer only. A
+  JSON body that is not an object is a 400 on the links API. Not done: the review's "Link for WebODM Users ignores
+  Public Address" (documented as intended: WebODM users reach WebODM at their own address), dates in UTC, Create Link
+  retried into duplicates, the legend over the scale bar at 320 px; the server review's duplicate builds after a stale
+  heartbeat (only its 500 is fixed), lost queued jobs, `.tmp-` leftovers after a hard kill, the preview image's host,
+  and Create Link waiting on the broker. Old builds in `media/plugins/explorer/tiles/<task id>/` are no longer read.
 
 - **Explorer Settings in its own menu item** (the user, 2026-11-23, branch `admin-settings`; `plugin.py`,
   `templates/settings.html`, `explorer.js`, `test_ux.py`): the settings moved off Explorer's home to a page of their

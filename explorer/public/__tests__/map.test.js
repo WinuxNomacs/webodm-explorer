@@ -190,3 +190,26 @@ test("without basemaps (turned off in Explorer's settings) the map has none and 
     expect(added).toHaveLength(1);
     expect(element.querySelector("[data-basemap]")).toBeNull();
 });
+
+test("the status line speaks for the layer chosen, not for one left while it loaded", async () => {
+    const element = page(["orthophoto", "dsm"]);
+    let failDsm;
+    window.fetch = jest.fn((url) => url.includes("/dsm/")
+        ? new Promise((resolve) => { failDsm = () => resolve({ok: false, status: 500}); })
+        : ok(metadata));
+    map.start(element, fakeLeaflet().L);
+    await settle();
+    const status = element.querySelector(".explorer-status");
+    element.querySelector("[data-layer=dsm]").click();
+    expect(status.textContent).toBe("Loading...");
+    expect(status.hidden).toBe(false);
+    element.querySelector("[data-layer=orthophoto]").click();  // loaded already
+    expect(status.hidden).toBe(true);
+    failDsm();
+    await settle();
+    await settle();
+    expect(status.hidden).toBe(true);  // DSM failed, but the orthophoto is the one shown
+    expect(window.fetch.mock.calls.filter(([url]) => url.includes("/dsm/"))).toHaveLength(1);
+    element.querySelector("[data-layer=dsm]").click();  // tried again when chosen again
+    expect(window.fetch.mock.calls.filter(([url]) => url.includes("/dsm/"))).toHaveLength(2);
+});

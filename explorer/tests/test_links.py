@@ -83,6 +83,14 @@ class LinksApiTests(LinkTestMixin, BootTestCase):
         response = client.post(self.links_api(), {"label": ["x"]}, content_type="application/json")
         self.assertEqual(response.status_code, 400)
 
+    def test_a_json_body_that_is_not_an_object_is_refused_not_a_server_error(self):
+        client = self.client_for("testuser")
+        token = self.link()["token"]
+        for body in ("[]", '"x"', "3", "null"):
+            self.assertEqual(client.post(self.links_api(), body, content_type="application/json").status_code, 400, body)
+            self.assertEqual(client.patch(f"{self.links_api()}{token}/", body, content_type="application/json")
+                             .status_code, 400, body)
+
     def test_a_long_label_is_cut_to_100_characters(self):
         response = self.client_for("testuser").post(self.links_api(), {"label": "x" * 300},
                                                     content_type="application/json")
