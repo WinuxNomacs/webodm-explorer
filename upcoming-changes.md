@@ -2,10 +2,10 @@
 
 ## Phases (current and upcoming)
 
-Up next: **the first release** (0.1.0, still experimental): a `release/0.1.0` branch, the zip, the `release-check`
-skill.
+Released: **0.1.0** (2026-11-23, experimental; see "Done"). The user pushes, tags `v0.1.0`, attaches the zip and
+adds the WebODM-Plugins entry.
 
-Then: **the road to 1.0.0** (the user, 2026-11-23: recorded as phases after 0.1.0; some are taken up before 1.0 and
+Up next: **the road to 1.0.0** (the user, 2026-11-23: recorded as phases after 0.1.0; some are taken up before 1.0 and
 each is discussed when it comes up; plan below). In order: 1. field use of 0.1.0; 2. a versioned saved-data format and
 an upgrade rehearsal; 3. a check against new WebODM releases; 4. a browser and device pass; 5. the mesh parsing gap;
 6. sign-in links on the Linode setup; 7. link activity and administration; 8. accessibility and translations; 9. an
@@ -857,6 +857,13 @@ The user chose to fix all four groups:
    of the plugin's folder (they survive upgrades).
 
 ## Done
+
+- **Release 0.1.0** (2026-11-23, branch `release/0.1.0`, experimental): the changelog dated; the tests (Django 205
+  plus WebODM's plugin tests, Jest 121); `dist/explorer-0.1.0.zip` (sha256
+  `2ca4a34f4a428c2578c78431a6d754f880fee44634e6907a47355b33276a8607`) installed through Administration > Plugins on
+  the dev stack without the mounted plugin, loaded from a cold start, and live-checked (shares, downloads, the point
+  cloud, the mesh tiles, Require Sign-In, Explorer Settings). No upgrade rehearsal: no earlier release. The
+  `link-shares` and `link-downloads` checks now cope with a Public Address and the Require Sign-In box.
 
 - **Sign-in links: security review** (the user's request 2026-11-23, branch `sign-in-review`): an independent review
   of the permission change found no high or medium issue; every token route and link page runs the sign-in check
