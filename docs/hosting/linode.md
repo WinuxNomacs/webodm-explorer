@@ -1,7 +1,8 @@
 # Hosting on Linode
 
 This guide sets up a small server on [Linode](https://www.linode.com) (Akamai Cloud) that shares Explorer links with
-anyone on the internet, while WebODM itself stays private. One script does the setup.
+anyone on the internet, while WebODM itself stays private. One script does the setup. Read [Security](/hosting/security)
+first: it covers what this setup protects, and what it leaves to you (it has no WAF or rate limits).
 
 ## What you get
 
@@ -154,7 +155,8 @@ The first time a textured model is opened, Explorer builds its 3D Tiles on the s
 
 - **SSH**, with keys only and only for your user; fail2ban bans an address for an hour after 5 failed attempts.
 - **The link paths.** A link's token is its only key: anyone who has it sees what it shares, until it expires or you
-  revoke it. Treat links like passwords, and give them an expiry.
+  revoke it. Treat links like passwords, and give them an expiry. Links with **Require Sign-In** don't work on this
+  server: WebODM's sign-in page isn't public, so visitors get "Not found" instead of it.
 - **Plugins' script and style files**, which WebODM adds to every page, links included.
 - Let's Encrypt publishes every certificate it issues, so your domain name is public once the certificate is issued.
 

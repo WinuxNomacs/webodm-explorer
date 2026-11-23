@@ -17,7 +17,7 @@ export default defineConfig({
     nav: [
       { text: "Getting Started", link: "/getting-started" },
       { text: "Guides", link: "/guide/projects" },
-      { text: "Hosting", link: "/hosting/linode" },
+      { text: "Hosting", link: "/hosting/security" },
       { text: "Developing", link: "/developing" },
     ],
     sidebar: [
@@ -40,7 +40,10 @@ export default defineConfig({
       },
       {
         text: "Hosting",
-        items: [{ text: "Hosting on Linode", link: "/hosting/linode" }],
+        items: [
+          { text: "Security", link: "/hosting/security" },
+          { text: "Hosting on Linode", link: "/hosting/linode" },
+        ],
       },
       {
         text: "More",

@@ -7,8 +7,10 @@ Experimental: it is not part of WebODM and not made by WebODM's authors.
 The documentation is at **https://winuxnomacs.github.io/webodm-explorer/** (its sources in [docs/](docs/)):
 [Getting Started](docs/getting-started.md) and guides to [Explorer's home](docs/guide/projects.md),
 [a project's page](docs/guide/project.md), [the viewers](docs/guide/viewers.md), [sharing](docs/guide/sharing.md) and
-[administration](docs/guide/administration.md), and [Hosting on Linode](docs/hosting/linode.md): a script that sets up
-a server where only Explorer's links are public.
+[administration](docs/guide/administration.md), [Security](docs/hosting/security.md) (read it before exposing WebODM
+to the internet: why WebODM's own protection isn't enough, what to put in front of it, and references to OWASP, NIST,
+CIS and Mozilla), and [Hosting on Linode](docs/hosting/linode.md): a script that sets up a server where only Explorer's
+links are public.
 
 ## Features
 

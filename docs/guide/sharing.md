@@ -99,4 +99,6 @@ embeds work.
   already have open.
 - Basemaps on link maps load from their provider in each visitor's browser. An admin can turn them off:
   [Administration](/guide/administration).
-- For visitors outside your network, WebODM must be reachable from the internet, ideally over HTTPS.
+- For visitors outside your network, WebODM must be reachable from the internet. Don't expose it with WebODM's own
+  protection alone: see [Security](/hosting/security) for the front end it needs (HTTPS, a WAF, only the link paths
+  public).
