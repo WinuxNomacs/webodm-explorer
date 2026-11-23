@@ -3,7 +3,7 @@
 ## Phases (current and upcoming)
 
 Up next: **Release review fixes** (the user's request 2026-11-23, findings below), in four groups, each a branch:
-A. release blockers (done); B+C. viewer and server (done); D. pages and phones (done); E. release preparation. Then the first
+A. release blockers (done); B+C. viewer and server (done); D. pages and phones (done); E. release preparation (done). Then the first
 release.
 
 Built: **Code review fixes** (the user's review request 2026-11-22, findings below), in four groups, each a
@@ -786,6 +786,17 @@ The user chose to fix all four groups:
    of the plugin's folder (they survive upgrades).
 
 ## Done
+
+- **Release review fixes, group E: release preparation** (findings 2026-11-23, branch `release-e`): licence notices
+  in the zip: the Apache-2.0 parts (laz-perf, Draco, Basis) carry the licence's full terms (`dev/vendor.sh`, taken
+  from 3DTilesRendererJS's LICENSE), ktx-parse and zstddec (minified in three.js's libs without a header) their own
+  MIT and BSD licences from npm, and Obj2Tiles a `SOURCE.md` with its release and source (`dev/tools.sh`; AGPL-3.0
+  section 6); the vendored code is byte-identical. "Under development" is gone from the manifest (a real description),
+  the README (which says how to install) and the docs' home; `CHANGELOG.md` with 0.1.0 unreleased; the Docs
+  workflow's `pages: write` and `id-token: write` only on its deploy job (actionlint clean; the build job gets
+  `pages: read` for configure-pages, unchecked until the workflow next runs); the `options.py` docstring names the
+  Explorer Settings page. Already right: `setup.sh` says "Explorer Settings (in the sidebar)"; `dist/` is ignored and
+  rebuilt by `dev/package.sh` at release.
 
 - **Release review fixes, group D: pages and phones** (findings 2026-11-23, branch `release-d`): an embed no longer
   loses its top (WebODM pulls its page up 14 px to meet the header the embed hides: `meta.html`); the Explorer Settings
