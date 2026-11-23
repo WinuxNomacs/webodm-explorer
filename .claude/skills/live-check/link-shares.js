@@ -33,7 +33,9 @@ const watch = (page, label) => {
             await admin.click(".explorer-link-form [type=submit]");
             await admin.waitForSelector(".explorer-link");
             const row = admin.locator(".explorer-link", { hasText: "Live check" }).first();
-            const url = await row.locator(".explorer-link-address").inputValue();
+            // The copied link starts with the Public Address when one is set: open it on the dev server
+            const copied = await row.locator(".explorer-link-address").inputValue();
+            const url = BASE + new URL(copied).pathname;
             const token = url.match(/s\/([A-Za-z0-9_-]{43})\//)[1];
             created.push([projectId, token]);
             return url;

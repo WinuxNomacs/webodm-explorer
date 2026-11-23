@@ -51,7 +51,7 @@ const watch = (page, label) => {
         await shot(admin, "01-share-panel");
 
         // Toggle on the existing view-only link, then off again
-        const box = linkRow(viewOnly.token).locator(".explorer-link-downloads input");
+        const box = linkRow(viewOnly.token).locator(".explorer-link-downloads input[name=downloads]");
         await box.check();
         await admin.waitForTimeout(800);
         console.log("toggled on, saved:", (await apiLinks()).find((l) => l.token === viewOnly.token).downloads);
@@ -61,8 +61,8 @@ const watch = (page, label) => {
         await admin.reload();
         await admin.click("[data-explorer-share]");
         await admin.waitForSelector(".explorer-link");
-        console.log("after reload, boxes:", await linkRow(withDownloads.token).locator(".explorer-link-downloads input").isChecked(),
-            await linkRow(viewOnly.token).locator(".explorer-link-downloads input").isChecked());
+        console.log("after reload, boxes:", await linkRow(withDownloads.token).locator(".explorer-link-downloads input[name=downloads]").isChecked(),
+            await linkRow(viewOnly.token).locator(".explorer-link-downloads input[name=downloads]").isChecked());
 
         // Visitor on the link that allows downloads
         const anon = await browser.newContext({ viewport: { width: 1280, height: 860 }, acceptDownloads: true });
@@ -116,7 +116,7 @@ const watch = (page, label) => {
         await admin.setViewportSize({ width: 1280, height: 860 });
 
         // Turning downloads off stops them at once
-        await linkRow(withDownloads.token).locator(".explorer-link-downloads input").uncheck();
+        await linkRow(withDownloads.token).locator(".explorer-link-downloads input[name=downloads]").uncheck();
         await admin.waitForTimeout(800);
         console.log("after turning off, direct download:", (await anon.request.get(taskDownload)).status());
     } finally {
