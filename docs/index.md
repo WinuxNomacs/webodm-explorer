@@ -24,7 +24,7 @@ features:
 
 ## What Is Explorer
 
-Explorer is a plugin for [WebODM](https://github.com/WebODM/WebODM) 4.0 and later. It adds **Explorer** to WebODM's
+Explorer is a plugin for [WebODM](https://github.com/WebODM/WebODM) 4.0.1 and later. It adds **Explorer** to WebODM's
 main menu: a home page of the projects you can view, a page per project with its tasks, and viewers for each task's
 outputs:
 

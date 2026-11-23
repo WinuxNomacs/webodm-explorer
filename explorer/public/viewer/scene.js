@@ -367,7 +367,13 @@ function createScene(container, options) {
     }
 
     async function loadSplats(url, onProgress) {
+        // Spark's paged mode reports no file it can't read (it logs it and carries on with nothing): the file's head is
+        // asked for first, so a revoked link or a missing file fails here and says so
+        const head = await fetch(url, { method: "HEAD", credentials: "same-origin" });
+        if (!head.ok) throw new HttpError(head.status);
         let splats = null;
+        // Kept among the views opening until its first pages come, so another view chosen meanwhile hides it
+        const done = () => { if (opening.get("splats") === splats) opening.delete("splats"); };
         const mesh = await new Promise((resolve, reject) => {
             splats = new SplatMesh({ url, paged: true, onProgress: progress(onProgress), onLoad: () => resolve(splats) });
             splats.initialized.catch(reject);
@@ -376,22 +382,37 @@ function createScene(container, options) {
             scene.add(splats);
         }).catch((e) => {
             // A failed load leaves nothing behind (opening Gaussian Splats again starts afresh)
+            done();
             if (splats) {
                 scene.remove(splats);
                 splats.dispose();
             }
             throw e;
-        }).finally(() => opening.delete("splats"));
+        });
         // Waits for the first pages by the splat count, which is cheap to read (bounds decode every splat each time)
         const count = () => {
             const n = mesh.splats && mesh.splats.numSplats;
             if (Number.isFinite(n)) return n;
             return mesh.getBoundingBox().isEmpty() ? 0 : FRAME_SAMPLES;
         };
+        const view = { object: mesh, box: new THREE.Box3(), floor: null };
         const until = performance.now() + BOUNDS_WAIT_MS;
         while (!count() && performance.now() < until) await new Promise((r) => setTimeout(r, 200));
-        const n = count();
-        return { object: mesh, ...(n ? splatFrame(mesh, n) : { box: new THREE.Box3(), floor: null }) };
+        done();
+        if (count()) return Object.assign(view, splatFrame(mesh, count()));
+        // Pages still to come (a slow connection, or a hidden tab, where Spark doesn't page): the view opens now and is
+        // framed when they come, unless the visitor has placed the camera by then; given up once the splats are gone
+        (async () => {
+            while (!count() && mesh.parent) await new Promise((r) => setTimeout(r, 500));
+            if (!mesh.parent) return;
+            Object.assign(view, splatFrame(mesh, count()));
+            if (current !== "splats") return;
+            if (placed && (keeping || moved)) keep(view.box, view.floor);
+            else frame(view.box, view.floor);
+            placed = true;
+            shownBox = view.box;
+        })();
+        return view;
     }
 
     async function loadCloud(url, onProgress, onFailure) {
@@ -429,8 +450,10 @@ function createScene(container, options) {
             if (other !== type) view.then((v) => { v.object.visible = current === other; }, () => {});
         }
         if (!views[type]) {
-            views[type] = loaders[type](url, onProgress, onFailure || (() => {}), fallback);
-            views[type].catch(() => { delete views[type]; });
+            const opened = loaders[type](url, onProgress, onFailure || (() => {}), fallback);
+            views[type] = opened;
+            // Only this load's entry: a load started again meanwhile (after a lost context) keeps its own
+            opened.catch(() => { if (views[type] === opened) delete views[type]; });
         }
         let view;
         try {

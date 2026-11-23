@@ -17,7 +17,9 @@ and committed.
    plugin list, not its data stores. If `/webodm/app/media/plugins/explorer` exists in `ex-webapp`, the upload is
    refused ("already exist"): move it aside, and back after step 6.
 4. **Install the zip as a user would:** log in as the dev admin (the `live-check` skill), Administration >
-   Plugins, Load Plugin (.zip). Restart the webapp if WebODM asks to.
+   Plugins, Load Plugin (.zip). Then restart the webapp, as the docs tell users to (`docker restart ex-webapp`):
+   WebODM never asks, and production's other gunicorn workers only load the plugin at start, which the dev server's
+   single process can't show; the restart checks the installed copy loads from a cold start.
 5. **Live check on the installed copy** (the `live-check` skill): every feature in the README.
 6. **Leave it as found:** remove the installed plugin in Administration > Plugins, then
    `dev/webodm.sh up --force-recreate webapp worker` without `EX_PLUGIN_DIR` to mount `explorer/` again.

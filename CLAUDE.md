@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-What Claude needs to know to work on Explorer, a WebODM 4.0+ plugin. General working rules (branches, phases,
+What Claude needs to know to work on Explorer, a WebODM 4.0.1+ plugin. General working rules (branches, phases,
 testing) live in the user's own CLAUDE.md; this file holds what is specific to this repository. It is committed and
 public: nothing private, nothing true only on one machine. Keep it short; edit in place.
 
@@ -33,9 +33,10 @@ public: nothing private, nothing true only on one machine. Keep it short; edit i
     imports inside the plugin, never `coreplugins.explorer` outside the tests.
   - The manifest says `"experimental": true` until the user decides otherwise; licence AGPL-3.0.
   - The guide's "no tests unless asked" does not apply: the user's rules ask for tests.
-- **WebODM 4.0.0 and later, Docker installs only** (not the native Windows app): Python 3.14, Django 5.2, DRF 3.18,
+- **WebODM 4.0.1 and later, Docker installs only** (not the native Windows app): Python 3.14, Django 5.2, DRF 3.18,
   Postgres 18 without GIS, Linux x64 or arm64. The manifest's
-  `webodmMinVersion` is 4.0.0; the dev stack runs the latest release (4.0.1). Ruff targets py314.
+  `webodmMinVersion` is 4.0.1 (the user, 2026-11-23: 4.0.0 has no `Menu(admin_only=...)`, which the Explorer
+  Settings item uses); the dev stack runs the latest release (4.0.1). Ruff targets py314.
 - **Never push and never tag.** One workflow: `.github/workflows/docs.yml` publishes the docs to GitHub Pages on a
   pushed `v*` tag or by hand (Actions > Docs > Run workflow); a push to `main` runs nothing. A release: Claude prepares a `release/X.Y.Z` branch (manifest
   version, `CHANGELOG.md`, `README.md`), builds the zip with `dev/package.sh` (`dist/explorer-X.Y.Z.zip` and its

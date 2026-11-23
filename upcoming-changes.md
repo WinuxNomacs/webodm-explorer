@@ -2,6 +2,10 @@
 
 ## Phases (current and upcoming)
 
+Up next: **Release review fixes** (the user's request 2026-11-23, findings below), in four groups, each a branch:
+A. release blockers (done); B+C. viewer and server; D. pages and phones; E. release preparation. Then the first
+release.
+
 Built: **Code review fixes** (the user's review request 2026-11-22, findings below), in four groups, each a
 branch: 1. high; 2. the Linode script and guide; 3. viewer medium; 4. pages and phones (all done, see "Done").
 
@@ -728,6 +732,36 @@ admin has to allow links for a private project on purpose. The user's answers:
   `allowed:<project id>`). Creating a link on a project that isn't allowed is a 403 with the reason; its links stay
   listed in the Share panel so they can be revoked, and the panel says why they don't work.
 
+### Release review findings (2026-11-23)
+
+Four reviewers (server and security, 3D viewer, pages, release and packaging); no secret or token exposure found.
+The user chose to fix all four groups, to **require WebODM 4.0.1** (not keep 4.0.0), and to add a `v*` tag rule to
+the `github-pages` environment through the API.
+
+- **A. Release blockers:** `Menu(admin_only=...)` exists only from WebODM 4.0.1, so on 4.0.0 every signed-in page
+  fails (verified in v4.0.0's `app/plugins/menu.py`); Gaussian Splats never report a failure (Spark's paged mode logs
+  a failed `.rad` header and resolves `initialized` anyway), stay unframed for good when the first pages take over
+  10 s, and overlap another view chosen meanwhile; the docs deploy rule allows only `main` (the tag run would fail);
+  installs and upgrades need a WebODM restart (gunicorn's other workers keep the old plugin list; WebODM doesn't ask).
+- **B. Viewer:** the 60 s tiles timeout falls back to the GLB in a background tab; the lost-context message is
+  overwritten by loads still running; mesh tiles that fail are never retried (`resetFailedTiles`); a late root
+  tileset after the fallback moves the camera; double-tap counts a drag's end; Reset View within 350 ms of a
+  double-click is undone; the pixel ratio is set once; a restore resets the camera without WebODM's offset.
+- **C. Server:** the build's `.tmp-` folder inside the task folder can fail WebODM's duplicate and delete and truncate
+  backups (build in the work folder, move at the end); `entwine_pointcloud/ept-sources/` gives link visitors the
+  processing node's absolute path (verified); token tile and asset responses have no Cache-Control; WebODM's relaxed
+  CORS (`CORS_ALLOW_ALL_ORIGINS`, credentials, `SameSite=None`) against the links API that returns tokens; a failed
+  build can overwrite a newer queued state; one gltfpack failure still packs every tile; a transient error reading
+  the OBJ deletes finished tiles; blocked projects still show link badges and get builds.
+- **D. Pages:** embeds clipped at the top (`#public-wrapper` is pulled up 14 px; the embed gives back 4-8 px); an
+  invalid Public Address shows a generic error and reverts; Download menus on link cards off screen on phones; the
+  map can show an earlier layer's error; focus lost on saving toggles; Allow Links reloads with the panel closed; the
+  Embed picker overflows at 320 px; Enter saves the address twice; revoking a gone link leaves its row; the blocked
+  notice's `alert-info` isn't themed.
+- **E. Release preparation:** licence notices (Obj2Tiles source pointer, Apache-2.0 texts, MIT headers of minified
+  parts), "Under development" wording, no `CHANGELOG.md`, Docs workflow permissions per job, stale "Explorer >
+  Settings" in `setup.sh`, the stale `dist/` zip.
+
 ### Code review findings (2026-11-22)
 
 Four reviewers (server, 3D viewer, pages, the Linode script), each finding checked against the code before fixing.
@@ -752,6 +786,17 @@ The user chose to fix all four groups:
    of the plugin's folder (they survive upgrades).
 
 ## Done
+
+- **Release review fixes, group A: release blockers** (findings 2026-11-23, branch `release-a`): WebODM 4.0.1 is the
+  minimum (`manifest.json`, README, docs, `CLAUDE.md`; `setup.sh` compares versions with `sort -V`); Gaussian Splats
+  ask for the file's head first (Spark's paged mode reports no failure), so a missing file or revoked link says so,
+  stay among the views opening until their first pages (no overlap with another view chosen meanwhile), and open
+  after 10 s without pages but are framed when they come (unless the visitor placed the camera); a load started
+  again after a lost context keeps its own entry. The `github-pages` environment got a `v*` tag rule (API). The
+  install, upgrade and Linode steps say to restart WebODM (it doesn't ask; production's other workers load plugins at
+  start), and the `release-check` skill restarts the webapp after installing. Checked live: splats normal, a 404
+  (message shown), first pages held 14 s (framed when they came), and Point Cloud chosen during the wait (no splats
+  over it).
 
 - **Docs step 3: publishing to GitHub Pages** (the user, 2026-11-23, once the repo was public; `.github/workflows/docs.yml`,
   as TweakUI's: a pushed `v*` tag or by hand, never on a push to `main`). Actions re-vetted 2026-11-23 from GitHub's

@@ -10,9 +10,9 @@ test("the manifest has every field WebODM's plugin list shows", () => {
     }
 });
 
-test("the version is semantic and the minimum WebODM is 4.0 or later", () => {
+test("the version is semantic and the minimum WebODM is 4.0.1, the first with admin-only menu items", () => {
     expect(manifest.version).toMatch(/^\d+\.\d+\.\d+$/);
-    expect(Number(manifest.webodmMinVersion.split(".")[0])).toBeGreaterThanOrEqual(4);
+    expect(manifest.webodmMinVersion).toBe("4.0.1");
 });
 
 test("the plugin stays experimental and not deprecated", () => {
