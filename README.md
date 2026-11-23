@@ -63,7 +63,7 @@ a server where only Explorer's links are public. It will be published to GitHub 
   **Thermal** (degrees in the magma colours, first). Elevation and thermal layers get a legend, in metric or imperial
   units (the visitor's choice, remembered in their browser). Under the layer, one of the basemaps set in WebODM's
   Administration, Basemaps (its default first; the visitor can pick another or none).
-- **Settings** on the Explorer page, for WebODM's admins: **Public Address**, which links and embed code copied from
+- **Explorer Settings**, a sidebar item for WebODM's superusers only: **Public Address**, which links and embed code copied from
   the Share panel start with instead of the browser's address (for a WebODM reached through an internal address or
   an SSH tunnel), and **Basemaps on Links** (on by default). Each visitor's
   browser loads a basemap's tiles from its provider (Google, Esri or OpenStreetMap with WebODM's own list), which

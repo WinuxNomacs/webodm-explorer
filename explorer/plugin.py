@@ -67,7 +67,9 @@ class Plugin(PluginBase):
     """The Explorer plugin: a page per project listing its tasks' outputs, and "anyone with the link" shares."""
 
     def main_menu(self):
-        return [Menu(_("Explorer"), self.public_url(""), "fa fa-binoculars fa-fw")]
+        # WebODM's Administration menu takes no plugin items: the settings get their own, for superusers only
+        return [Menu(_("Explorer"), self.public_url(""), "fa fa-binoculars fa-fw"),
+                Menu(_("Explorer Settings"), self.public_url("settings/"), "fa fa-cog fa-fw", admin_only=True)]
 
     def app_mount_points(self):
         public = self.public_url("")
@@ -83,8 +85,6 @@ class Plugin(PluginBase):
                 "sorts": [("activity", _("Recent Activity")), ("name", _("Name")), ("created", _("Created"))],
                 "grid_params": query.params(view="grid", page="1"),
                 "map_params": query.params(view="map", page="1"),
-                "settings": options.all_settings() if request.user.is_superuser else None,
-                "settings_api": f"/api/plugins/{links.NAMESPACE}/settings/",
                 "any_projects": pages.viewable_projects(request.user).exists(),
             }
             if query.view == "map":
@@ -96,6 +96,18 @@ class Plugin(PluginBase):
                                previous_params=query.params(page=str(page.number - 1)) if page.has_previous() else None,
                                next_params=query.params(page=str(page.number + 1)) if page.has_next() else None)
             return render(request, self.template_path("projects.html"), context)
+
+        @signed_in_page
+        def settings_page(request):
+            # A 404 for everyone but superusers, as the menu item shows to them only
+            if not request.user.is_superuser:
+                raise Http404()
+            return render(request, self.template_path("settings.html"), {
+                "title": _("Explorer Settings"),
+                "public": public, "v": pages.asset_version(),
+                "settings": options.all_settings(),
+                "settings_api": f"/api/plugins/{links.NAMESPACE}/settings/",
+            })
 
         def viewable_project(request, project_pk):
             project = get_object_or_404(Project, pk=project_pk, deleting=False)
@@ -292,6 +304,7 @@ class Plugin(PluginBase):
 
         return with_and_without_slash([
             ("", project_list),
+            (r"settings/", settings_page),
             (r"project/(?P<project_pk>[0-9]+)/", project_page),
             (rf"project/(?P<project_pk>[0-9]+)/map/{TASK}/", own_map),
             (rf"project/(?P<project_pk>[0-9]+)/3d/{TASK}/", own_3d),

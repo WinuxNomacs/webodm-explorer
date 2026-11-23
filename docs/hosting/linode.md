@@ -117,7 +117,7 @@ found": that is expected.
    `webodm` is the script's short command for WebODM's `webodm.sh`, with this server's settings: always use it (or
    `cd /opt/WebODM && sudo ./webodm.sh restart --detached`), so WebODM keeps listening on localhost only. WebODM is
    back after a minute or so: reload the page (the tunnel can stay open).
-3. Open **Explorer**, then **Settings**, and set **Public Address** to `https://maps.example.com`.
+3. Open **Explorer Settings** in the sidebar and set **Public Address** to `https://maps.example.com`.
 
 Without the Public Address, the links you copy would start with `http://localhost:8000`, the tunnel's address, which
 works only on your computer.

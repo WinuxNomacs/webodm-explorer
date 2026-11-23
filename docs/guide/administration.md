@@ -11,9 +11,11 @@
 
 ## Settings
 
-**Settings**, on Explorer's home, is shown to WebODM's admins.
+**Explorer Settings**, in the sidebar under **Explorer**, is shown to WebODM's superusers only (staff users who aren't
+superusers see WebODM's Administration menu but not this). It is an item of its own because WebODM's Administration
+menu doesn't take items from plugins.
 
-![The Settings panel: Basemaps on Links ticked, Public Address set to https://maps.example.com](/images/settings.png)
+![Explorer Settings: Basemaps on Links ticked, Public Address set to https://maps.example.com](/images/settings.png)
 
 - **Basemaps on Links** (on by default): maps opened from links and with **View as Visitor** show the basemaps set
   in WebODM's Administration, Basemaps. Each visitor's browser then loads the basemap's tiles from its provider (such

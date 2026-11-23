@@ -736,6 +736,14 @@ The user chose to fix all four groups:
 
 ## Done
 
+- **Explorer Settings in its own menu item** (the user, 2026-11-23, branch `admin-settings`; `plugin.py`,
+  `templates/settings.html`, `explorer.js`, `test_ux.py`): the settings moved off Explorer's home to a page of their
+  own, `/plugins/explorer/settings/`, opened from an **Explorer Settings** sidebar item under Explorer
+  (`Menu(admin_only=True)`, superusers only; the page answers 404 to anyone else, as the settings API refuses them).
+  WebODM's Administration menu is written into its template (`logged_in_base.html`) and takes no plugin items; the
+  other ways weighed (a script adding the item to it, a submenu under Explorer that WebODM doesn't filter, a pull
+  request to WebODM) were declined.
+
 - **Code review fixes, group 3: viewer medium** (findings 2026-11-22, branch `review-viewer`; `viewer/scene.js`,
   `viewer/ept.js`, `viewer/backdrop.js`, `viewer-ui.js`, `frame.js`, `link_3d.html`): the tiles' resolution follows
   resizes; the Grid's floor is each view's lowest sampled point within 1.5 times its frame's radius, measured

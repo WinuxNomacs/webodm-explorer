@@ -8,31 +8,7 @@
 <div class="explorer">
     <div class="explorer-header">
         <h3><i class="fa fa-binoculars"></i> {% trans "Explorer" %}</h3>
-        {% if settings %}
-        <div class="explorer-actions">
-            <button type="button" class="btn btn-default btn-sm" data-explorer-settings-toggle aria-expanded="false" aria-controls="explorer-settings">
-                <i class="fa fa-cog"></i> {% trans "Settings" %}
-            </button>
-        </div>
-        {% endif %}
     </div>
-    {% if settings %}
-    <form id="explorer-settings" class="explorer-share theme-border-secondary-07" data-settings-api="{{ settings_api }}"
-          data-error="{% trans "The setting could not be saved. Try again." %}" hidden>
-        {% csrf_token %}
-        <div class="checkbox">
-            <label><input type="checkbox" name="basemaps_on_links"{% if settings.basemaps_on_links %} checked{% endif %}> {% trans "Basemaps on Links" %}</label>
-        </div>
-        <p class="explorer-card-text">{% trans "Maps opened from links and with View as Visitor show the basemaps set in Administration, Basemaps. Each visitor's browser then loads them from their provider, which sees the visitor's address and the area viewed." %}</p>
-        <div class="form-group">
-            <label for="explorer-public-address">{% trans "Public Address" %}</label>
-            <input id="explorer-public-address" class="form-control input-sm" type="url" name="public_address" maxlength="200"
-                   value="{{ settings.public_address }}" placeholder="https://maps.example.com" autocomplete="off" spellcheck="false">
-        </div>
-        <p class="explorer-card-text">{% trans "Links and embed code copied from the Share panel start with this address instead of the browser's, for a WebODM reached through an internal address or an SSH tunnel. Leave it empty to use the browser's address." %}</p>
-        <div class="explorer-settings-error alert alert-warning" role="alert" hidden></div>
-    </form>
-    {% endif %}
     {% if any_projects %}
     {# A plain GET form: the page's address holds the search, so a view can be bookmarked and works without scripts #}
     <form class="explorer-toolbar" method="get" role="search" data-explorer-toolbar>
