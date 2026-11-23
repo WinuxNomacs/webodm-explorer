@@ -43,7 +43,8 @@ In Linode's Cloud Manager, **Create Linode**:
 1. **Image:** Ubuntu 24.04 LTS.
 2. **Region:** close to your visitors.
 3. **Plan:** Shared CPU, Linode 4 GB.
-4. **Root Password:** a long random one (you won't use it: the script turns password logins off).
+4. **Root Password:** a long random one, kept in your password manager. SSH won't take it (the script turns root and
+   password logins off), but Linode's LISH console, your way in if SSH ever fails, signs in as root with it.
 5. **SSH Keys:** add your public key. The script refuses to run without one, so that it can't lock you out.
 6. **Add-ons, User Data** (optional): paste the [setup script](#the-script) with your settings filled in at the
    top. The Linode then sets itself up on first boot. Otherwise, run the script over SSH in step 3.
@@ -59,7 +60,9 @@ Add an **A record** for your name (for example `maps`) pointing at the Linode's 
 dig +short maps.example.com
 ```
 
-It should print the Linode's address. The certificate can only be issued once it does.
+It should print the Linode's address. The certificate can only be issued once it does. An **AAAA record** (IPv6) is
+optional; if you add one, it must be the Linode's IPv6 address: Let's Encrypt tries IPv6 first, and the script warns
+when it points elsewhere (`dig +short AAAA maps.example.com`).
 
 ## 3. Run the script
 
@@ -135,8 +138,11 @@ The first time a textured model is opened, Explorer builds its 3D Tiles on the s
 
   ```bash
   curl -fsSLO https://winuxnomacs.github.io/webodm-explorer/linode/setup.sh
-  sudo WEBODM_VERSION=4.0.2 DOMAIN=maps.example.com EMAIL=you@example.com bash setup.sh
+  sudo WEBODM_VERSION=4.0.2 bash setup.sh
   ```
+
+  The script keeps the settings of its last run in `/etc/explorer-setup.env` (set one in the command to change it),
+  and the lines you changed in WebODM's `/opt/WebODM/.env` carry over to the new release.
 
   Don't use `webodm.sh update`: it moves to WebODM's newest images, past the release you chose.
 - **Updating Explorer:** see [Getting Started, Upgrading](/getting-started#install).
@@ -157,10 +163,19 @@ The first time a textured model is opened, Explorer builds its 3D Tiles on the s
 - **The browser says the connection isn't secure, or the certificate is missing:** DNS doesn't point at the server
   yet, or port 80 is blocked. Check `dig +short maps.example.com`, the Cloud Firewall, then
   `sudo journalctl -u caddy --since "10 min ago"`.
-- **The script stopped:** it names the step that failed. Fix the cause and run it again; finished steps are skipped.
+- **The script stopped:** it names the step that failed (`sudo tail -n 30 /var/log/explorer-setup.log`). Fix the
+  cause and run it again, as your user once the SSH step is done (as root before it); finished steps are skipped
+  and the settings of the first run are kept. Run over SSH: `sudo bash setup.sh`. Run as User Data: cloud-init keeps
+  the script, settings included, as `/var/lib/cloud/instance/user-data.txt`:
+
+  ```bash
+  sudo bash /var/lib/cloud/instance/user-data.txt
+  ```
+
 - **`ssh -L` says the address is in use:** something on your computer already uses port 8000. Use another one:
   `ssh -N -L 8001:127.0.0.1:8000 ...` and `http://localhost:8001`.
-- **Locked out of SSH:** use Linode's **Launch LISH Console** in Cloud Manager, which works without SSH.
+- **Locked out of SSH:** use Linode's **Launch LISH Console** in Cloud Manager, which works without SSH: sign in as
+  root with the Root Password.
 
 ## The script
 
@@ -170,8 +185,8 @@ The first time a textured model is opened, Explorer builds its 3D Tiles on the s
 |---|---|---|
 | `DOMAIN` | none | The server's DNS name |
 | `EMAIL` | none | For Let's Encrypt's notices |
-| `ADMIN_USER` | `odm` | The user you log in as (gets root's SSH keys and sudo) |
+| `ADMIN_USER` | `odm` | The user you log in as (sudo; gets root's SSH keys when the script creates it) |
 | `WEBODM_VERSION` | `4.0.1` | The WebODM release to run (4.0.0 or later) |
 | `TLS` | `acme` | `acme` for Let's Encrypt; `internal` for a test server without public DNS |
-| `SWAP_GB` | `2` | Swap to add when the server has none |
+| `SWAP_GB` | `2` | Swap the server has in all: a swap file tops up Linode's own swap disk; `0` adds none |
 | `AUTO_REBOOT` | `yes` | Reboot at 04:00 when an update needs it |

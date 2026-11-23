@@ -69,10 +69,17 @@ check) bash "$repo/dev/linode-vm/check.sh" "$(vm_ip)" "$key" "$domain" "$user" ;
 rerun)
     # The script as it is now in the repo, not the copy the VM booted with
     ssh_vm "sudo tee /root/setup.sh >/dev/null" < "$repo/docs/public/linode/setup.sh"
-    ssh_vm "sudo env TLS=internal DOMAIN=$domain ADMIN_USER=$user AUTO_REBOOT=no bash /root/setup.sh" > "$state/rerun.log" 2>&1 \
+    # A line of WebODM's .env the server's owner changed: a run again keeps it
+    ssh_vm "sudo sed -i '/^WO_TEST_KEEP=/d' /opt/WebODM/.env && echo WO_TEST_KEEP=yes | sudo tee -a /opt/WebODM/.env >/dev/null"
+    # No settings given: the first run's stored ones apply
+    ssh_vm "sudo bash /root/setup.sh" > "$state/rerun.log" 2>&1 \
         || { tail -n 20 "$state/rerun.log"; echo "FAIL: the second run failed"; exit 1; }
-    if grep -E "Created $user|SSH reloaded|Added [0-9]+ GB of swap" "$state/rerun.log"; then echo "FAIL: the second run changed something"; exit 1; fi
-    tail -n 3 "$state/rerun.log"; echo "OK: the second run succeeded and changed nothing it shouldn't"
+    if grep -E "Created $user|Gave $user|SSH reloaded|Added [0-9]+ MB of swap" "$state/rerun.log"; then echo "FAIL: the second run changed something"; exit 1; fi
+    grep -q "Domain $domain, user $user, .*certificates: internal" "$state/rerun.log" || { echo "FAIL: the stored settings were not used"; exit 1; }
+    ssh_vm "grep -qx WO_TEST_KEEP=yes /opt/WebODM/.env && grep -qx WO_PORT=127.0.0.1:8000 /opt/WebODM/.env" \
+        || { echo "FAIL: WebODM's .env lost a line"; exit 1; }
+    ssh_vm "sudo sed -i '/^WO_TEST_KEEP=/d' /opt/WebODM/.env"
+    tail -n 3 "$state/rerun.log"; echo "OK: the second run used the stored settings, kept .env and changed nothing it shouldn't"
     ;;
 e2e) node "$repo/dev/linode-vm/e2e.js" "$repo" "$(vm_ip)" "$key" "$domain" "$user" "$state" ;;
 ssh) shift; ssh_vm "$@" ;;

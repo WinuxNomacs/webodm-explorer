@@ -9,10 +9,21 @@
 # Run it as root, once, either:
 #   - pasted as "User Data" when creating the Linode (edit the settings below first), or
 #   - over SSH: DOMAIN=maps.example.com EMAIL=you@example.com bash setup.sh
-# Running it again is safe: each step checks before it changes anything. To update WebODM, run it again with a newer
+# Running it again is safe: each step checks before it changes anything, and the first run's settings are kept
+# (/etc/explorer-setup.env), so `sudo bash setup.sh` is enough. To update WebODM, run it again with a newer
 # WEBODM_VERSION. Its output is kept in /var/log/explorer-setup.log.
 #
 # Licence: AGPL-3.0 (https://github.com/WinuxNomacs/webodm-explorer). No warranty: read it before you run it.
+
+# A run again takes the settings stored by the last run, except those set in the environment
+SETTINGS_FILE=/etc/explorer-setup.env
+if [[ -r "$SETTINGS_FILE" ]]; then
+    while IFS='=' read -r key value; do
+        case "$key" in
+            DOMAIN|EMAIL|ADMIN_USER|TLS|SWAP_GB|AUTO_REBOOT) [[ -n "${!key+x}" ]] || printf -v "$key" '%s' "$value" ;;
+        esac
+    done < "$SETTINGS_FILE"
+fi
 
 # ---- Settings: edit these, or set them in the environment ------------------------------------------------------
 DOMAIN="${DOMAIN:-}"                    # the DNS name pointing at this server, e.g. maps.example.com
@@ -20,7 +31,7 @@ EMAIL="${EMAIL:-}"                      # for Let's Encrypt's expiry notices (no
 ADMIN_USER="${ADMIN_USER:-odm}"         # the Linux user you log in as (gets root's SSH keys, sudo)
 WEBODM_VERSION="${WEBODM_VERSION:-4.0.1}"
 TLS="${TLS:-acme}"                      # acme: Let's Encrypt; internal: Caddy's own CA (tests, no public DNS)
-SWAP_GB="${SWAP_GB:-2}"                 # swap file size when the server has none; 0 for none
+SWAP_GB="${SWAP_GB:-2}"                 # swap the server has in all (a swap file makes up the difference); 0: none added
 AUTO_REBOOT="${AUTO_REBOOT:-yes}"       # reboot at 04:00 when an update needs it (WebODM starts again by itself)
 # -----------------------------------------------------------------------------------------------------------------
 
@@ -32,18 +43,26 @@ WEBODM_DIR=/opt/WebODM
 # The repositories' signing keys, checked before they are trusted
 DOCKER_KEY_FPR=9DC858229FC7DD38854AE2D88D81803C0EBFCD88
 CADDY_KEY_FPR=65760C51EDEA2017CEA2CA15155B6D79CA56EA34
+# A line of authorized_keys with a key, options before it or not
+KEY_LINE='(^|[[:space:]])(ssh-(rsa|ed25519|dss)|ecdsa-sha2-|sk-(ssh|ecdsa))'
 
 STEP="start"
 step() { STEP="$1"; echo; echo "==> $1"; }
 fail() { echo "ERROR: $*" >&2; exit 1; }
 trap 'echo "FAILED during: $STEP (line $LINENO). Nothing after it ran; fix the cause and run the script again." >&2' ERR
 
-# Writes stdin to a file when its content differs; returns 0 when the file changed, 1 when it was already so
+# Writes stdin to a file when its content differs; returns 0 when the file changed, 1 when it was already so.
+# check (optional): a command given the new content's path; if it fails, the file is left as it was
 write_file() {
-    local path="$1" mode="${2:-0644}" tmp
+    local path="$1" mode="${2:-0644}" check="${3:-}" tmp out
     tmp="$(mktemp)"
     cat > "$tmp"
     if [[ -f "$path" ]] && cmp -s "$tmp" "$path"; then rm -f "$tmp"; return 1; fi
+    if [[ -n "$check" ]] && ! out="$("$check" "$tmp" 2>&1)"; then
+        rm -f "$tmp"
+        echo "$out" | tail -n 5 >&2
+        fail "the new $path did not check; left it as it was"
+    fi
     install -D -m "$mode" "$tmp" "$path"
     rm -f "$tmp"
     return 0
@@ -85,7 +104,7 @@ step "Checking the settings and the system"
 [[ "$DOMAIN" =~ ^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$ ]] || fail "set DOMAIN to this server's DNS name, in lower case (e.g. maps.example.com)"
 [[ "$TLS" == acme || "$TLS" == internal ]] || fail "TLS is acme or internal"
 if [[ "$TLS" == acme ]]; then
-    [[ "$DOMAIN" != *example.com ]] || fail "DOMAIN is still the example; set your own"
+    [[ "$DOMAIN" != example.com && "$DOMAIN" != *.example.com ]] || fail "DOMAIN is still the example; set your own"
     [[ "$EMAIL" =~ ^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$ ]] || fail "set EMAIL for Let's Encrypt"
 fi
 [[ "$ADMIN_USER" =~ ^[a-z_][a-z0-9_-]{0,31}$ && "$ADMIN_USER" != root ]] || fail "ADMIN_USER must be a plain user name, not root"
@@ -96,10 +115,19 @@ fi
 # SSH logins are turned to keys only below: refuse now rather than lock you out
 keys_found=""
 for f in /root/.ssh/authorized_keys "/home/$ADMIN_USER/.ssh/authorized_keys"; do
-    [[ -s "$f" ]] && grep -qE '^(ssh-|ecdsa-|sk-)' "$f" && keys_found=yes
+    [[ -s "$f" ]] && grep -qE "$KEY_LINE" "$f" && keys_found=yes
 done
 [[ -n "$keys_found" ]] || fail "no SSH public key found for root or $ADMIN_USER: add one (Linode: SSH Keys when creating it) and run again"
 echo "Domain $DOMAIN, user $ADMIN_USER, WebODM $WEBODM_VERSION, certificates: $TLS"
+# Kept for the next run (the WebODM version is not: a run again uses the script's, or the one you set)
+write_file "$SETTINGS_FILE" 0600 <<EOF || true
+DOMAIN=$DOMAIN
+EMAIL=$EMAIL
+ADMIN_USER=$ADMIN_USER
+TLS=$TLS
+SWAP_GB=$SWAP_GB
+AUTO_REBOOT=$AUTO_REBOOT
+EOF
 
 # ---------------------------------------------------------------------------------------------------------------------
 step "Updating the system and installing the base packages"
@@ -109,9 +137,11 @@ apt_get install ca-certificates curl gnupg git ufw fail2ban unattended-upgrades
 
 # ---------------------------------------------------------------------------------------------------------------------
 step "Creating the user $ADMIN_USER"
+created=""
 if ! id -u "$ADMIN_USER" >/dev/null 2>&1; then
     useradd --create-home --shell /bin/bash --groups sudo "$ADMIN_USER"
     passwd --lock "$ADMIN_USER" >/dev/null   # no password: SSH keys only
+    created=yes
     echo "Created $ADMIN_USER"
 fi
 usermod -aG sudo "$ADMIN_USER"
@@ -122,14 +152,16 @@ EOF
 visudo -cqf "/etc/sudoers.d/90-explorer-$ADMIN_USER" || fail "the sudoers file did not check"
 home="$(getent passwd "$ADMIN_USER" | cut -d: -f6)"
 install -d -m 0700 -o "$ADMIN_USER" -g "$ADMIN_USER" "$home/.ssh"
-touch "$home/.ssh/authorized_keys"
-if [[ -s /root/.ssh/authorized_keys ]]; then
-    sort -u "$home/.ssh/authorized_keys" /root/.ssh/authorized_keys | grep -E '^(ssh-|ecdsa-|sk-)' > "$home/.ssh/authorized_keys.new" || true
-    mv "$home/.ssh/authorized_keys.new" "$home/.ssh/authorized_keys"
+# Root's keys as they are (their options too), for a user this script creates or one without keys: afterwards the
+# user's keys are yours to change, and a run again leaves them alone
+if [[ -s /root/.ssh/authorized_keys ]] && { [[ -n "$created" ]] || ! grep -qsE "$KEY_LINE" "$home/.ssh/authorized_keys"; }; then
+    cp /root/.ssh/authorized_keys "$home/.ssh/authorized_keys"
+    echo "Gave $ADMIN_USER root's SSH keys"
 fi
+touch "$home/.ssh/authorized_keys"
 chown "$ADMIN_USER:$ADMIN_USER" "$home/.ssh/authorized_keys"
 chmod 0600 "$home/.ssh/authorized_keys"
-grep -qE '^(ssh-|ecdsa-|sk-)' "$home/.ssh/authorized_keys" || fail "$ADMIN_USER has no SSH key"
+grep -qE "$KEY_LINE" "$home/.ssh/authorized_keys" || fail "$ADMIN_USER has no SSH key"
 
 # ---------------------------------------------------------------------------------------------------------------------
 step "SSH: keys only, no root login, only $ADMIN_USER"
@@ -197,15 +229,19 @@ EOF
 systemctl enable --now unattended-upgrades >/dev/null 2>&1
 
 step "Swap"
-if [[ "$SWAP_GB" -gt 0 ]] && ! swapon --show --noheadings | grep -q .; then
-    fallocate -l "${SWAP_GB}G" /swapfile
+# Counted by size: a Linode comes with a small swap disk (512 MB), which a swap file tops up to SWAP_GB
+have_mb="$(swapon --show=SIZE --bytes --noheadings | awk '{ s += $1 } END { print int(s / 1048576) }')"
+want_mb=$((SWAP_GB * 1024))
+if (( have_mb < want_mb - 64 )) && ! swapon --show=NAME --noheadings | grep -qx /swapfile; then
+    rm -f /swapfile
+    fallocate -l "$((want_mb - have_mb))M" /swapfile
     chmod 600 /swapfile
     mkswap /swapfile >/dev/null
     swapon /swapfile
     grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
-    echo "Added ${SWAP_GB} GB of swap"
+    echo "Added $((want_mb - have_mb)) MB of swap, ${SWAP_GB} GB in all"
 else
-    echo "Swap: $(swapon --show --noheadings | wc -l) area(s) already, or none asked for"
+    echo "Swap: ${have_mb} MB already (${SWAP_GB} GB asked for)"
 fi
 write_file /etc/sysctl.d/90-explorer.conf <<'EOF' && sysctl -q --system || true
 vm.swappiness = 10
@@ -226,7 +262,8 @@ EOF
 apt_get update
 apt_get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 # Container logs rotated, so they can't fill the disk
-if write_file /etc/docker/daemon.json <<'EOF'
+check_docker_config() { dockerd --validate --config-file "$1"; }
+if write_file /etc/docker/daemon.json 0644 check_docker_config <<'EOF'
 {
   "log-driver": "json-file",
   "log-opts": { "max-size": "10m", "max-file": "3" }
@@ -240,9 +277,22 @@ step "WebODM $WEBODM_VERSION, listening on localhost only"
 if [[ ! -d "$WEBODM_DIR/.git" ]]; then
     retry git clone --quiet --depth 1 --branch "v$WEBODM_VERSION" https://github.com/WebODM/WebODM "$WEBODM_DIR"
 else
-    git -C "$WEBODM_DIR" checkout --quiet -- .env   # this script's own changes, made again below
+    # Fetched before .env is touched, so a failed download leaves it as it was
     retry git -C "$WEBODM_DIR" fetch --quiet --depth 1 origin tag "v$WEBODM_VERSION"
+    # The lines of .env you (or this script) changed from the running release's, carried onto the new release's
+    env_mine="$(mktemp)" env_was="$(mktemp)" env_new="$(mktemp)"
+    cp "$WEBODM_DIR/.env" "$env_mine"
+    git -C "$WEBODM_DIR" show HEAD:.env > "$env_was"
+    git -C "$WEBODM_DIR" checkout --quiet -- .env
     git -C "$WEBODM_DIR" -c advice.detachedHead=false checkout --quiet "v$WEBODM_VERSION"
+    awk 'FILENAME == ARGV[1] { was[$0] = 1; next }
+         FILENAME == ARGV[2] { if ($0 ~ /^[A-Za-z_][A-Za-z0-9_]*=/ && !($0 in was)) { k = substr($0, 1, index($0, "=") - 1); if (!(k in mine)) order[++n] = k; mine[k] = $0 } next }
+         /^[A-Za-z_][A-Za-z0-9_]*=/ { k = substr($0, 1, index($0, "=") - 1); if (k in mine) { print mine[k]; done[k] = 1; next } }
+         { print }
+         END { for (i = 1; i <= n; i++) if (!(order[i] in done)) print mine[order[i]] }' \
+        "$env_was" "$env_mine" "$WEBODM_DIR/.env" > "$env_new"
+    cat "$env_new" > "$WEBODM_DIR/.env"
+    rm -f "$env_mine" "$env_was" "$env_new"
 fi
 # WebODM's defaults, so that even a plain ./webodm.sh restart keeps them: 127.0.0.1 because ports Docker publishes
 # skip ufw (WebODM listens only where Caddy and the SSH tunnel reach it); no processing node (tasks are processed
@@ -292,7 +342,8 @@ EOF
 apt_get update
 apt_get install caddy
 if [[ "$TLS" == acme ]]; then global="email $EMAIL"; site_tls=""; else global="local_certs"; site_tls="tls internal"; fi
-if write_file /etc/caddy/Caddyfile <<EOF
+check_caddyfile() { caddy validate --config "$1" --adapter caddyfile; }
+if write_file /etc/caddy/Caddyfile 0644 check_caddyfile <<EOF
 # Written by Explorer's setup script. Only what Explorer's share links load is passed to WebODM; everything else,
 # WebODM's sign-in, admin, API and processing included, answers 404. WebODM itself: through the SSH tunnel.
 {
@@ -336,23 +387,28 @@ Disallow: /
 	}
 }
 EOF
-then
-    caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1 || fail "the Caddyfile did not validate: caddy validate --config /etc/caddy/Caddyfile"
-    systemctl reload-or-restart caddy
-fi
+then systemctl reload-or-restart caddy; fi
 systemctl enable --now caddy >/dev/null 2>&1
 
 # ---------------------------------------------------------------------------------------------------------------------
 step "Checking DNS"
-mine="$(ip -o -4 addr show scope global | awk '{ split($4, a, "/"); print a[1] }' | sort -u)"
-theirs="$(getent ahostsv4 "$DOMAIN" | awk '{ print $1 }' | sort -u || true)"
+addresses() { ip -o "$1" addr show scope global | awk '{ split($4, a, "/"); print a[1] }' | sort -u; }
+# Whether two lists of addresses share one
+overlap() { [[ -n "$1" && -n "$2" ]] && grep -qxFf <(echo "$1") <(echo "$2"); }
+mine4="$(addresses -4)"; mine6="$(addresses -6)"
+theirs4="$(getent ahostsv4 "$DOMAIN" | awk '{ print $1 }' | sort -u || true)"
+theirs6="$(getent ahostsv6 "$DOMAIN" | awk '$1 !~ /^::ffff:/ { print $1 }' | sort -u || true)"
 if [[ "$TLS" == internal ]]; then
     echo "TLS=internal: no public certificate asked for"
-elif [[ -n "$theirs" ]] && grep -qxFf <(echo "$theirs") <(echo "$mine"); then
-    echo "$DOMAIN points at this server: Caddy gets its certificate within a minute or two"
-else
-    echo "WARNING: $DOMAIN does not point at this server yet (it resolves to: ${theirs:-nothing}; this server: $(echo "$mine" | tr '\n' ' '))."
+elif ! overlap "$theirs4" "$mine4"; then
+    echo "WARNING: $DOMAIN does not point at this server yet (its A records: ${theirs4:-none}; this server: $(echo "$mine4" | tr '\n' ' '))."
     echo "         Add an A record for it; Caddy keeps trying and gets the certificate once DNS is right."
+elif [[ -n "$theirs6" ]] && ! overlap "$theirs6" "$mine6"; then
+    # Let's Encrypt tries IPv6 first: an AAAA record pointing elsewhere fails the certificate
+    echo "WARNING: $DOMAIN has an AAAA (IPv6) record that is not this server's ($(echo "$theirs6" | tr '\n' ' '))."
+    echo "         Point it at this server's IPv6 address ($(echo "$mine6" | head -n 1)), or remove it; Caddy keeps trying."
+else
+    echo "$DOMAIN points at this server: Caddy gets its certificate within a minute or two"
 fi
 
 # ---------------------------------------------------------------------------------------------------------------------

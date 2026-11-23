@@ -3,7 +3,7 @@
 ## Phases (current and upcoming)
 
 Up next: **Code review fixes** (the user's review request 2026-11-22, findings below), in four groups, each a
-branch: 1. high (done); 2. the Linode script and guide; 3. viewer medium; 4. pages and phones.
+branch: 1. high (done); 2. the Linode script and guide (done); 3. viewer medium; 4. pages and phones.
 
 Then: **Documentation site** (the request 2026-11-22, plan below; decided). Its steps, each a phase:
 1. the site and its pages (Getting Started, usage guides; done); 2. the Linode hosting guide and its script (done); 3. publishing to GitHub Pages (once the repo is public).
@@ -733,6 +733,17 @@ The user chose to fix all four groups:
    of the plugin's folder (they survive upgrades).
 
 ## Done
+
+- **Code review fixes, group 2: the Linode script and guide** (findings 2026-11-22, branch `review-linode`;
+  `docs/public/linode/setup.sh`, `docs/hosting/linode.md`, `dev/linode-vm/vm.sh`): the settings of the last run are
+  stored in `/etc/explorer-setup.env` (0600; not the WebODM version), so a run again needs none; WebODM's new release
+  is fetched before `.env` is touched, and the `.env` lines that differ from the running release's carry onto the new
+  one; root's keys are copied as they are (options kept) only to a user the script creates or one without keys; swap
+  is counted by size (a Linode's 512 MB swap disk is topped up to `SWAP_GB`); the DNS check also warns on an AAAA
+  record that is not the server's; the example-domain check is exact; the Caddyfile and `daemon.json` are checked
+  (`caddy validate`, `dockerd --validate`) before they are installed. The guide keeps the root password for LISH, says
+  how to run the script again after a failed first run (User Data: `/var/lib/cloud/instance/user-data.txt`), and
+  covers AAAA records. The VM test's second run gives no settings and checks a changed `.env` line survives.
 
 - **Code review fixes, group 1: high** (findings 2026-11-22, branch `review-high`): footprint tooltips are text
   elements, never HTML (`footprints.js` `label`; Jest test with a script in a name). A mesh build no longer waits in
