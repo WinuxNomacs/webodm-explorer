@@ -94,4 +94,5 @@ class Tiles:
 
 
 def project_is_shared(project_id):
-    return bool(links.list_links(project_id))
+    """Whether the project has links that work: blocked links (Links for Public Projects Only) get no builds."""
+    return bool(links.list_links(project_id)) and int(project_id) in links.links_work([project_id])

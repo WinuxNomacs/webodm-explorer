@@ -83,6 +83,15 @@ def set_project_allowed(project_id, value):
         store().del_key(allowed_key(project_id))
 
 
+def links_work(project_ids):
+    """The ids among these whose links work (all of them unless Links for Public Projects Only is on)."""
+    ids = {int(pk) for pk in project_ids}
+    if not public_projects_only():
+        return ids
+    public = set(Project.objects.filter(id__in=ids, public=True).values_list("id", flat=True))
+    return public | {pk for pk in ids - public if project_allowed(pk)}
+
+
 def links_allowed(project):
     """Whether the project's links work: always, unless Links for Public Projects Only is on and it is private."""
     return project.public or not public_projects_only() or project_allowed(project.id)
@@ -203,7 +212,8 @@ def linked_project_ids():
                     store().set_json(INDEX_KEY, ids)
         except LinkStoreBusy:
             ids = _build_index()
-    return {pk for pk in ids if list_links(pk)}
+    # Links that don't work (a private project with Links for Public Projects Only) don't count as shared
+    return links_work(pk for pk in ids if list_links(pk))
 
 
 def summary(project_id):

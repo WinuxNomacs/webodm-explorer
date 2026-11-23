@@ -83,6 +83,16 @@ class LinksApiTests(LinkTestMixin, BootTestCase):
         response = client.post(self.links_api(), {"label": ["x"]}, content_type="application/json")
         self.assertEqual(response.status_code, 400)
 
+    def test_the_links_api_refuses_what_the_browser_marks_as_another_sites_request(self):
+        client = self.client_for("testuser")
+        self.assertEqual(client.get(self.links_api(), HTTP_SEC_FETCH_SITE="cross-site").status_code, 403)
+        self.assertEqual(client.get(self.links_api(), HTTP_SEC_FETCH_SITE="same-origin").status_code, 200)
+        self.assertEqual(client.get(self.links_api()).status_code, 200)  # no header: an older browser or a script
+        admin = self.client_for("testsuperuser")
+        self.assertEqual(admin.get("/api/plugins/explorer/settings/", HTTP_SEC_FETCH_SITE="cross-site").status_code, 403)
+        self.assertEqual(admin.patch(f"/api/plugins/explorer/projects/{self.project.id}/links-allowed/", {"allowed": True},
+                                     content_type="application/json", HTTP_SEC_FETCH_SITE="cross-site").status_code, 403)
+
     def test_a_json_body_that_is_not_an_object_is_refused_not_a_server_error(self):
         client = self.client_for("testuser")
         token = self.link()["token"]
@@ -311,6 +321,7 @@ class TokenViewTests(LinkTestMixin, BootTestCase):
         self.assertEqual(response.status_code, 206)
         self.assertEqual(b"".join(response.streaming_content), bytes(range(10)))
         self.assertEqual(response["Referrer-Policy"], "strict-origin")
+        self.assertEqual(response["Cache-Control"], "private")  # never kept by a shared cache after a revoke
         response = Client().get(self.url(self.task_ok, "assets/entwine_pointcloud/ept.json"))
         self.assertEqual(response.status_code, 200)
 
@@ -356,6 +367,11 @@ class TokenViewTests(LinkTestMixin, BootTestCase):
     def test_the_asset_check(self):
         self.assertTrue(api.asset_allowed("splats/model.rad"))
         self.assertTrue(api.asset_allowed("entwine_pointcloud/ept-data/0-0-0-0.laz"))
+        self.assertTrue(api.asset_allowed("entwine_pointcloud/ept-hierarchy/1-0-1-0.json"))
+        # Not what the viewer doesn't stream: ept-sources/ holds the processing node's file paths
+        for path in ("entwine_pointcloud/ept-sources/manifest.json", "entwine_pointcloud/ept-sources/0.json",
+                     "entwine_pointcloud/ept-build.json", "entwine_pointcloud/ept-data/0-0-0-0.bin"):
+            self.assertFalse(api.asset_allowed(path), path)
         for path in ("entwine_pointcloud/", "entwine_pointcloud/a/../b", "/splats/model.rad", "splats\\model.rad",
                      "entwine_pointcloud/a b", None):
             self.assertFalse(api.asset_allowed(path), path)

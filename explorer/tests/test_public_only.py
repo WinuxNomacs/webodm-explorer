@@ -87,6 +87,19 @@ class PublicProjectsOnlyTests(LinkTestMixin, BootTestCase):
         self.assertEqual(self.client_for("testuser").patch(SETTINGS_API, {"public_projects_only": False},
                                                            content_type="application/json").status_code, 403)
 
+    def test_blocked_links_count_nowhere_as_shared_and_get_no_tile_builds(self):
+        from coreplugins.explorer import pages, tiles
+        self.assertIn(self.project.id, links.linked_project_ids())
+        self.assertIn(self.project.id, pages.link_summaries(self.owner, [self.project.id]))
+        self.assertTrue(tiles.project_is_shared(self.project.id))
+        links.set_public_projects_only(True)
+        self.assertNotIn(self.project.id, links.linked_project_ids())  # the home's Shared by Link filter
+        self.assertNotIn(self.project.id, pages.link_summaries(self.owner, [self.project.id]))  # its badge
+        self.assertFalse(tiles.project_is_shared(self.project.id))
+        links.set_project_allowed(self.project.id, True)
+        self.assertIn(self.project.id, links.linked_project_ids())
+        self.assertTrue(tiles.project_is_shared(self.project.id))
+
     def test_the_share_panel_explains_and_offers_the_switch_to_superusers_only(self):
         own = f"/plugins/explorer/project/{self.project.id}/"
         owner_html = self.client_for("testuser").get(own).content.decode()

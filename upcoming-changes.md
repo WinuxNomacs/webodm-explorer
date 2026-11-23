@@ -3,7 +3,7 @@
 ## Phases (current and upcoming)
 
 Up next: **Release review fixes** (the user's request 2026-11-23, findings below), in four groups, each a branch:
-A. release blockers (done); B+C. viewer and server; D. pages and phones; E. release preparation. Then the first
+A. release blockers (done); B+C. viewer and server (done); D. pages and phones; E. release preparation. Then the first
 release.
 
 Built: **Code review fixes** (the user's review request 2026-11-22, findings below), in four groups, each a
@@ -786,6 +786,24 @@ The user chose to fix all four groups:
    of the plugin's folder (they survive upgrades).
 
 ## Done
+
+- **Release review fixes, groups B and C: viewer and server** (findings 2026-11-23, branch `release-bc`). Viewer
+  (`public/viewer/scene.js`, `public/viewer-ui.js`): the tiles timeout runs only while the page is visible; failed
+  tiles are retried (`resetFailedTiles`, from 5 s doubling to 60 s, 6 times, not after a 404); after the GLB fallback
+  a late root tileset or model no longer moves the camera; a double-tap needs both touches to start close in time
+  and place; Reset View clears the pending double-click focus; the pixel ratio follows resizes; a context restore
+  keeps the camera; loads still running don't overwrite or hide the lost-context message. Server: mesh tiles build
+  in the work folder (`.tmp-<task>-<build>`, cleared when the lock is taken) and move into the task folder at the end
+  (copy when on another disk), so WebODM's duplicate, delete and backups never see a half-built folder; a build
+  superseded meanwhile leaves the newer state and removes its output; only a missing mesh removes the tiles (another
+  read error is a failure); the gltfpack pool cancels the rest after one failure; link assets are an allowlist
+  (`model.rad`, `ept.json`, hierarchy and data: not `ept-sources/`, which names the node's paths); token responses
+  get `Cache-Control: private`; the links, settings and Allow Links APIs refuse `Sec-Fetch-Site: cross-site` (against
+  WebODM's relaxed CORS); blocked projects (Links for Public Projects Only) get no link badges, summaries or builds.
+  Tests: `test_tiles.py`, `test_links.py`, `test_public_only.py`, Jest `viewer.test.js` (the new tiles tests and the
+  lost-context test failed on the old code). Checked live: a cloud through a link (15 EPT files, `ept-sources` 404,
+  the cache header), the textured model from its tiles (70 tiles, no fallback), and two real builds moved from the
+  work folder.
 
 - **Release review fixes, group A: release blockers** (findings 2026-11-23, branch `release-a`): WebODM 4.0.1 is the
   minimum (`manifest.json`, README, docs, `CLAUDE.md`; `setup.sh` compares versions with `sort -V`); Gaussian Splats
