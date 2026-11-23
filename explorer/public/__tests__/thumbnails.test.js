@@ -195,20 +195,29 @@ test("a switch keeps the keyboard focus while its change is saved", async () => 
     expect(document.activeElement).toBe(box);
 });
 
-test("Links for Public Projects Only is saved by its own name, beside Basemaps on Links", async () => {
+test("Links to Private Projects is saved by its own name, and goes back to the saved choice when refused", async () => {
     document.body.innerHTML = `
         <form data-settings-api="/api/plugins/explorer/settings/" data-error="Not saved.">
             <input type="hidden" name="csrfmiddlewaretoken" value="CSRF">
             <input type="checkbox" name="basemaps_on_links" checked>
-            <input type="checkbox" name="public_projects_only">
+            <select name="private_links"><option value="anyone" selected>Anyone</option>
+                <option value="signed_in">Signed-In</option><option value="none">Not Allowed</option></select>
             <div class="explorer-settings-error" hidden></div>
         </form>`;
-    window.fetch = jest.fn(() => ok({basemaps_on_links: true, public_projects_only: true}));
+    window.fetch = jest.fn(() => ok({basemaps_on_links: true, private_links: "signed_in"}));
     init(document);
-    const box = document.querySelector("[name=public_projects_only]");
-    box.click();
+    const select = document.querySelector("[name=private_links]");
+    select.value = "signed_in";
+    select.dispatchEvent(new Event("change"));
     await settle(); await settle();
-    expect(JSON.parse(window.fetch.mock.calls[0][1].body)).toEqual({public_projects_only: true});
-    expect(box.checked).toBe(true);
+    expect(JSON.parse(window.fetch.mock.calls[0][1].body)).toEqual({private_links: "signed_in"});
+    expect(select.value).toBe("signed_in");
     expect(document.querySelector("[name=basemaps_on_links]").checked).toBe(true);
+
+    window.fetch = jest.fn(() => Promise.resolve({ok: false, status: 403, json: () => Promise.resolve({detail: "No."})}));
+    select.value = "none";
+    select.dispatchEvent(new Event("change"));
+    await settle(); await settle(); await settle();
+    expect(select.value).toBe("signed_in");
+    expect(document.querySelector(".explorer-settings-error").textContent).toBe("No.");
 });

@@ -38,15 +38,23 @@ def link_json(link):
         "expires": link["expires"],
         "path": LINK_PATH.format(links.NAMESPACE, link["token"]),
         "downloads": links.allows_downloads(link),
+        "sign_in": links.requires_sign_in(link),
     }
 
 
-def downloads_value(data):
-    """The request's `downloads` (a JSON boolean), False when absent; a 400 for anything else."""
-    value = data.get("downloads", False)
+def flag_value(data, name):
+    """The request's `downloads` or `sign_in` (a JSON boolean), False when absent; a 400 for anything else."""
+    value = data.get(name, False)
     if not isinstance(value, bool):
-        raise exceptions.ValidationError({"downloads": _("Not a valid choice.")})
+        raise exceptions.ValidationError({name: _("Not a valid choice.")})
     return value
+
+
+def downloads_value(data):
+    return flag_value(data, "downloads")
+
+
+SIGN_IN_ONLY = _("Links to this private project must require sign-in: Explorer Settings allow only those.")
 
 
 class NotCrossSite(BasePermission):
@@ -70,7 +78,8 @@ class IsSuperuser(BasePermission):
 class Settings(APIView):
     """
     Explorer's settings: GET them, PATCH any of {"basemaps_on_links": true|false, "public_address": "https://...",
-    "public_projects_only": true|false}.
+    "private_links": "anyone"|"signed_in"|"none"}, or "public_projects_only": true|false (a page from before
+    private_links: true is "none").
     """
     permission_classes = (NotCrossSite, IsSuperuser)
     SWITCHES = (("basemaps_on_links", options.set_basemaps_on_links),
@@ -81,12 +90,15 @@ class Settings(APIView):
 
     def patch(self, request):
         data = request.data if isinstance(request.data, dict) else {}
-        if not any(name in data for name in (*(name for name, _save in self.SWITCHES), "public_address")):
+        if not any(name in data for name in (*(name for name, _save in self.SWITCHES), "public_address",
+                                             "private_links")):
             raise exceptions.ValidationError({"detail": _("Nothing to change.")})
         address = data.get("public_address")
         for name, _save in self.SWITCHES:
             if name in data and not isinstance(data[name], bool):
                 raise exceptions.ValidationError({name: _("Expected true or false.")})
+        if "private_links" in data and data["private_links"] not in links.PRIVATE_LINKS:
+            raise exceptions.ValidationError({"private_links": _("Not a valid choice.")})
         if "public_address" in data:
             try:
                 if not isinstance(address, str):
@@ -99,6 +111,8 @@ class Settings(APIView):
         for name, save in self.SWITCHES:
             if name in data:
                 save(data[name])
+        if "private_links" in data:
+            links.set_private_links(data["private_links"])
         if "public_address" in data:
             options.set_public_address(address)
         return Response(options.all_settings())
@@ -154,7 +168,10 @@ class ProjectLinks(ProjectLinksBase):
             raise exceptions.PermissionDenied(_("Links are allowed only for public projects here. An administrator "
                                                 "can allow them for this project."))
         downloads = downloads_value(data)
-        link = links.create_link(project.id, label, expires, request.user, downloads)
+        sign_in = flag_value(data, "sign_in")
+        if links.sign_in_forced(project) and not sign_in:
+            raise exceptions.PermissionDenied(SIGN_IN_ONLY)
+        link = links.create_link(project.id, label, expires, request.user, downloads, sign_in)
         prepare_tiles(project)
         return Response(link_json(link), status=status.HTTP_201_CREATED)
 
@@ -188,9 +205,12 @@ class ProjectLink(ProjectLinksBase):
     def patch(self, request, project_pk=None, token=None):
         project = self.get_project(request, project_pk)
         data = object_body(request)
-        if "downloads" not in data:
-            raise exceptions.ValidationError({"downloads": _("This field is required.")})
-        link = links.set_downloads(project.id, token, downloads_value(data))
+        changes = {name: flag_value(data, name) for name in ("downloads", "sign_in") if name in data}
+        if not changes:
+            raise exceptions.ValidationError({"detail": _("Nothing to change.")})
+        if changes.get("sign_in") is False and links.sign_in_forced(project):
+            raise exceptions.PermissionDenied(SIGN_IN_ONLY)
+        link = links.set_options(project.id, token, **changes)
         if link is None:
             raise exceptions.NotFound()
         return Response(link_json(link))
@@ -204,8 +224,9 @@ class ProjectLink(ProjectLinksBase):
 
 class TokenTaskMixin:
     """
-    Replaces WebODM's permission check with the link's: the token must be live, the task in its project, completed
-    and not being removed. Every refusal is the same 404, so a visitor learns nothing about other tasks or links.
+    Replaces WebODM's permission check with the link's: the token must be live, the visitor signed in to WebODM when
+    the link asks for it, the task in its project, completed and not being removed. Every refusal is the same 404, so
+    a visitor learns nothing about other tasks or links.
     """
     allowed = True
     needs_downloads = False
@@ -218,6 +239,8 @@ class TokenTaskMixin:
     def get_and_check_task(self, request, pk, annotate=None):
         project, link = links.resolve(self.share_token)
         if project is None or not self.allowed or (self.needs_downloads and not links.allows_downloads(link)):
+            raise exceptions.NotFound()
+        if links.needs_sign_in(project, link) and not (request.user and request.user.is_authenticated):
             raise exceptions.NotFound()
         try:
             task = self.queryset.annotate(**(annotate or {})).get(pk=pk, project=project)

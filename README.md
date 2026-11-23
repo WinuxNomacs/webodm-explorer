@@ -42,8 +42,9 @@ a server where only Explorer's links are public.
   ready, the link shows WebODM's own model. A link serves only what these views stream, unless it has
   **Allow Downloads** (ticked when creating it, or on the link later): its task cards and views then get a **Download** menu
   with the orthophoto, DSM, DTM, point cloud (LAZ) and textured model (zip and glTF), but not the report, camera
-  positions or All Assets. Links are kept in plain text in WebODM's database (so they can be copied again), and
-  revoking one, or unticking Allow Downloads, takes effect at once.
+  positions or All Assets. A link with **Require Sign-In** asks for a WebODM login first (any account on the WebODM,
+  without sharing the project with it), and has no preview in chat apps. Links are kept in plain text in WebODM's
+  database (so they can be copied again), and revoking one, or unticking Allow Downloads, takes effect at once.
 - **Explorer's map and 3D pages** (for visitors and signed-in users alike) have **Previous** and **Next** to step
   through the project's tasks, keeping the view where the next task has it, a switch between the task's **Map** and
   its 3D views, **Reset View** (R) and **Fullscreen**
@@ -66,9 +67,10 @@ a server where only Explorer's links are public.
   Administration, Basemaps (its default first; the visitor can pick another or none).
 - **Explorer Settings**, a sidebar item for WebODM's superusers only: **Public Address**, which links and embed code copied from
   the Share panel start with instead of the browser's address (for a WebODM reached through an internal address or
-  an SSH tunnel), **Basemaps on Links** (on by default), and **Links for Public Projects Only** (off by default:
-  when on, links work only for projects shared publicly in WebODM and for private ones a superuser allows with
-  **Allow Links** in the project's Share panel). Each visitor's
+  an SSH tunnel), **Basemaps on Links** (on by default), and **Links to Private Projects**: **Anyone with the Link**
+  (the default), **Signed-In Users Only** (every link of a private project asks for a WebODM login), or **Not
+  Allowed** (links only for projects shared publicly in WebODM and for private ones a superuser allows with **Allow
+  Links** in the project's Share panel). Each visitor's
   browser loads a basemap's tiles from its provider (Google, Esri or OpenStreetMap with WebODM's own list), which
   then sees the visitor's address and the area viewed; turn it off where that matters.
 

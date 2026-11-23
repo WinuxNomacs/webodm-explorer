@@ -94,7 +94,7 @@ class BasemapAndSettingsTests(LinkTestMixin, BootTestCase):
         self.assertEqual(self.client_for("testuser").get(SETTINGS_API).status_code, 403)
         admin = self.client_for("testsuperuser", enforce_csrf_checks=True)
         self.assertEqual(admin.get(SETTINGS_API).json(), {"basemaps_on_links": True, "public_address": "",
-                                                       "public_projects_only": False})
+                                                       "private_links": "anyone", "public_projects_only": False})
         # WebODM's CSRF check applies to the plugin's API
         self.assertEqual(admin.patch(SETTINGS_API, {"basemaps_on_links": False},
                                      content_type="application/json").status_code, 403)
@@ -102,7 +102,8 @@ class BasemapAndSettingsTests(LinkTestMixin, BootTestCase):
         csrf = admin.cookies["csrftoken"].value
         response = admin.patch(SETTINGS_API, {"basemaps_on_links": False}, content_type="application/json",
                                HTTP_X_CSRFTOKEN=csrf)
-        self.assertEqual(response.json(), {"basemaps_on_links": False, "public_address": "", "public_projects_only": False})
+        self.assertEqual(response.json(), {"basemaps_on_links": False, "public_address": "", "private_links": "anyone",
+                                           "public_projects_only": False})
         self.assertFalse(options.basemaps_on_links())
         self.assertEqual(admin.patch(SETTINGS_API, {"basemaps_on_links": "no"}, content_type="application/json",
                                      HTTP_X_CSRFTOKEN=csrf).status_code, 400)

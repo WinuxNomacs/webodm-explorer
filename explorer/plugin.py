@@ -3,6 +3,7 @@ import logging
 from app.models import Project, Task
 from app.plugins import Menu, MountPoint, PluginBase, signals
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.views import redirect_to_login
 from django.dispatch import receiver
 from django.http import Http404, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, render
@@ -138,10 +139,12 @@ class Plugin(PluginBase):
                 "can_share": can_share,
                 "links": pages.link_summaries(request.user, [project.id]).get(project.id) if can_share else None,
                 "links_api": f"/api/plugins/{links.NAMESPACE}/projects/{project.id}/links/",
-                # Links for Public Projects Only: whether this project's links work, and the superuser's switch
+                # Links to Private Projects: whether this project's links work, the superuser's switch where they
+                # aren't allowed, and whether they must all ask for a login
                 "links_work": links.links_allowed(project),
                 "allow_switch": (request.user.is_superuser and links.public_projects_only()
                                  and not project.public),
+                "sign_in_forced": links.sign_in_forced(project),
                 "allowed": links.project_allowed(project.id),
                 "allowed_api": f"/api/plugins/{links.NAMESPACE}/projects/{project.id}/links-allowed/",
                 "public_address": options.public_address() if can_share else "",
@@ -154,14 +157,24 @@ class Plugin(PluginBase):
             return link_headers(render(request, self.template_path("link_invalid.html"),
                                        {"title": _("Link Not Valid"), "public": public, "v": pages.asset_version()}, status=404))
 
-        def link_viewer(token):
+        def link_viewer(token, project, link):
             """The link's pages: Explorer's token views. None for a link that doesn't open anything."""
-            project, link = links.resolve(token)
             if project is None:
                 return None
             api_path = f"/api/plugins/{links.NAMESPACE}/s/{token}/tasks/"
             return pages.Viewer(project=project, path=f"{public}s/{token}/", api=api_path, tiles_api=api_path,
-                                downloads=links.allows_downloads(link), preview=False)
+                                downloads=links.allows_downloads(link), preview=False,
+                                sign_in_link=links.needs_sign_in(project, link))
+
+        def through_link(request, token, show):
+            """
+            A link page: shown through the link, or WebODM's login first (then back here) for a link that asks for one
+            and a visitor who isn't signed in. Any account will do: the link decides what it opens.
+            """
+            project, link = links.resolve(token)
+            if project is not None and links.needs_sign_in(project, link) and not request.user.is_authenticated:
+                return link_headers(redirect_to_login(request.get_full_path()))
+            return show(link_viewer(token, project, link))
 
         def preview_viewer(request, project_pk):
             """
@@ -218,7 +231,7 @@ class Plugin(PluginBase):
             project's description and the task's picture through the link (WebODM's thumbnail; none for a picture
             drawn from tiles). None on View as Visitor and the signed-in pages, which no one unfurls.
             """
-            if viewer.preview or viewer.signed_in:
+            if viewer.preview or viewer.signed_in or viewer.sign_in_link:
                 return None
             image = None
             if picture_task is not None and picture and picture["webodm"]:
@@ -281,13 +294,13 @@ class Plugin(PluginBase):
                 initial=initial, mesh_build=mesh_build, preparing=preparing, offset=pages.model_offset(task))))
 
         def link_page(request, token):
-            return list_page(request, link_viewer(token))
+            return through_link(request, token, lambda viewer: list_page(request, viewer))
 
         def link_map(request, token, pk):
-            return map_page(request, link_viewer(token), pk)
+            return through_link(request, token, lambda viewer: map_page(request, viewer, pk))
 
         def link_3d(request, token, pk):
-            return page_3d(request, link_viewer(token), pk)
+            return through_link(request, token, lambda viewer: page_3d(request, viewer, pk))
 
         @signed_in_page
         def preview_page(request, project_pk):

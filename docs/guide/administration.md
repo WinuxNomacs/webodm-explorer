@@ -15,19 +15,25 @@
 superusers see WebODM's Administration menu but not this). It is an item of its own because WebODM's Administration
 menu doesn't take items from plugins.
 
-![Explorer Settings: Basemaps on Links ticked, Links for Public Projects Only unticked, Public Address set to https://maps.example.com](/images/settings.png)
+![Explorer Settings: Basemaps on Links ticked, Links to Private Projects set to Anyone with the Link, Public Address set to https://maps.example.com](/images/settings.png)
 
 - **Basemaps on Links** (on by default): maps opened from links and with **View as Visitor** show the basemaps set
   in WebODM's Administration, Basemaps. Each visitor's browser then loads the basemap's tiles from its provider (such
   as Google, Esri or OpenStreetMap), which sees the visitor's address and the area viewed. Turn it off where that
   matters: link maps then show the layer alone, without **Layer Opacity**, and a link's page has no **Overview Map**.
 
-- **Links for Public Projects Only** (off by default): **Anyone with the Link** links work only for projects shared
-  publicly in WebODM (the Dashboard: the project's **Share**, **Enabled**; a public task doesn't make its project
-  public), and for private projects a superuser allows. Allow one with **Allow Links** in the project's Explorer
-  Share panel, which superusers see while the setting is on and the project is private. Links of other projects stop
-  working at once and none can be made, but none are deleted: they work again once the project is made public or
-  allowed, and the people who can change the project can still revoke them.
+- **Links to Private Projects** (**Anyone with the Link** by default): what links of private projects do. Links of
+  projects shared publicly in WebODM (the Dashboard: the project's **Share**, **Enabled**; a public task doesn't
+  make its project public) always work as they were made.
+  - **Anyone with the Link**: each link opens without a login, unless it has **Require Sign-In**.
+  - **Signed-In Users Only**: every link of a private project asks for a WebODM login (any account), the links made
+    before included, and new ones can only be made with **Require Sign-In**.
+  - **Not Allowed**: links work only for public projects and for private ones a superuser allows with **Allow Links**
+    in the project's Explorer Share panel (shown to superusers at this level, for private projects). Other projects'
+    links stop working and none can be made; the people who can change the project can still revoke them.
+
+  Changing it takes effect at once, and no link is deleted: changing it back restores them. (It replaces the
+  earlier **Links for Public Projects Only** switch: an install that had it on is at **Not Allowed**.)
 
 - **Public Address** (empty by default): links and embed code copied from the Share panel start with this address
   instead of the browser's. Set it when you reach WebODM through an internal address or an SSH tunnel, while

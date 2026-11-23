@@ -172,6 +172,11 @@ a.explorer-card-link:focus .explorer-card-title {
     width: auto;
 }
 
+.explorer-settings-choice {
+    width: auto;
+    max-width: 100%;
+}
+
 .explorer-links-error {
     margin: 8px 0 0;
 }

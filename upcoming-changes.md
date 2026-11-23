@@ -2,9 +2,12 @@
 
 ## Phases (current and upcoming)
 
-Up next: **Release review fixes** (the user's request 2026-11-23, findings below), in four groups, each a branch:
-A. release blockers (done); B+C. viewer and server (done); D. pages and phones (done); E. release preparation (done). Then the first
-release.
+Up next: **the first release** (0.1.0): a `release/0.1.0` branch, the zip, the `release-check` skill.
+
+Built: **Sign-in links** (the user's request 2026-11-23, plan below; see "Done").
+
+Built: **Release review fixes** (the user's request 2026-11-23, findings below), in four groups, each a branch:
+A. release blockers; B+C. viewer and server; D. pages and phones; E. release preparation (all done, see "Done").
 
 Built: **Code review fixes** (the user's review request 2026-11-22, findings below), in four groups, each a
 branch: 1. high; 2. the Linode script and guide; 3. viewer medium; 4. pages and phones (all done, see "Done").
@@ -715,6 +718,39 @@ processing wants 16 GB and more).
   the certificate; the script says so instead of failing), a rerun (each step checks before changing), no SSH key
   (stops before touching SSH).
 
+### Plan: sign-in links (the request and the user's answers, 2026-11-23; built: see "Done")
+
+The request: an option for links to require a WebODM login, and a way for admins to let users create links to
+private projects only when they require one. The user's answers:
+
+- **Who opens a sign-in link:** any account that can sign in to this WebODM (an admin can make accounts for
+  clients), without the project being shared with them in WebODM. The link decides what they see, as for an open link.
+- **The setting:** **Links to Private Projects** on the Explorer Settings page, one choice replacing the Links for
+  Public Projects Only checkbox: **Anyone with the Link** (the default, today's behaviour), **Signed-In Users Only**,
+  **Not Allowed** (today's Links for Public Projects Only, with **Allow Links** per project in the Share panel).
+  Public projects (`Project.public`) allow both kinds of link at every level.
+- **Existing open links** of a private project under Signed-In Users Only ask for a login at once (checked where
+  every link page, view and file is checked); nothing changes in the link, and switching back opens them again.
+
+Design:
+- A link gets `sign_in` (false for the links made before). A link requires a login when it has `sign_in`, or when its
+  project is private and the level is Signed-In Users Only. `links.resolve` stays the single check: it returns the
+  link, and a new `links.needs_sign_in(project, link)` says whether the visitor must be signed in. The token views
+  (`api.TokenTaskMixin.get_and_check_task`, the mesh tiles view) answer 404 for a visitor who isn't signed in, as for
+  a link that isn't valid; the link pages redirect to WebODM's login (`/login/?next=<the page>`), and come back.
+- Data: `settings:private_links` in the GlobalDataStore (`anyone`, `signed_in`, `none`); an install with the old
+  `settings:public_projects_only` on reads as `none`, and saving the new setting drops the old key. The Settings API
+  takes `private_links` (and still `public_projects_only` for an older page: true is `none`, false `anyone`).
+- Share panel: the Create Link form gets **Require Sign-In** (ticked and fixed for a private project under Signed-In
+  Users Only, with why); each link row says **Sign-In Required** where it applies. Creating an open link where only
+  sign-in links are allowed is a 403 with the reason. The visitor's cover and views are the same pages.
+- Sign-in links have no preview in chat apps (no Open Graph tags: the page redirects anyway), and their Embed code
+  says that embedding needs the visitor signed in to this WebODM in the same browser, which most browsers block for
+  another site's frame (third-party cookies): the panel says so under Embed.
+- Tile builds: a project counts as shared for builds as now (any live link).
+- Tests: the check for each kind of link and level, the redirect and the 404s, the old setting read as `none`, the
+  API's 403, the Share panel's form; a live check as a signed-out and a signed-in visitor.
+
 ### Plan: links for public projects only (the request and the user's answers, 2026-11-23; built: see "Done")
 
 The request: a setting for admins that, when on, lets Explorer share only projects that are public in WebODM, so an
@@ -786,6 +822,19 @@ The user chose to fix all four groups:
    of the plugin's folder (they survive upgrades).
 
 ## Done
+
+- **Sign-in links** (the request and answers 2026-11-23, branch `sign-in-links`): **Require Sign-In** on the Share
+  panel's create form and on each link (`sign_in` in the link; links made before open without one); a visitor who
+  isn't signed in gets WebODM's login and comes back (`plugin.py` `through_link`), the token views answer 404
+  (`api.TokenTaskMixin`), any WebODM account opens it, and it has no chat preview; Embed says it won't show in most
+  browsers' frames. **Links to Private Projects** on Explorer Settings (`settings:private_links`: Anyone with the
+  Link, Signed-In Users Only, Not Allowed) replaces the Links for Public Projects Only switch (on reads as Not
+  Allowed; dropped when the new setting is saved; the API still takes `public_projects_only`); under Signed-In Users
+  Only every link of a private project asks for a login, the panel fixes the box with a notice, and the API refuses
+  an open link (403). Docs: Sharing, Administration (screenshot retaken), README, CHANGELOG. Tests: `test_sign_in.py`,
+  Jest `links.test.js`, `thumbnails.test.js` (the new Jest tests failed on the old script). Checked live: signed out
+  (login, then back to the link page; files 404), signed in (cover without chat preview, point cloud streaming), the
+  Share panel at both levels, the open link refused, and the setting left as found.
 
 - **Release review fixes, group E: release preparation** (findings 2026-11-23, branch `release-e`): licence notices
   in the zip: the Apache-2.0 parts (laz-perf, Draco, Basis) carry the licence's full terms (`dev/vendor.sh`, taken
