@@ -36,4 +36,4 @@ outputs:
 A project can be shared with a link that opens these pages without signing in, which suits clients, partners and
 the public: they see the project's results, not the rest of your WebODM. See [Sharing](/guide/sharing).
 
-Explorer is experimental and under development. It is not part of WebODM and is not made by WebODM's authors.
+Explorer is experimental. It is not part of WebODM and is not made by WebODM's authors.

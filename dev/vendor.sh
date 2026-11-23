@@ -13,13 +13,16 @@ SPARK=2.4.0
 LEAFLET=1.9.4
 LAZPERF=0.0.7
 TILES=0.5.4
+# Only for their licence texts: three.js ships both minified in examples/jsm/libs without one
+KTXPARSE=2.0.0
+ZSTDDEC=0.3.4
 
 vendor="explorer/public/vendor"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
 (cd "$work" && npm pack --silent "three@$THREE" "@sparkjsdev/spark@$SPARK" "leaflet@$LEAFLET" "laz-perf@$LAZPERF" \
-    "3d-tiles-renderer@$TILES" >/dev/null)
+    "3d-tiles-renderer@$TILES" "ktx-parse@$KTXPARSE" "zstddec@$ZSTDDEC" >/dev/null)
 for tgz in "$work"/*.tgz; do
     dir="${tgz%.tgz}"
     mkdir -p "$dir"
@@ -56,14 +59,24 @@ copy "$work/three-$THREE/package" "$vendor/three-$THREE" \
     examples/jsm/libs/basis/basis_transcoder.wasm \
     examples/jsm/libs/meshopt_decoder.module.js
 # The mesh tiles: KTX2 textures (Obj2Tiles) need the Basis transcoder, meshopt geometry (gltfpack) the meshopt decoder
-cat > "$vendor/three-$THREE/examples/jsm/libs/basis/LICENSE.txt" <<'EOF'
-The Basis Universal transcoder (https://github.com/BinomialLLC/basis_universal), as shipped in three.js's
-examples/jsm/libs/basis, is licensed under the Apache License, Version 2.0: https://www.apache.org/licenses/LICENSE-2.0
-EOF
-cat > "$vendor/three-$THREE/examples/jsm/libs/draco/LICENSE.txt" <<'EOF'
-The Draco decoder (https://github.com/google/draco), as shipped in three.js's examples/jsm/libs/draco, is
-licensed under the Apache License, Version 2.0: https://www.apache.org/licenses/LICENSE-2.0
-EOF
+# The Apache License 2.0's terms, which go with each Apache-licensed part (section 4a): taken from 3DTilesRendererJS's
+# LICENSE, up to the end of the terms (its appendix names its own copyright)
+apache="$work/apache-2.0.txt"
+sed '/END OF TERMS AND CONDITIONS/q' "$work/3d-tiles-renderer-$TILES/package/LICENSE" > "$apache"
+grep -q "END OF TERMS AND CONDITIONS" "$apache" || { echo "no Apache License text in 3DTilesRendererJS's LICENSE" >&2; exit 1; }
+# apache_notice <file> <first lines>: the lines, then the licence's terms
+apache_notice() {
+    { printf '%s\n\n' "$2"; cat "$apache"; } > "$1"
+}
+apache_notice "$vendor/three-$THREE/examples/jsm/libs/basis/LICENSE.txt" \
+"The Basis Universal transcoder (https://github.com/BinomialLLC/basis_universal), as shipped in three.js's
+examples/jsm/libs/basis, is licensed under the Apache License, Version 2.0, below."
+apache_notice "$vendor/three-$THREE/examples/jsm/libs/draco/LICENSE.txt" \
+"The Draco decoder (https://github.com/google/draco), as shipped in three.js's examples/jsm/libs/draco, is
+licensed under the Apache License, Version 2.0, below."
+# ktx-parse and zstddec (zstddec's includes Zstandard's BSD licence), as their own packages carry them
+cp "$work/ktx-parse-$KTXPARSE/package/LICENSE" "$vendor/three-$THREE/examples/jsm/libs/ktx-parse.LICENSE.txt"
+cp "$work/zstddec-$ZSTDDEC/package/LICENSE" "$vendor/three-$THREE/examples/jsm/libs/zstddec.LICENSE.txt"
 
 # Spark: one self-contained module (its worker is inlined); it imports "three" and three's postprocessing/Pass.js.
 copy "$work/sparkjsdev-spark-$SPARK/package" "$vendor/spark-$SPARK" LICENSE dist/spark.module.min.js
@@ -75,10 +88,9 @@ cp -R "$work/leaflet-$LEAFLET/package/dist/images" "$vendor/leaflet-$LEAFLET/dis
 # laz-perf: the build for workers (a classic script defining createLazPerf) and its wasm, for the point cloud
 # worker (explorer/public/ept-worker.js). The npm package carries no licence file, so a notice is written.
 copy "$work/laz-perf-$LAZPERF/package" "$vendor/laz-perf-$LAZPERF" lib/worker/laz-perf.js lib/worker/laz-perf.wasm
-cat > "$vendor/laz-perf-$LAZPERF/LICENSE.txt" <<'EOF'
-laz-perf (https://github.com/hobuinc/laz-perf), as published on npm, is licensed under the Apache License,
-Version 2.0: https://www.apache.org/licenses/LICENSE-2.0
-EOF
+apache_notice "$vendor/laz-perf-$LAZPERF/LICENSE.txt" \
+"laz-perf (https://github.com/hobuinc/laz-perf), as published on npm, is licensed under the Apache License,
+Version 2.0, below."
 
 # 3DTilesRendererJS: the three.js renderer and its plugins (fading, glTF extensions), with the chunks they import;
 # they import only "three" and three's addons. Not its Babylon.js, PlayCanvas or React builds.

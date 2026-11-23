@@ -1,7 +1,7 @@
 {
 	"name": "Explorer",
 	"webodmMinVersion": "4.0.1",
-	"description": "Under development.",
+	"description": "Browse a project's maps, point clouds, textured models and Gaussian splats, and share them with links that open without signing in.",
 	"version": "0.1.0",
 	"author": "Winux Nomacs",
 	"repository": "https://github.com/WinuxNomacs/webodm-explorer",

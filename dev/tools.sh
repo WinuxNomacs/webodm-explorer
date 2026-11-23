@@ -49,6 +49,20 @@ chmod 755 "$bin/obj2tiles/linux-x86_64/Obj2Tiles" "$bin/obj2tiles/linux-aarch64/
 curl -fsSL --retry 2 -o "$bin/obj2tiles/LICENSE.md" "$release/LICENSE.md"
 curl -fsSL --retry 2 -o "$bin/obj2tiles/THIRD_PARTY_NOTICES.md" "$release/THIRD_PARTY_NOTICES.md"
 echo "$OBJ2TILES" > "$bin/obj2tiles/VERSION"
+# Obj2Tiles is AGPL-3.0: where the source of these builds is, for everyone the zip reaches (its section 6)
+cat > "$bin/obj2tiles/SOURCE.md" <<SOURCE
+# Obj2Tiles $OBJ2TILES: source
+
+The Obj2Tiles programs in this folder are OpenDroneMap's own release builds of Obj2Tiles $OBJ2TILES, unmodified,
+licensed under the GNU Affero General Public License 3.0 (LICENSE.md; the parts it includes: THIRD_PARTY_NOTICES.md).
+
+- Release: https://github.com/OpenDroneMap/Obj2Tiles/releases/tag/v$OBJ2TILES
+- Source: https://github.com/OpenDroneMap/Obj2Tiles/tree/v$OBJ2TILES
+  (archive: https://github.com/OpenDroneMap/Obj2Tiles/archive/refs/tags/v$OBJ2TILES.tar.gz)
+
+If those links stop working, ask Explorer's maintainers for the source through
+https://github.com/WinuxNomacs/webodm-explorer/issues.
+SOURCE
 
 tar -xzf "$work/gltfpack.tgz" -C "$work"
 cp "$work/package/cli.js" "$work/package/library.js" "$work/package/library.wasm" "$work/package/package.json" \

@@ -1,7 +1,7 @@
 # Explorer
 
 A plugin for [WebODM](https://github.com/WebODM/WebODM) 4.0.1 and later, to browse and share a project's outputs.
-Under development.
+Experimental: it is not part of WebODM and not made by WebODM's authors.
 
 The documentation is at **https://winuxnomacs.github.io/webodm-explorer/** (its sources in [docs/](docs/)):
 [Getting Started](docs/getting-started.md) and guides to [Explorer's home](docs/guide/projects.md),
@@ -73,8 +73,9 @@ a server where only Explorer's links are public.
 
 ## Install
 
-When released: in WebODM, Administration > Plugins > Load Plugin (.zip), with `explorer-X.Y.Z.zip` from this
-repository's releases.
+In WebODM, Administration > Plugins > Load Plugin (.zip), with `explorer-X.Y.Z.zip` from this repository's
+[releases](https://github.com/WinuxNomacs/webodm-explorer/releases), then restart WebODM: see
+[Getting Started](docs/getting-started.md).
 
 ## Development
 
@@ -83,7 +84,9 @@ live), the checks and packaging.
 
 ## Licence
 
-AGPL-3.0, see [LICENSE](LICENSE).
+AGPL-3.0, see [LICENSE](LICENSE). The zip also carries the libraries and tools in the Thanks section below, each
+under its own licence (MIT, Apache-2.0, BSD; Obj2Tiles AGPL-3.0, with where its source is), in a licence file beside
+it.
 
 ## Thanks
 

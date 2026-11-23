@@ -1,5 +1,6 @@
 """
-Explorer's settings, set by WebODM's admins on the Explorer page and kept in the plugin's GlobalDataStore:
+Explorer's settings, set by WebODM's superusers on the Explorer Settings page and kept in the plugin's
+GlobalDataStore:
 - basemaps on links: the link and preview maps show the basemaps the admin configured in WebODM (on by default;
   decided 2026-11-21: a basemap sends visitors' map views to its provider, so an install can turn it off).
 - public address: the address the Share panel's link copies and embed code start with, for a WebODM reached through
