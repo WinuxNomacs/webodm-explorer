@@ -1,6 +1,7 @@
 # Explorer's Home
 
-**Explorer**, in WebODM's main menu, opens a page of the projects you can view: your own and those shared with you.
+**Explorer**, in WebODM's main menu, opens a drop-down with **Projects** and **Sharing Center**
+([Sharing Center](/guide/sharing-center)). **Projects** opens a page of the projects you can view: your own and those shared with you.
 WebODM's admins see every project. Projects without outputs yet are listed too, marked **No outputs yet**.
 
 ## Finding a project

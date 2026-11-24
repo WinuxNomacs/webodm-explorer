@@ -1,7 +1,8 @@
 # Sharing
 
 A project is shared as a whole: a link opens the project's page, and stays current as tasks are added or removed.
-**Share**, on a project's Explorer page, offers two kinds of link.
+**Share**, on a project's Explorer page, offers two kinds of link. The [Sharing Center](/guide/sharing-center)
+manages the links of every project you can change in one place.
 
 ## Link for WebODM Users
 
@@ -36,10 +37,13 @@ Each link in the list has:
 - **Open**, to open it as visitors see it.
 - **Allow Downloads** and **Require Sign-In**, to turn them on or off later.
 - **Embed**, for code that shows the link's views in another website (below).
+- **Edit**, to change its label or its expiry: **Keep the Current Expiry**, or 7, 30 or 90 days from today, or
+  **Never expires**. The link's address stays the same.
 - **Revoke**, which stops the link at once, for everyone using it.
 
 The **Share** button shows how many active links the project has, and cards on [Explorer's home](/guide/projects)
-mark a link that expires within 7 days.
+mark a link that expires within 7 days. **All Links in the Sharing Center**, beside the panel's heading, opens the
+[Sharing Center](/guide/sharing-center) on this project's links, expired ones included.
 
 ### What a visitor sees
 

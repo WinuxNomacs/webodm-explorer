@@ -16,7 +16,7 @@ links are public.
 
 ## Features
 
-- **Explorer** in the main menu lists the projects you can view (WebODM's admins: every project), with **Search**
+- **Explorer** in the main menu opens a drop-down: **Projects** and **Sharing Center**. **Projects** lists the projects you can view (WebODM's admins: every project), with **Search**
   (names, descriptions and tags), **All**, **Mine** or **Shared with Me**, sorting by **Recent Activity**, **Name**
   or **Created**, and **Has 3D** and **Shared by Link** filters, 24 projects to a page; the page's address keeps
   them, so a view can be bookmarked. Each card shows the project's picture, description, tags, a count per output
@@ -36,8 +36,8 @@ links are public.
 - **Share** on a project's Explorer page shows and copies the page's link. It opens only for signed-in users the
   project is shared with (Dashboard: the project's Edit dialog, Permissions).
 - **Anyone with the Link**, in the Share panel for users who can change the project: links that open the project
-  without signing in, each with a label and an expiry (7, 30 or 90 days, or never), copied again or revoked at any
-  time, or opened with **Open** to see them as visitors do. A link opens a page of the project's tasks, each with a **Map** and a 3D
+  without signing in, each with a label and an expiry (7, 30 or 90 days, or never), copied again, edited (label and
+  expiry) or revoked at any time, or opened with **Open** to see them as visitors do. A link opens a page of the project's tasks, each with a **Map** and a 3D
   view of its **Point Cloud** (streamed node by node from WebODM's EPT, within the point budget WebODM's own 3D page
   uses: 10 million points on a computer, 2 million on a phone, 1 million on iOS), **Textured Model** and **Gaussian
   Splats**. The textured model streams as 3D Tiles (only what is on screen, finer close up), which Explorer builds
@@ -49,6 +49,13 @@ links are public.
   positions or All Assets. A link with **Require Sign-In** asks for a WebODM login first (any account on the WebODM,
   without sharing the project with it), and has no preview in chat apps. Links are kept in plain text in WebODM's
   database (so they can be copied again), and revoking one, or unticking Allow Downloads, takes effect at once.
+- **The Sharing Center** (Explorer > Sharing Center) manages every link of the projects you can change in one place
+  (WebODM's admins: every project's): a table with each link's project, label, **Require Sign-In**, **Allow
+  Downloads**, when it was made and by whom, and its expiry, filtered by status (**Active**, **Expiring Soon**,
+  **Expired**), project, access and downloads, or searched by label, project or user, the filters kept in the page's
+  address. **Create Link** makes a link for any of those projects; each link has **Open**, **Embed**, **Copy**,
+  **Edit** and **Revoke**. Expired links stay listed for 90 days, with **Renew** (a new expiry, and the same address
+  works again) and **Delete**. On a phone the rows become cards.
 - **Explorer's map and 3D pages** (for visitors and signed-in users alike) have **Previous** and **Next** to step
   through the project's tasks, keeping the view where the next task has it, a switch between the task's **Map** and
   its 3D views, **Reset View** (R) and **Fullscreen**

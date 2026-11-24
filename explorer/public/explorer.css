@@ -809,8 +809,25 @@ path.explorer-footprint {
 }
 
 .explorer-sharing-actions {
+    width: 1%;
+}
+
+/* The row's buttons: small and apart, wrapping onto a second line rather than widening the table */
+.explorer-sharing-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 4px;
+    min-width: 190px;
+}
+
+.explorer-sharing-buttons > .btn {
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+.explorer-sharing-dates {
     white-space: nowrap;
-    text-align: right;
 }
 
 /* The row of an open Embed or Edit: under its link, without the table's line between them */
@@ -865,20 +882,10 @@ path.explorer-footprint {
     }
 
     .explorer-sharing-actions {
-        text-align: left;
-        white-space: normal;
         padding-top: 6px;
     }
 
-    .explorer-sharing-actions .btn-group {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 4px;
-    }
-
-    .explorer-sharing-actions .btn-group > .btn {
-        float: none;
-        margin-left: 0;
-        border-radius: 3px;
+    .explorer-sharing-buttons {
+        justify-content: flex-start;
     }
 }

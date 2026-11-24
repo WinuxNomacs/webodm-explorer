@@ -789,8 +789,8 @@
             input.readOnly = true;
             input.value = origin + link.path;
             input.setAttribute("aria-label", link.label || text("untitled"));
-            input.hidden = !!link.expired;
-            labelCell.appendChild(input);
+            // An expired link's address opens nothing until it is renewed: not offered
+            if (!link.expired) labelCell.appendChild(input);
 
             var toggleCtx = {request: request, url: url, forced: project.sign_in_forced,
                 forcedTitle: text("forced-title"), disabled: link.expired, done: function (message) {
@@ -799,11 +799,11 @@
             cell(row, "column-access").appendChild(linkToggle(link, "sign_in", text("sign-in"), toggleCtx));
             cell(row, "column-downloads").appendChild(linkToggle(link, "downloads", text("downloads"), toggleCtx));
 
-            var made = cell(row, "column-created", "explorer-card-text");
+            var made = cell(row, "column-created", "explorer-card-text explorer-sharing-dates");
             made.appendChild(element("div", null, new Date(link.created).toLocaleDateString()));
             made.appendChild(element("div", null, text("by").replace("%(user)s", link.created_by || text("unknown-user"))));
 
-            var expiresCell = cell(row, "column-expires", "explorer-card-text");
+            var expiresCell = cell(row, "column-expires", "explorer-card-text explorer-sharing-dates");
             expiresCell.appendChild(element("div", null, expiryText(text, link)));
             if (state === "soon" || state === "expired") {
                 expiresCell.appendChild(element("span", "label " + (state === "soon" ? "label-warning" : "label-default"),
@@ -811,7 +811,7 @@
             }
 
             var actions = cell(row, "column-actions", "explorer-sharing-actions");
-            var group = element("div", "btn-group btn-group-sm");
+            var group = element("div", "explorer-sharing-buttons");
             actions.appendChild(group);
 
             var detail = element("tr", "explorer-sharing-detail");
@@ -899,7 +899,7 @@
             var row = body.querySelector('tr[data-token="' + token + '"]');
             if (!row) return;
             var input = row.querySelector(".explorer-link-address");
-            if (input && !input.hidden) {
+            if (input) {
                 input.focus();
                 input.select();
             }

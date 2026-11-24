@@ -161,6 +161,8 @@ describe("the Sharing Center", () => {
         expect(row.className).toContain("explorer-sharing-expired");
         expect([...row.querySelectorAll("button, a.btn")].map((b) => b.textContent)).toEqual(["Renew", "Delete"]);
         expect(row.querySelector("input[name=downloads]").disabled).toBe(true);
+        // Its address opens nothing until renewed: not offered to copy
+        expect(row.querySelector(".explorer-link-address")).toBeNull();
         expect(row.textContent).toContain("Expired ");
     });
 
