@@ -6,12 +6,16 @@ Links live in the plugin's global data store, which has no listing or locking:
   downloads, sign_in} (`downloads` and `sign_in` are missing on links made before they existed, which means off);
 - `token:<token>` holds the project id, to find a link from its token;
 - `index:linked` holds the ids of the projects that have links (some may have only expired ones), for the Explorer
-  home's Shared by Link filter. Links saved before it existed are found once, by reading every project's links;
+  home's Shared by Link filter and the Sharing Center. Links saved before it existed are found once, by reading every project's links;
 - `settings:private_links` (Links to Private Projects: `anyone`, the default; `signed_in`, their links ask for a
   WebODM login; `none`, only public projects, WebODM's project Share toggle, and allowed ones have working links) and
   `allowed:<project id>` (a private project a superuser allowed links for). It replaced `settings:public_projects_only`
   (on reads as `none`), dropped when the new setting is saved (upcoming-changes.md, "Plan: links for public projects
   only" and "Plan: sign-in links").
+
+Expired links are kept, with their token keys, for RETAIN_EXPIRED_DAYS after they expired, so the Sharing Center can
+list them and renew them under the same URL; the next write to the project's links drops the older ones
+(upcoming-changes.md, "Plan: the Sharing Center").
 
 Every write takes one transaction-scoped Postgres advisory lock (WebODM's Docker installs always run Postgres), so
 a revoke and a create at the same moment can't bring a revoked link back. Reads take no lock: a link is valid
@@ -39,6 +43,7 @@ TOKEN_PATTERN = r"[A-Za-z0-9_-]{43}"  # secrets.token_urlsafe(32)
 LOCK_ID = 0x45585054  # "EXPT"
 LOCK_TIMEOUT = "5s"
 EXPIRES_SOON_DAYS = 7
+RETAIN_EXPIRED_DAYS = 90
 
 
 class LinkStoreBusy(Exception):
@@ -181,10 +186,23 @@ def is_expired(link, now=None):
     return expires is not None and expires <= (now or timezone.now())
 
 
+def is_retained(link, now=None):
+    """Whether the link is kept: live, or expired less than RETAIN_EXPIRED_DAYS ago."""
+    expires = _parse_time(link["expires"])
+    return expires is None or expires > (now or timezone.now()) - timedelta(days=RETAIN_EXPIRED_DAYS)
+
+
 def list_links(project_id):
     """The project's live links, newest first."""
     now = timezone.now()
     return sorted((link for link in _read(project_id) if not is_expired(link, now)),
+                  key=lambda link: link["created"], reverse=True)
+
+
+def kept_links(project_id):
+    """The project's links still kept, live and recently expired (the Sharing Center's), newest first."""
+    now = timezone.now()
+    return sorted((link for link in _read(project_id) if is_retained(link, now)),
                   key=lambda link: link["created"], reverse=True)
 
 
@@ -208,9 +226,12 @@ class _locked:
 
 
 def _write(project_id, links):
-    """Saves the project's links without the expired ones, dropping the token keys of those that leave."""
+    """
+    Saves the project's links without those expired more than RETAIN_EXPIRED_DAYS ago, dropping the token keys of
+    those that leave.
+    """
     now = timezone.now()
-    kept = [link for link in links if not is_expired(link, now)]
+    kept = [link for link in links if is_retained(link, now)]
     data = store()
     kept_tokens = {link["token"] for link in kept}
     for link in links:
@@ -242,10 +263,11 @@ def _build_index():
     return [pk for pk in Project.objects.values_list("id", flat=True) if _read(pk)]
 
 
-def linked_project_ids():
+def indexed_project_ids():
     """
-    The ids of the projects that have live links. The index is built on first use (every project's links read once),
-    under the lock so a link created meanwhile isn't left out; with the lock busy, the scan is used without saving.
+    The ids of the projects that have kept links (live or recently expired), from the index. The index is built on
+    first use (every project's links read once), under the lock so a link created meanwhile isn't left out; with the
+    lock busy, the scan is used without saving.
     """
     ids = _read_index()
     if ids is None:
@@ -257,6 +279,12 @@ def linked_project_ids():
                     store().set_json(INDEX_KEY, ids)
         except LinkStoreBusy:
             ids = _build_index()
+    return ids
+
+
+def linked_project_ids():
+    """The ids of the projects that have live links that work (the home's Shared by Link filter)."""
+    ids = indexed_project_ids()
     # Links that don't work (a private project with Links for Public Projects Only) don't count as shared
     return links_work(pk for pk in ids if list_links(pk))
 
@@ -269,18 +297,27 @@ def summary(project_id):
             "expires_soon": any(link["expires"] and _parse_time(link["expires"]) <= soon for link in live)}
 
 
-def create_link(project_id, label, expiry_days, user, downloads=False, sign_in=False):
-    """A new link for the project; expiry_days is one of EXPIRY_CHOICES."""
+def clean_label(label):
+    return (label or "").strip()[:LABEL_MAX]
+
+
+def expiry_from_now(expiry_days, now=None):
+    """The expiry time for one of EXPIRY_CHOICES, as saved: an ISO time, or None for never."""
     if expiry_days not in EXPIRY_CHOICES:
         raise ValueError("expiry_days")
+    return ((now or timezone.now()) + timedelta(days=expiry_days)).isoformat() if expiry_days else None
+
+
+def create_link(project_id, label, expiry_days, user, downloads=False, sign_in=False):
+    """A new link for the project; expiry_days is one of EXPIRY_CHOICES."""
     if not isinstance(downloads, bool) or not isinstance(sign_in, bool):
         raise TypeError("downloads, sign_in")
     now = timezone.now()
     link = {
         "token": secrets.token_urlsafe(32),
-        "label": (label or "").strip()[:LABEL_MAX],
+        "label": clean_label(label),
         "created": now.isoformat(),
-        "expires": (now + timedelta(days=expiry_days)).isoformat() if expiry_days else None,
+        "expires": expiry_from_now(expiry_days, now),
         "created_by": user.id if user else None,
         "downloads": downloads,
         "sign_in": sign_in,
@@ -294,7 +331,7 @@ def create_link(project_id, label, expiry_days, user, downloads=False, sign_in=F
 
 
 def revoke_link(project_id, token):
-    """Removes the link; False if the project has no such link."""
+    """Removes the link, live or expired (Revoke and Delete); False if the project has no such link."""
     with _locked():
         links = _read(project_id)
         remaining = [link for link in links if link["token"] != token]
@@ -312,18 +349,32 @@ def set_downloads(project_id, token, downloads):
 
 def set_options(project_id, token, **changes):
     """
-    Changes the link's Allow Downloads (downloads) and Require Sign-In (sign_in), each a bool; the updated link, or
-    None if the project has no such live link.
+    Changes the link's Allow Downloads (downloads) and Require Sign-In (sign_in), each a bool, its label (text) and
+    its expiry (expires_days, one of EXPIRY_CHOICES, from now: on an expired link, a renewal under the same URL). The
+    updated link, or None if the project has no such link kept; an expired link takes only a label or a new expiry.
     """
-    if not changes or set(changes) - {"downloads", "sign_in"} or not all(isinstance(v, bool) for v in changes.values()):
+    if not changes or set(changes) - {"downloads", "sign_in", "label", "expires_days"}:
+        raise TypeError("changes")
+    if not all(isinstance(changes[name], bool) for name in ("downloads", "sign_in") if name in changes):
         raise TypeError("downloads, sign_in")
+    if "label" in changes and not isinstance(changes["label"], str):
+        raise TypeError("label")
+    update = {name: value for name, value in changes.items() if name in ("downloads", "sign_in")}
+    if "label" in changes:
+        update["label"] = clean_label(changes["label"])
+    if "expires_days" in changes:
+        update["expires"] = expiry_from_now(changes["expires_days"])
     with _locked():
         links = _read(project_id)
-        link = next((link for link in links if link["token"] == token and not is_expired(link)), None)
-        if link is None:
+        now = timezone.now()
+        link = next((link for link in links if link["token"] == token and is_retained(link, now)), None)
+        if link is None or (is_expired(link, now) and set(changes) - {"label", "expires_days"}):
             return None
-        link.update(changes)
+        link.update(update)
         _write(project_id, links)
+        if "expires" in update:
+            # A link kept from before expired links were kept lost its token key: a renewal brings it back
+            store().set_int(token_key(token), int(project_id))
     return link
 
 

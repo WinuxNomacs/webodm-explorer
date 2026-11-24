@@ -35,6 +35,7 @@ export default defineConfig({
           { text: "A Project's Page", link: "/guide/project" },
           { text: "Map and 3D Viewers", link: "/guide/viewers" },
           { text: "Sharing", link: "/guide/sharing" },
+          { text: "Sharing Center", link: "/guide/sharing-center" },
           { text: "Administration", link: "/guide/administration" },
         ],
       },

@@ -20,7 +20,7 @@ function render(responses, origin, forced) {
             <div class="explorer-links" data-links-api="${API}"${origin ? ` data-origin="${origin}"` : ""} data-copy="Copy" data-copied="Copied" data-revoke="Revoke"
                  data-confirm-revoke="Revoke?" data-untitled="Untitled Link" data-never="Never expires"
                  data-expires="Expires %(date)s" data-none="No links yet." data-downloads="Allow Downloads" data-sign-in="Require Sign-In"
-                 ${forced ? 'data-sign-in-forced data-sign-in-forced-title="Every link asks for a login."' : ""}
+                 ${forced ? 'data-sign-in-forced data-forced-title="Every link asks for a login."' : ""}
                  data-embed-sign-in="Asks for a login.""
                  data-open="Open" data-open-title="Open the link as visitors see it"
                  data-error="Something went wrong.">

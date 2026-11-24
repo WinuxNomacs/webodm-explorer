@@ -726,3 +726,166 @@ path.explorer-footprint {
         grid-template-columns: 1fr;
     }
 }
+
+/* A link's Edit (label and expiry; Renew on an expired one), in the Share panel and the Sharing Center */
+.explorer-link-edit {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.explorer-link-edit[hidden] {
+    display: none;
+}
+
+.explorer-link-edit input[name=label] {
+    flex: 1 1 160px;
+    width: auto;
+}
+
+.explorer-link-edit select {
+    flex: 0 1 auto;
+    width: auto;
+}
+
+.explorer-sharing-center-link {
+    margin-left: 6px;
+    font-size: 12px;
+    font-weight: normal;
+}
+
+/* The Sharing Center: a table of links, cards on a phone */
+.explorer-sharing-create {
+    margin: 12px 0;
+}
+
+.explorer-sharing-create h4 {
+    margin: 0;
+}
+
+.explorer-sharing-create[hidden] {
+    display: none;
+}
+
+.explorer-sharing-create select[name=project] {
+    flex: 0 1 240px;
+    width: auto;
+    max-width: 100%;
+}
+
+.explorer-sharing-create-error {
+    margin: 8px 0 0;
+}
+
+.explorer-sharing-table {
+    margin-top: 8px;
+}
+
+.explorer-sharing-table > tbody > tr > td {
+    vertical-align: top;
+}
+
+.explorer-sharing-project,
+.explorer-sharing-link {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.explorer-sharing-link {
+    min-width: 180px;
+}
+
+.explorer-sharing-link .explorer-link-address {
+    margin-top: 4px;
+}
+
+.explorer-sharing-note {
+    font-size: 12px;
+}
+
+.explorer-sharing-expired > td {
+    opacity: 0.75;
+}
+
+.explorer-sharing-actions {
+    width: 1%;
+}
+
+/* The row's buttons: small and apart, wrapping onto a second line rather than widening the table */
+.explorer-sharing-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 4px;
+    min-width: 190px;
+}
+
+.explorer-sharing-buttons > .btn {
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+.explorer-sharing-dates {
+    white-space: nowrap;
+}
+
+/* The row of an open Embed or Edit: under its link, without the table's line between them */
+.explorer-sharing-table > tbody > tr.explorer-sharing-detail > td {
+    border-top: 0;
+    padding-top: 0;
+}
+
+.explorer-sharing-empty {
+    margin-top: 12px;
+}
+
+@media (max-width: 767px) {
+    .explorer-sharing-table,
+    .explorer-sharing-table > tbody,
+    .explorer-sharing-table > tbody > tr,
+    .explorer-sharing-table > tbody > tr > td {
+        display: block;
+        width: 100%;
+    }
+
+    .explorer-sharing-table > tbody > tr[hidden] {
+        display: none;
+    }
+
+    .explorer-sharing-table > thead {
+        display: none;
+    }
+
+    .explorer-sharing-table > tbody > tr.explorer-sharing-row {
+        border-top-width: 1px;
+        border-top-style: solid;
+        border-top-color: inherit;
+        padding: 8px 0;
+    }
+
+    .explorer-sharing-table > tbody > tr > td {
+        border-top: 0;
+        padding: 2px 0;
+    }
+
+    .explorer-sharing-table > tbody > tr.explorer-sharing-row > td[data-label]::before {
+        content: attr(data-label);
+        display: block;
+        font-size: 11px;
+        text-transform: uppercase;
+        opacity: 0.7;
+    }
+
+    .explorer-sharing-table > tbody > tr.explorer-sharing-row > td.explorer-sharing-actions::before {
+        display: none;
+    }
+
+    .explorer-sharing-actions {
+        padding-top: 6px;
+    }
+
+    .explorer-sharing-buttons {
+        justify-content: flex-start;
+    }
+}

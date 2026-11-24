@@ -54,6 +54,18 @@ class ExplorerTestCase(BootTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'href="/plugins/explorer/"')
 
+    def test_the_explorer_menu_item_is_a_drop_down_of_projects_and_the_sharing_center(self):
+        html = self.client_for("testuser").get("/dashboard/").content.decode()
+        self.assertIn('<a href="#"><i class="fa fa-binoculars fa-fw"></i> Explorer<span class="fa arrow"></span></a>',
+                      html)
+        submenu = html.split("fa-binoculars", 1)[1].split("</ul>", 1)[0]
+        self.assertIn('href="/plugins/explorer/"', submenu)
+        self.assertIn("Projects", submenu)
+        self.assertIn('href="/plugins/explorer/sharing/"', submenu)
+        self.assertIn("Sharing Center", submenu)
+        self.assertNotIn("Explorer Settings", html)
+        self.assertIn("Explorer Settings", self.client_for("testsuperuser").get("/dashboard/").content.decode())
+
     def test_the_pages_ask_anonymous_visitors_to_sign_in(self):
         for url in ("/plugins/explorer/", f"/plugins/explorer/project/{self.project.id}/"):
             response = Client().get(url)

@@ -247,6 +247,18 @@ def viewable_projects(user):
     return get_objects_for_user(user, "app.view_project", projects, accept_global_perms=False)
 
 
+def manageable_projects(user, ids=None):
+    """
+    The projects whose links the user may manage (view and change, the Share panel's rule; every project for WebODM's
+    admins), by name; only those among ids when given.
+    """
+    projects = Project.objects.filter(deleting=False)
+    if ids is not None:
+        projects = projects.filter(id__in=list(ids))
+    return get_objects_for_user(user, ["app.view_project", "app.change_project"], projects,
+                                accept_global_perms=False).order_by(Lower("name"), "id")
+
+
 def task_outputs(task):
     """The buttons a task's card gets: label, a detail line (or ""), icon classes and the WebODM page to open."""
     assets = task.available_assets or []

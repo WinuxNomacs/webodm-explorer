@@ -5,10 +5,11 @@
 Released: **0.1.0** (2026-11-23, experimental; see "Done"): tagged, the GitHub release with the zip, the
 WebODM-Plugins entry as draft pull request #16 (the user marks it ready).
 
-Up next: **the Sharing Center** (the user's request 2026-11-24: Explorer as WebODM's center for presenting and
-sharing models, for remote viewers and for those who need the raw files; plan below), two phases: 1. the Sharing
-Center (the menu drop-down, every link across projects in one place, editing, renewing and deleting links); 2. more
-task files through links (the full assets zip, the report, camera positions).
+Up next: **more task files through links** (phase 2 of the Sharing Center request, 2026-11-24; plan below): the full
+assets zip, the report and the camera positions behind Allow Downloads. To be planned with the user first.
+
+Built: **the Sharing Center** (phase 1 of the user's request 2026-11-24: Explorer as WebODM's center for presenting
+and sharing models; plan below; see "Done").
 
 Then: **the road to 1.0.0** (the user, 2026-11-23: recorded as phases after 0.1.0; some are taken up before 1.0 and
 each is discussed when it comes up; plan below). In order: 1. field use of 0.1.0; 2. a versioned saved-data format and
@@ -920,6 +921,25 @@ The user chose to fix all four groups:
    of the plugin's folder (they survive upgrades).
 
 ## Done
+
+- **The Sharing Center** (2026-11-24, branch `sharing-center`, phase 1 of "Plan: the Sharing Center"): Explorer's
+  menu item is a drop-down (**Projects**, **Sharing Center**; Explorer Settings stays top-level, as WebODM ignores
+  `admin_only` on submenu items). `/plugins/explorer/sharing/` (`plugin.py` `sharing_center`, `templates/sharing.html`)
+  lists every kept link of the projects the user can view and change (`pages.manageable_projects`; superusers all)
+  from `GET /api/plugins/explorer/links/` (`api.AllLinks`, `api.manageable_links`: each row with its project, the
+  maker's username, `expired`), with Create Link for any of them, filters in the address (`public/sharing.js`, the
+  pure logic, Jest-tested) and the Share panel's actions plus Edit, Renew and Delete (`public/explorer.js`
+  `initSharingCenter`; the Share panel's code split into shared helpers: `apiClient`, `embedBox`, `editBox`,
+  `linkToggle`). The per-project PATCH takes `label` and `expires_days` (from today); an expired link takes only
+  those. `links.RETAIN_EXPIRED_DAYS = 90`: `_write` keeps expired links and their token keys until then
+  (`kept_links`, `is_retained`); a renewal also sets the token key again (links expired before this version lost
+  theirs). The Share panel gets Edit and **All Links in the Sharing Center**; its texts moved to
+  `templates/link_texts.html`, shared with the page. Tests: `tests/test_sharing_center.py` (scope, superusers,
+  makers, 90-day listing, renew, a lost token key, edits and their validation, permissions, delete, policy, the
+  page), the menu test in `test_explorer.py`, the expiry test in `test_links.py` rewritten for the retention,
+  `public/__tests__/sharing.test.js` (13); Django 224 and Jest 134 pass. Live check: the new `sharing-center.js` in
+  the `live-check` skill, all 17 checks on the dev stack (desktop and phone), its link revoked afterwards. Docs:
+  `docs/guide/sharing-center.md`, the Sharing and home guides, the README.
 
 - **Dependabot review** (the user's request 2026-11-23, branch `dependabot-review`): the 10 open alerts (1 high,
   8 moderate, 1 low) are all npm, development-only and transitive, in the repo's own `package-lock.json`, none from

@@ -68,8 +68,11 @@ class Plugin(PluginBase):
     """The Explorer plugin: a page per project listing its tasks' outputs, and "anyone with the link" shares."""
 
     def main_menu(self):
-        # WebODM's Administration menu takes no plugin items: the settings get their own, for superusers only
-        return [Menu(_("Explorer"), self.public_url(""), "fa fa-binoculars fa-fw"),
+        # A drop-down: Projects (the home) and the Sharing Center. WebODM's Administration menu takes no plugin items,
+        # and it checks admin_only only on top-level items: the settings get their own, for superusers only
+        return [Menu(_("Explorer"), "#", "fa fa-binoculars fa-fw", submenu=[
+                    Menu(_("Projects"), self.public_url(""), "fa fa-folder-open fa-fw"),
+                    Menu(_("Sharing Center"), self.public_url("sharing/"), "fa fa-share-alt fa-fw")]),
                 Menu(_("Explorer Settings"), self.public_url("settings/"), "fa fa-cog fa-fw", admin_only=True)]
 
     def app_mount_points(self):
@@ -110,6 +113,31 @@ class Plugin(PluginBase):
                 "settings_api": f"/api/plugins/{links.NAMESPACE}/settings/",
             })
 
+        @signed_in_page
+        def sharing_center(request):
+            """
+            Every link of the projects the user may manage, in one place: listed by the page's script from api.AllLinks,
+            created for any of those projects, changed, renewed, revoked and deleted through the per-project API.
+            """
+            projects = list(pages.manageable_projects(request.user))
+            linked = set(links.indexed_project_ids())
+            # Embed's views for the projects that have links, as the Share panel offers them
+            cards = pages.explorable_tasks([project for project in projects if project.id in linked])
+            embed = {}
+            for project in projects:
+                if project.id in linked:
+                    embed[str(project.id)] = pages.embed_views(
+                        [card for card in cards if card["task"].project_id == project.id])
+            return render(request, self.template_path("sharing.html"), {
+                "title": _("Sharing Center"),
+                "public": public, "v": pages.asset_version(),
+                "projects": [api.project_json(project) for project in projects],
+                "link_texts_template": self.template_path("link_texts.html"),
+                "embed_views": embed,
+                "all_links_api": f"/api/plugins/{links.NAMESPACE}/links/",
+                "public_address": options.public_address(),
+            })
+
         def viewable_project(request, project_pk):
             project = get_object_or_404(Project, pk=project_pk, deleting=False)
             # A 404 rather than a 403, as WebODM's own map page (app/views/app.py) does.
@@ -135,6 +163,7 @@ class Plugin(PluginBase):
                 "footprints": pages.task_footprints(cards),
                 "basemaps": options.signed_in_basemaps(),
                 "cards_template": self.template_path("cards.html"),
+                "link_texts_template": self.template_path("link_texts.html"),
                 "thumbnails": viewer.api,
                 "can_share": can_share,
                 "links": pages.link_summaries(request.user, [project.id]).get(project.id) if can_share else None,
@@ -328,6 +357,7 @@ class Plugin(PluginBase):
         return with_and_without_slash([
             ("", project_list),
             (r"settings/", settings_page),
+            (r"sharing/", sharing_center),
             (r"project/(?P<project_pk>[0-9]+)/", project_page),
             (rf"project/(?P<project_pk>[0-9]+)/map/{TASK}/", own_map),
             (rf"project/(?P<project_pk>[0-9]+)/3d/{TASK}/", own_3d),
@@ -344,6 +374,7 @@ class Plugin(PluginBase):
         tile = rf"{base}{TILE_TYPE}/tiles/(?P<z>[\d]+)/(?P<x>[\d]+)/(?P<y>[\d]+)"
         return [
             MountPoint(r"settings/$", api.Settings.as_view()),
+            MountPoint(r"links/$", api.AllLinks.as_view()),
             MountPoint(r"projects/(?P<project_pk>[0-9]+)/links/$", api.ProjectLinks.as_view()),
             MountPoint(r"projects/(?P<project_pk>[0-9]+)/links-allowed/$", api.ProjectLinksAllowed.as_view()),
             MountPoint(rf"projects/(?P<project_pk>[0-9]+)/links/{TOKEN}/$", api.ProjectLink.as_view()),

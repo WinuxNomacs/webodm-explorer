@@ -56,6 +56,10 @@ own (e.g. starting "Live check"), delete only that afterwards, and say what was 
   No screenshots. List the busy processes first (`ps -Ao pcpu,comm -r | head`, `docker stats --no-stream`) and
   report them with the numbers. Baseline (2026-11-21, M4 Pro, task 358acbe0): steady 16.7 ms frames while
   interacting for all three; one long task while loading: cloud 155 ms, mesh 543 ms, splats 114 ms.
+- `sharing-center.js` (same arguments, plus an optional project id, default 2): the Sharing Center, the Explorer
+  menu's drop-down, Create Link, Edit, Embed, the search in the address, an expired link's Renew (the link made to
+  expire through the dev container's shell) and the same URL opening again, phone width, and the Share panel's Edit
+  and its link to the Sharing Center. Creates one "Live check" link and revokes it, also on failure.
 - `link-downloads.js` (same arguments, plus an optional project id, default 2): Allow Downloads on the create form
   and on an existing link, the link page's Download menu at desktop and phone widths, one file downloaded as a
   visitor (deleted when the browser closes), 404s for a view-only link and once downloads are turned off, and
