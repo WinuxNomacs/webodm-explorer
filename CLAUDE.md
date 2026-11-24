@@ -48,7 +48,9 @@ public: nothing private, nothing true only on one machine. Keep it short; edit i
   phase plans for it and its live check measures it (frame times and long tasks on a real GPU), not only the tests.
 - **No screenshots that show a model or a location** in the docs or the README (the user, 2026-11-22): no map,
   orthophoto, mesh, point cloud or splat, and no place name or coordinates; screenshots show Explorer's interface
-  (panels, menus, settings) with neutral names only.
+  (panels, menus, settings) with neutral names only. One exception, chosen by the user (2026-11-24): the splash image
+  `docs/public/images/viewer.jpg` (a textured model in a location that can't be identified), at the top of the README
+  and the docs home; any other is the user's call.
 - **`README.md` is the plugin's overview, `docs/` its documentation** (VitePress 1.6.4, `docs/.vitepress/config.mjs`;
   Getting Started, a guide per page, Developing). A feature change updates its guide page and the README on the same
   branch. The site (https://winuxnomacs.github.io/webodm-explorer/) is published by the docs workflow: run it by hand
