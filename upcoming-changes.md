@@ -5,14 +5,12 @@
 Released: **0.1.0** (2026-11-23, experimental; see "Done"): tagged, the GitHub release with the zip, the
 WebODM-Plugins entry as draft pull request #16 (the user marks it ready).
 
-Up next: **List view and the task page** (the user's request 2026-11-24: a more explorer-like feel; plan below), in
-two steps, each a branch: A. the task page (signed-in, View as Visitor and links; done, see "Done"); B. the home's
-List view (a folder pane of projects, the selected project's details and tasks beside it) and remembering each user's
-view (next).
-
-Then: **more task files through links** (phase 2 of the Sharing Center request, 2026-11-24; plan below): the full
+Up next: **more task files through links** (phase 2 of the Sharing Center request, 2026-11-24; plan below): the full
 assets zip, the report and the camera positions behind Allow Downloads. To be planned with the user first (the user,
 2026-11-24: after List view).
+
+Built: **List view and the task page** (the user's request 2026-11-24: a more explorer-like feel; plan below), both
+steps: A. the task page; B. the home's List view and each user's remembered view (see "Done").
 
 Built: **the Sharing Center** (phase 1 of the user's request 2026-11-24: Explorer as WebODM's center for presenting
 and sharing models; plan below; see "Done").
@@ -982,6 +980,23 @@ The user chose to fix all four groups:
    of the plugin's folder (they survive upgrades).
 
 ## Done
+
+- **The home's List view** (2026-11-24, branch `list-view`, step B of "Plan: List view and the task page"): a **List**
+  button between Grid and Map (`view=list`). `pages.home_list` lists the matching projects by name (500 at most,
+  `LIST_PROJECTS`, with a note), the selected one from `project=` or the first; `pages.project_pane` and
+  `templates/project_pane.html` the right pane (details, Open Project Page, Share for users who can change it, View as
+  Visitor, Open in Dashboard, View All on Map, task rows opening the task page), also served alone at
+  `list/<project>/` (`plugin.py` `list_pane`) for `explorer.js` `initListView`, which swaps it in place
+  (`history.pushState` on a click, `replaceState` for Up and Down after 150 ms, `popstate` for Back and Forward, a
+  newer choice dropping an older answer, an error message when the pane can't load). Phones: the folder pane, then
+  the pane with Back to Projects (`explorer-list-chosen`). **Remembered view:** `home_view` in the plugin's
+  `UserDataStore` (`pages.saved_view`, `save_view`, written only when it changes and only from an address that names
+  a view; a store that fails means Grid, logged); `HomeQuery.default_view` leaves the user's default out of links, and
+  the toolbar keeps the view in a hidden field. Sort shows in Grid only; the page number stays out of List and Map
+  addresses. Tests: `tests/test_list_view.py` (11), `public/__tests__/listview.test.js` (6); one older test used
+  "list" as an unknown view. Django 245 and Jest 140 pass. Live check: the new `list-view.js` in the `live-check`
+  skill, all checks on the dev stack at desktop and phone widths, the user's saved view (Grid) put back. Docs: the
+  home guide, the README.
 
 - **The task page** (2026-11-24, branch `task-page`, step A of "Plan: List view and the task page", the defaults
   approved by the user): `project/<id>/task/<task>/`, `project/<id>/preview/task/<task>/` and `s/<token>/task/<task>/`

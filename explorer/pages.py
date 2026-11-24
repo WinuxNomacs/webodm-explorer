@@ -13,6 +13,7 @@ from urllib.parse import urlencode
 
 from app import pending_actions
 from app.models import Project, Task
+from app.plugins.data_store import UserDataStore
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db.models import Max, Q
@@ -47,11 +48,14 @@ OUTPUT_TYPES = (("map", "Map", "fa fa-globe"), ("cloud", "Point Cloud", "fa fa-p
                 ("mesh", "Textured Model", "fab fa-connectdevelop"), ("splats", "Gaussian Splats", "fa fa-splat"))
 SCOPES = ("all", "mine", "shared")
 SORTS = ("activity", "name", "created")
-VIEWS = ("grid", "map")
+VIEWS = ("grid", "list", "map")
 PAGE_SIZE = 24
 SEARCH_MAX = 100
 # The home's Map view: at most this many projects drawn, the most recently active first
 MAP_PROJECTS = 500
+# The home's List view: at most this many projects in its folder pane, by name
+LIST_PROJECTS = 500
+VIEW_KEY = "home_view"  # the user's last chosen view of the home, in the plugin's UserDataStore
 
 
 class Viewer(NamedTuple):
@@ -72,7 +76,10 @@ class Viewer(NamedTuple):
 
 
 class HomeQuery(NamedTuple):
-    """The Explorer home's search, scope, sort, filters, view and page, from its address."""
+    """
+    The Explorer home's search, scope, sort, filters, view, page and (List view) selected project, from its address.
+    default_view is the view the home opens in without one in its address: the user's last choice (saved_view).
+    """
     q: str = ""
     scope: str = "all"
     sort: str = "activity"
@@ -80,14 +87,18 @@ class HomeQuery(NamedTuple):
     linked: bool = False
     view: str = "grid"
     page: str = "1"
+    project: str = ""
+    default_view: str = "grid"
 
     def params(self, **changes):
         """The query string of this query with changes, without the defaults (for links between pages and views)."""
         values = self._replace(**changes)
         pairs = [("q", values.q), ("scope", values.scope if values.scope != "all" else ""),
                  ("sort", values.sort if values.sort != "activity" else ""), ("3d", "1" if values.has_3d else ""),
-                 ("linked", "1" if values.linked else ""), ("view", values.view if values.view != "grid" else ""),
-                 ("page", values.page if values.page != "1" else "")]
+                 ("linked", "1" if values.linked else ""),
+                 ("view", values.view if values.view != values.default_view else ""),
+                 ("page", values.page if values.page != "1" and values.view == "grid" else ""),
+                 ("project", values.project if values.view == "list" else "")]
         return urlencode([(k, v) for k, v in pairs if v])
 
     @property
@@ -95,15 +106,73 @@ class HomeQuery(NamedTuple):
         return bool(self.q or self.scope != "all" or self.has_3d or self.linked)
 
 
-def home_query(params):
-    """The home's query from the request's GET parameters; anything unknown falls back to the default."""
+def home_query(params, default_view="grid"):
+    """
+    The home's query from the request's GET parameters; anything unknown falls back to the default. Without a view in
+    the address, default_view (the user's last choice).
+    """
     def pick(name, choices, default):
         value = params.get(name)
         return value if value in choices else default
+    default_view = default_view if default_view in VIEWS else "grid"
+    project = params.get("project", "")
     return HomeQuery(q=params.get("q", "").strip()[:SEARCH_MAX], scope=pick("scope", SCOPES, "all"),
                      sort=pick("sort", SORTS, "activity"), has_3d=params.get("3d") == "1",
-                     linked=params.get("linked") == "1", view=pick("view", VIEWS, "grid"),
-                     page=params.get("page", "1"))
+                     linked=params.get("linked") == "1", view=pick("view", VIEWS, default_view),
+                     page=params.get("page", "1"), project=project if project.isdigit() else "",
+                     default_view=default_view)
+
+
+def saved_view(user):
+    """The view the user last chose on the home (grid, list or map); grid when none, or one that doesn't read."""
+    try:
+        value = UserDataStore(links.NAMESPACE, user).get_string(VIEW_KEY, "grid")
+    except Exception as e:  # noqa: BLE001 - a store that can't be read means the default, never a page error
+        logger.warning(f"Explorer: could not read the home view of user {user.id}: {e}")
+        return "grid"
+    return value if value in VIEWS else "grid"
+
+
+def save_view(user, view):
+    """Keeps the view the user chose (one of VIEWS), written only when it changes."""
+    if view not in VIEWS or view == saved_view(user):
+        return
+    try:
+        UserDataStore(links.NAMESPACE, user).set_string(VIEW_KEY, view)
+    except Exception as e:  # noqa: BLE001 - not remembered, the page still shows
+        logger.warning(f"Explorer: could not save the home view of user {user.id}: {e}")
+
+
+def home_list(user, query):
+    """
+    The home's List view: the folder pane's projects (those matching the query, by name, LIST_PROJECTS at most) as
+    project_summaries entries, and the selected one: the query's project when listed, else the first.
+    """
+    projects = list(home_projects(user, query._replace(sort="name"))[:LIST_PROJECTS])
+    entries = project_summaries(user, projects)
+    selected = next((entry for entry in entries if str(entry["project"].id) == query.project), None)
+    return {"entries": entries, "selected": selected or (entries[0] if entries else None),
+            "capped": len(projects) == LIST_PROJECTS, "limit": LIST_PROJECTS}
+
+
+def project_pane(user, project, public):
+    """
+    List view's right pane for a project the user can view: its details, its options (the project page, Share for
+    users who can change it, View as Visitor, the Dashboard, WebODM's map) and its tasks as rows opening their pages.
+    """
+    path = f"{public}project/{project.id}/"
+    cards = explorable_tasks([project], lambda task: link_outputs(task, path), details=True,
+                             page_for=lambda task: task_page_path(path, task))
+    can_share = user.has_perm("app.change_project", project)
+    counts = {kind: 0 for kind, _label, _icon in OUTPUT_TYPES}
+    for card in cards:
+        for kind in output_types(card["task"]):
+            counts[kind] += 1
+    return {"project": project, "path": path, "cards": cards, "tags": user_tags(project.tags),
+            "owner": project.owner if project.owner_id != user.id else None, "can_share": can_share,
+            "links": link_summaries(user, [project.id]).get(project.id) if can_share else None,
+            "outputs": [{"type": kind, "label": _(label), "icon": icon, "count": counts[kind]}
+                        for kind, label, icon in OUTPUT_TYPES if counts[kind]]}
 
 
 def explorable_task_set():
