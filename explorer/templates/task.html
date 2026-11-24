@@ -1,0 +1,104 @@
+{% extends base_template %}
+{% load i18n %}
+
+{% block extra-headers %}<meta name="robots" content="noindex, nofollow">
+{% include meta_template %}
+{% if footprints %}<link rel="stylesheet" href="{{ public }}vendor/leaflet-1.9.4/dist/leaflet.css">
+{% endif %}<link rel="stylesheet" href="{{ public }}explorer.css?v={{ v }}">{% endblock %}
+
+{% block content %}
+{% if preview %}{% include preview_template %}{% endif %}
+{# A task's page (plugin.py task_view): its views, downloads, footprint and processing details #}
+<div class="explorer explorer-task-page{% if not signed_in %} explorer-public{% endif %}{% if embed %} explorer-embedded{% endif %}">
+    <div class="explorer-header">
+        <h3>{% if signed_in %}<a href="{{ public }}">{% trans "Explorer" %}</a> / {% endif %}<a href="{{ project_path }}">{{ project.name }}</a> / {% if task.name %}{{ task.name }}{% else %}{% trans "Unnamed Task" %}{% endif %}</h3>
+        {% if not embed %}<div class="explorer-actions">{% include neighbours_template %}</div>{% endif %}
+    </div>
+
+    <div class="explorer-cover theme-border-secondary-07">
+        <a class="explorer-cover-picture" href="{{ outputs.0.url }}" tabindex="-1" aria-hidden="true">
+        {% if picture.webodm %}
+        <img class="explorer-thumbnail" fetchpriority="high" alt="" data-placeholder-icon="fa fa-cube"
+             src="{{ thumbnails }}{{ task.id }}/thumbnail?size=1024"{% if picture.draw %}
+             data-draw="{{ picture.draw }}" data-api="{{ thumbnails }}{{ task.id }}/"{% if task.crop %} data-crop="1"{% endif %}{% endif %}>
+        {% else %}
+        <div class="explorer-thumbnail explorer-no-thumbnail theme-border-secondary-07"{% if picture.draw %}
+             data-draw="{{ picture.draw }}" data-api="{{ thumbnails }}{{ task.id }}/"{% if task.crop %} data-crop="1"{% endif %}{% endif %}><i class="fa fa-cube"></i></div>
+        {% endif %}
+        </a>
+        <div class="explorer-cover-body">
+            <h2 class="explorer-cover-title">{% if task.name %}{{ task.name }}{% else %}{% trans "Unnamed Task" %}{% endif %}</h2>
+            <p class="explorer-card-text">{{ task.created_at|date:"SHORT_DATETIME_FORMAT" }}{% if details.images %} &middot; {% blocktrans count count=details.images %}{{ count }} image{% plural %}{{ count }} images{% endblocktrans %}{% endif %}</p>
+            {% if tags %}<div class="explorer-tags">{% for tag in tags %}<span class="explorer-tag theme-border-secondary-07">{{ tag }}</span>{% endfor %}</div>{% endif %}
+            <div class="explorer-outputs">
+                {% for output in outputs %}
+                <a class="btn {% if forloop.first %}btn-primary{% else %}btn-default{% endif %}" href="{{ output.url }}"{% if output.detail %} title="{{ output.detail }}"{% endif %}><i class="{{ output.icon }}"></i> {{ output.label }}</a>
+                {% endfor %}
+            </div>
+            <div class="explorer-outputs explorer-task-more">
+                {% if downloads %}
+                <div class="btn-group">
+                    <button type="button" class="btn btn-default btn-sm dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <i class="fa fa-download"></i> {% trans "Download" %} <span class="caret"></span>
+                    </button>
+                    <ul class="dropdown-menu">
+                        {% for file in downloads %}
+                        <li><a href="{{ file.url }}" download><i class="{{ file.icon }} fa-fw"></i> {{ file.label }}</a></li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                {% if webodm %}
+                <div class="btn-group">
+                    <button type="button" class="btn btn-default btn-sm dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <i class="fa fa-external-link-alt"></i> {% trans "Open in WebODM" %} <span class="caret"></span>
+                    </button>
+                    <ul class="dropdown-menu">
+                        {% for page in webodm %}
+                        <li><a href="{{ page.url }}"><i class="{{ page.icon }} fa-fw"></i> {{ page.label }}{% if page.detail %} <span class="explorer-output-detail">({{ page.detail }})</span>{% endif %}</a></li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                {% if details.report %}
+                <a class="btn btn-default btn-sm" href="{{ details.report }}" download><i class="far fa-file-pdf"></i> {% trans "Processing Report" %}</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {% if footprints %}
+    <details class="explorer-overview" open>
+        <summary>{% trans "Footprint" %}</summary>
+        <div class="explorer-footprint-map theme-border-secondary-07" data-explorer-footprints="tasks"></div>
+    </details>
+    {{ footprints|json_script:"explorer-footprints" }}
+    {{ basemaps|json_script:"explorer-basemaps" }}
+    {% endif %}
+
+    <section class="explorer-task-details">
+        <h4>{% trans "Processing Details" %}</h4>
+        <dl class="explorer-facts">
+            <dt>{% trans "Created" %}</dt><dd>{{ task.created_at|date:"SHORT_DATETIME_FORMAT" }}</dd>
+            {% if details.images %}<dt>{% trans "Images" %}</dt><dd>{{ details.images }}</dd>{% endif %}
+            {% if details.processing_time %}<dt>{% trans "Processing Time" %}</dt><dd>{{ details.processing_time }}</dd>{% endif %}
+            {% if details.size %}<dt>{% trans "Size" %}</dt><dd>{{ details.size }}</dd>{% endif %}
+            {% if details.node %}<dt>{% trans "Processing Node" %}</dt><dd>{{ details.node }}</dd>{% endif %}
+        </dl>
+        <h5>{% trans "Processing Options" %}</h5>
+        {% if details.options %}
+        <table class="table table-condensed explorer-options">
+            <tbody>
+                {% for name, value in details.options %}<tr><th scope="row">{{ name }}</th><td>{{ value }}</td></tr>{% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="explorer-card-text">{% trans "WebODM's defaults." %}</p>
+        {% endif %}
+    </section>
+</div>
+{% if footprints %}<script src="{{ public }}vendor/leaflet-1.9.4/dist/leaflet.js"></script>{% endif %}
+<script src="{{ public }}layers.js?v={{ v }}"></script>
+{% if footprints %}<script src="{{ public }}footprints.js?v={{ v }}"></script>{% endif %}
+<script src="{{ public }}explorer.js?v={{ v }}"></script>
+{% endblock %}

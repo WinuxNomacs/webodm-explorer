@@ -223,11 +223,12 @@ class ProjectPageTests(HubTestMixin, BootTestCase):
         self.assertContains(response, '<i class="fa fa-user"></i> testuser')
         self.assertNotContains(response, '<span class="badge"')
 
-    def test_the_cards_open_explorers_viewer_and_offer_webodms_pages_and_downloads(self):
+    def test_the_cards_open_the_task_page_and_explorers_viewer_and_offer_webodms_pages_and_downloads(self):
         task = self.task("Everything", images_count=327, size=1061.4, processing_time=1628205, tags="roof .x")
         html = self.page().content.decode()
         own = f"/plugins/explorer/project/{self.project.id}/"
-        self.assertIn(f'class="explorer-thumbnail-link" href="{own}map/{task.id}/"', html)
+        self.assertIn(f'class="explorer-thumbnail-link" href="{own}task/{task.id}/"', html)
+        self.assertIn(f'href="{own}map/{task.id}/"', html)
         self.assertIn(f'href="{own}3d/{task.id}/?t=cloud"', html)
         self.assertIn(f'href="/map/project/{self.project.id}/task/{task.id}/"', html)  # Open in WebODM
         self.assertIn(f'href="/3d/project/{self.project.id}/task/{task.id}/?t=mesh"', html)
@@ -242,7 +243,7 @@ class ProjectPageTests(HubTestMixin, BootTestCase):
         first = self.task("First", orthophoto_extent=square(-88.0, 42.0))
         response = self.page()
         footprints = self.json_script(response, "explorer-footprints")
-        self.assertEqual(footprints, [{"name": "First", "url": f"/plugins/explorer/project/{self.project.id}/map/{first.id}/",
+        self.assertEqual(footprints, [{"name": "First", "url": f"/plugins/explorer/project/{self.project.id}/task/{first.id}/",
                                        "geometry": square(-88.0, 42.0)}])
         self.assertContains(response, '<details class="explorer-overview">')
         self.task("Second", ["georeferenced_model.laz"], dsm_extent=square(-88.0, 42.0))

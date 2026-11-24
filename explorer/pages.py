@@ -378,6 +378,42 @@ def link_outputs(task, link_path, embed=False):
     return outputs
 
 
+def task_page_path(path, task, embed=False):
+    """A task's page below a project's set of pages (path: the link page, the preview or the project page)."""
+    return f"{path}task/{task.id}/" + ("?embed=1" if embed else "")
+
+
+def option_value(value):
+    """A processing option's value as it reads: true/false, numbers and text as given, lists joined."""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (list, tuple)):
+        return ", ".join(option_value(item) for item in value)
+    if isinstance(value, dict):
+        return ", ".join(f"{key}: {option_value(item)}" for key, item in value.items())
+    return str(value)
+
+
+def task_details(task, signed_in):
+    """
+    A task page's processing details: images, size on disk, processing time (each "" when unknown), the options it
+    was processed with ([(name, value)]; [] for WebODM's defaults), and for signed-in users only, the processing
+    node's name (an internal name, so not through links) and WebODM's processing report.
+    """
+    options = []
+    for option in task.options if isinstance(task.options, list) else []:
+        if isinstance(option, dict) and option.get("name"):
+            options.append((str(option["name"]), option_value(option.get("value", ""))))
+    details = {"images": task.images_count or 0, "size": disk_size(task.size),
+               "processing_time": duration(task.processing_time), "options": options, "node": None, "report": None}
+    if signed_in:
+        node = task.processing_node
+        details["node"] = str(node) if node else None
+        if "report.pdf" in (task.available_assets or []):
+            details["report"] = f"/api/projects/{task.project_id}/tasks/{task.id}/download/report.pdf"
+    return details
+
+
 def link_downloads(task, api_path):
     """A link page card's Download menu: label, icon and URL of each file the task has; api_path ends in a slash."""
     assets = task.available_assets or []
@@ -421,11 +457,12 @@ def task_facts(task):
     return facts
 
 
-def explorable_tasks(projects, outputs_for=task_outputs, downloads_for=None, details=False):
+def explorable_tasks(projects, outputs_for=task_outputs, downloads_for=None, details=False, page_for=None):
     """
     Completed tasks (not being removed) with at least one output, newest first, as cards: {task, outputs, downloads
-    ([] without downloads_for), picture (thumbnail()), open (the first output's URL)}; with details (the signed-in
-    project page) also webodm (WebODM's own pages, task_outputs), facts, tags and footprint.
+    ([] without downloads_for), picture (thumbnail()), open (the first output's URL), page (the task page, page_for's
+    URL; the first output's without it)}; with details (the signed-in project page) also webodm (WebODM's own pages,
+    task_outputs), facts, tags and footprint.
     """
     tasks = (explorable_task_set().filter(project__in=projects)
              .only("id", "project_id", "name", "created_at", "available_assets", "orthophoto_bands", "crop", "tags",
@@ -437,7 +474,8 @@ def explorable_tasks(projects, outputs_for=task_outputs, downloads_for=None, det
         if not outputs:
             continue
         card = {"task": task, "outputs": outputs, "downloads": downloads_for(task) if downloads_for else [],
-                "picture": thumbnail(task), "open": outputs[0]["url"]}
+                "picture": thumbnail(task), "open": outputs[0]["url"],
+                "page": page_for(task) if page_for else outputs[0]["url"]}
         if details:
             card.update(webodm=task_outputs(task), facts=task_facts(task), tags=user_tags(task.tags),
                         footprint=footprint(task))
@@ -447,8 +485,9 @@ def explorable_tasks(projects, outputs_for=task_outputs, downloads_for=None, det
 
 def neighbours(project, task, path, view):
     """
-    Previous / Next on a map or 3D page: the tasks before and after this one in the cards' order (newest first),
-    each opening in the same view where it has it (view: "map", or a 3D type), else its first view. Returns
+    Previous / Next on a map, 3D or task page: the tasks before and after this one in the cards' order (newest first),
+    each opening in the same view where it has it (view: "map", or a 3D type), else its first view; on a task page
+    (view: "task"), its task page. Returns
     {"previous": card or None, "next": card or None, "position": 1-based, "total"}, a card being {"name", "url",
     "open", "views"}.
     path: the page the cards are on, ending in a slash.
@@ -467,7 +506,8 @@ def neighbours(project, task, path, view):
         if map_layers(other):
             views["map"] = f"{path}map/{other.id}/"
         # views: the URL of each view it has, so the 3D page's link follows its type switch
-        return {"name": other.name or _("Unnamed Task"), "url": views.get(view, card["open"]), "open": card["open"],
+        url = task_page_path(path, other) if view == "task" else views.get(view, card["open"])
+        return {"name": other.name or _("Unnamed Task"), "url": url, "open": card["open"],
                 "views": views}
 
     return {"previous": target(cards[index - 1] if index > 0 else None),
@@ -477,7 +517,7 @@ def neighbours(project, task, path, view):
 
 def link_footprints(cards):
     """A link page's Overview Map: each card's task at its footprint, opening as its card does."""
-    return [{"name": card["task"].name or _("Unnamed Task"), "url": card["open"], "geometry": shape}
+    return [{"name": card["task"].name or _("Unnamed Task"), "url": card["page"], "geometry": shape}
             for card in cards if (shape := footprint(card["task"]))]
 
 
@@ -501,5 +541,5 @@ def embed_views(cards):
 
 def task_footprints(cards):
     """The project page's overview map: each card's task at its footprint, opening as its thumbnail does."""
-    return [{"name": card["task"].name or _("Unnamed Task"), "url": card["open"], "geometry": card["footprint"]}
+    return [{"name": card["task"].name or _("Unnamed Task"), "url": card["page"], "geometry": card["footprint"]}
             for card in cards if card.get("footprint")]

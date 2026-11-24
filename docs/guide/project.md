@@ -2,7 +2,7 @@
 
 A project's Explorer page shows its owner, tags and task count, then:
 
-- an **Overview Map** of the tasks' footprints over a basemap; choose a footprint to open its task. With one task,
+- an **Overview Map** of the tasks' footprints over a basemap; choose a footprint to open its task's page. With one task,
   the map is folded; unfold it to see it.
 - a card for each completed task with outputs, newest first.
 
@@ -11,7 +11,7 @@ Tasks still processing, failed or cancelled are left out until they complete.
 ## Task cards
 
 Each card shows the task's thumbnail, date, number of images, size and processing time, and its tags, with a button
-per view the task has:
+per view the task has. The thumbnail and the task's name open [its page](#a-task-s-page).
 
 | Button | Opens | Needs |
 |---|---|---|
@@ -26,6 +26,18 @@ for the task (for its measurement tools and editing), and **Download** its outpu
 
 Where WebODM can't make a thumbnail (a thermal orthophoto, or a task with elevation models only), the card draws one
 from the task's map tiles, in the colours of its map.
+
+## A task's page
+
+Everything about one task in one place: its picture, date and tags; a button per view; **Download** and **Open in
+WebODM**; **Processing Report** (WebODM's PDF report, when the task has one); a **Footprint** map over the basemap;
+and **Processing Details**: the date, images, processing time, size on disk, the processing node, and the options
+the task was processed with (or WebODM's defaults). **Previous** and **Next** step through the project's tasks, and
+the project's name leads back to its page.
+
+Through a link and with **View as Visitor**, the page is the same without the processing node (an internal name),
+the report and **Open in WebODM**, with **Download** only on links that allow downloads, and with the footprint only
+when **Basemaps on Links** is on.
 
 ## The page's menus
 

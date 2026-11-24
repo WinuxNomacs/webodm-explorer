@@ -1,8 +1,8 @@
 {% load i18n %}<div class="explorer-grid">
     {% for card in cards %}{% with task=card.task picture=card.picture %}
     <div class="explorer-card theme-border-secondary-07">
-        {# WebODM's thumbnail of the orthophoto; a layer drawn from tiles where it can't make one (explorer.js). It opens the task's first view, as the title does. #}
-        <a class="explorer-thumbnail-link" href="{{ card.open }}" tabindex="-1" aria-hidden="true">
+        {# WebODM's thumbnail of the orthophoto; a layer drawn from tiles where it can't make one (explorer.js). It opens the task's page, as the title does. #}
+        <a class="explorer-thumbnail-link" href="{{ card.page }}" tabindex="-1" aria-hidden="true">
         {% if picture.webodm %}
         <img class="explorer-thumbnail" loading="lazy" alt="" data-placeholder-icon="fa fa-cube"
              src="{{ thumbnails }}{{ task.id }}/thumbnail?size=512"{% if picture.draw %}
@@ -14,7 +14,7 @@
         </a>
         <div class="explorer-card-body">
             <div class="explorer-card-heading">
-                <a class="explorer-card-title explorer-title-link" href="{{ card.open }}">{% if task.name %}{{ task.name }}{% else %}{% trans "Unnamed Task" %}{% endif %}</a>
+                <a class="explorer-card-title explorer-title-link" href="{{ card.page }}">{% if task.name %}{{ task.name }}{% else %}{% trans "Unnamed Task" %}{% endif %}</a>
                 {% if signed_in %}
                 <div class="btn-group">
                     <button type="button" class="btn btn-link btn-xs dropdown-toggle explorer-more" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"

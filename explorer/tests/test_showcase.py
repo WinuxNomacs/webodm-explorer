@@ -147,7 +147,7 @@ class EmbedTests(LinkTestMixin, BootTestCase):
 
     def test_the_views_an_embedded_link_page_opens_stay_embedded(self):
         def views(html):
-            return re.findall(rf'href="({re.escape(self.path)}(?:map|3d)/[^"]*)"', html)
+            return re.findall(rf'href="({re.escape(self.path)}(?:map|3d|task)/[^"]*)"', html)
         embedded = views(Client().get(f"{self.path}?embed=1").content.decode())
         # The cover's picture and buttons, and the other task's card: its picture, title and buttons
         self.assertGreaterEqual(len(embedded), 6)
