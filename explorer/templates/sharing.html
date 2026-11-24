@@ -1,0 +1,112 @@
+{% extends "app/plugins/templates/base.html" %}
+{% load i18n %}
+
+{% block extra-headers %}<link rel="stylesheet" href="{{ public }}explorer.css?v={{ v }}">{% endblock %}
+
+{% block content %}
+<div class="explorer explorer-sharing" data-all-links-api="{{ all_links_api }}"{% if public_address %} data-origin="{{ public_address }}"{% endif %}
+     {% include link_texts_template %}
+     data-none="{% trans "No links yet. Create one here, or in a project's Share panel." %}"
+     data-no-match="{% trans "No links match these filters." %}"
+     data-confirm-delete="{% trans "Delete this expired link for good? It can't be renewed afterwards." %}"
+     data-delete="{% trans "Delete" %}" data-by="{% trans "by %(user)s" %}" data-unknown-user="{% trans "a removed account" %}"
+     data-expires-soon="{% trans "Expires Soon" %}" data-status-expired="{% trans "Expired" %}"
+     data-project-title="{% trans "The project's Explorer page, with its Share panel open" %}"
+     data-blocked="{% trans "Its links don't work: Explorer Settings allow links for public projects only." %}"
+     data-column-project="{% trans "Project" %}" data-column-link="{% trans "Link" %}" data-column-access="{% trans "Access" %}"
+     data-column-downloads="{% trans "Downloads" %}" data-column-created="{% trans "Created" %}"
+     data-column-expires="{% trans "Expires" %}" data-column-actions="{% trans "Actions" %}">
+    {% csrf_token %}
+    <div class="explorer-header">
+        <h3><i class="fa fa-share-alt"></i> {% trans "Sharing Center" %}</h3>
+        {% if projects %}
+        <div class="explorer-actions">
+            <button type="button" class="btn btn-primary btn-sm" data-sharing-create aria-controls="explorer-sharing-create">
+                <i class="fa fa-link"></i> {% trans "Create Link" %}
+            </button>
+        </div>
+        {% endif %}
+    </div>
+    <p class="explorer-card-text">{% trans "Every anyone-with-the-link link of the projects you can change, in one place. Anyone with a link can open its project's maps and 3D views without signing in, until the link expires or is revoked; with Allow Downloads, they can also download the outputs; with Require Sign-In, it asks for a WebODM login first (any account on this WebODM). Expired links are kept here for 90 days, to renew or delete." %}</p>
+
+    {% if projects %}
+    <form id="explorer-sharing-create" class="explorer-sharing-create explorer-share theme-border-secondary-07" hidden>
+        <h4>{% trans "Create Link" %}</h4>
+        <div class="explorer-link-form">
+            <select name="project" class="form-control input-sm" aria-label="{% trans "Project" %}">
+                <option value="">{% trans "Choose a Project" %}</option>
+                {% for project in projects %}
+                <option value="{{ project.id }}"{% if not project.links_work %} disabled{% endif %}>{{ project.name }}{% if not project.links_work %} ({% trans "links not allowed" %}){% endif %}</option>
+                {% endfor %}
+            </select>
+            <input name="label" class="form-control input-sm" maxlength="100" placeholder="{% trans "Label (optional)" %}" aria-label="{% trans "Label" %}">
+            <select name="expires_days" class="form-control input-sm" aria-label="{% trans "Expiry" %}">
+                <option value="7">{% trans "Expires in 7 days" %}</option>
+                <option value="30" selected>{% trans "Expires in 30 days" %}</option>
+                <option value="90">{% trans "Expires in 90 days" %}</option>
+                <option value="never">{% trans "Never expires" %}</option>
+            </select>
+            <label class="explorer-link-downloads"><input type="checkbox" name="downloads"> {% trans "Allow Downloads" %}</label>
+            <label class="explorer-link-downloads"><input type="checkbox" name="sign_in"> {% trans "Require Sign-In" %}</label>
+            <button type="submit" class="btn btn-primary btn-sm"><i class="fa fa-link"></i> {% trans "Create Link" %}</button>
+        </div>
+        <div class="explorer-sharing-create-error alert alert-warning" role="alert" hidden></div>
+    </form>
+
+    <form class="explorer-toolbar explorer-sharing-filters" role="search">
+        <div class="explorer-search input-group input-group-sm">
+            <span class="input-group-addon"><i class="fa fa-search"></i></span>
+            <input type="search" name="q" class="form-control" maxlength="100"
+                   placeholder="{% trans "Search Labels, Projects and Users" %}" aria-label="{% trans "Search Links" %}">
+        </div>
+        <div class="explorer-toolbar-row">
+            <select name="status" class="form-control input-sm" aria-label="{% trans "Status" %}">
+                <option value="active">{% trans "Active" %}</option>
+                <option value="soon">{% trans "Expiring Soon" %}</option>
+                <option value="expired">{% trans "Expired" %}</option>
+                <option value="all">{% trans "All Links" %}</option>
+            </select>
+            <select name="project" class="form-control input-sm" aria-label="{% trans "Project" %}">
+                <option value="">{% trans "All Projects" %}</option>
+                {% for project in projects %}<option value="{{ project.id }}">{{ project.name }}</option>{% endfor %}
+            </select>
+            <select name="access" class="form-control input-sm" aria-label="{% trans "Access" %}">
+                <option value="">{% trans "Any Access" %}</option>
+                <option value="anyone">{% trans "Anyone with the Link" %}</option>
+                <option value="sign_in">{% trans "Require Sign-In" %}</option>
+            </select>
+            <select name="downloads" class="form-control input-sm" aria-label="{% trans "Downloads" %}">
+                <option value="">{% trans "Downloads or Not" %}</option>
+                <option value="yes">{% trans "Allow Downloads" %}</option>
+                <option value="no">{% trans "View Only" %}</option>
+            </select>
+        </div>
+    </form>
+
+    <div class="explorer-links-error alert alert-warning" role="alert" hidden></div>
+    <div aria-live="polite">
+        <table class="table explorer-sharing-table" hidden>
+            <thead>
+                <tr>
+                    <th scope="col">{% trans "Project" %}</th>
+                    <th scope="col">{% trans "Link" %}</th>
+                    <th scope="col">{% trans "Access" %}</th>
+                    <th scope="col">{% trans "Downloads" %}</th>
+                    <th scope="col">{% trans "Created" %}</th>
+                    <th scope="col">{% trans "Expires" %}</th>
+                    <th scope="col"><span class="sr-only">{% trans "Actions" %}</span></th>
+                </tr>
+            </thead>
+            <tbody class="explorer-sharing-rows"></tbody>
+        </table>
+        <p class="explorer-sharing-empty explorer-card-text" hidden></p>
+    </div>
+    {{ projects|json_script:"explorer-sharing-projects" }}
+    {{ embed_views|json_script:"explorer-embed-views" }}
+    {% else %}
+    <p class="explorer-card-text">{% trans "You can't change any project here, so you have no links to manage: links are made by users who can change a project. A project's owner or an administrator can give you that in the Dashboard (the project's Edit dialog, Permissions)." %}</p>
+    {% endif %}
+</div>
+<script src="{{ public }}sharing.js?v={{ v }}"></script>
+<script src="{{ public }}explorer.js?v={{ v }}"></script>
+{% endblock %}

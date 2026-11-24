@@ -2,11 +2,13 @@
  * The Explorer pages: the home's toolbar and its Settings panel for admins, card thumbnails (drawn from the task's tiles where
  * WebODM's thumbnail API can't make one, else a placeholder), and the project page's Share panel, which shows the
  * page's own link (for signed-in users the project is shared with) and, for users who can change the project, its
- * "anyone with the link" links: listed, created and revoked through the plugin's API.
+ * "anyone with the link" links: listed, created, changed and revoked through the plugin's API; and the Sharing Center,
+ * every link the user may manage across projects (its filters in sharing.js).
  */
 (function () {
     "use strict";
     var Layers = typeof module !== "undefined" && module.exports ? require("./layers.js") : window.ExplorerLayers;
+    if (typeof module !== "undefined" && module.exports && !window.ExplorerSharing) window.ExplorerSharing = require("./sharing.js");
     // A drawn thumbnail: at most this many pixels across, twice a card's width for sharp screens
     var DRAWN_SIZE = 512;
 
@@ -301,6 +303,7 @@
         watchThumbnails(root);
         initShare(root);
         initLinks(root);
+        initSharingCenter(root);
     }
 
     // The button says "Copied" for a moment after a copy; a copy the browser refuses leaves the text selected. Its
@@ -355,12 +358,225 @@
             'height="480" style="border: 0;" allow="fullscreen" allowfullscreen loading="lazy"></iframe>';
     }
 
-    function readJson(root, id) {
+    function readJson(root, id, empty) {
         var script = root.getElementById ? root.getElementById(id) : document.getElementById(id);
-        if (!script) return [];
-        try { return JSON.parse(script.textContent) || []; } catch (e) { return []; }
+        if (!script) return empty === undefined ? [] : empty;
+        try { return JSON.parse(script.textContent) || empty || []; } catch (e) { return empty === undefined ? [] : empty; }
     }
 
+    function element(tag, className, content) {
+        var node = document.createElement(tag);
+        if (className) node.className = className;
+        if (content) node.textContent = content;
+        return node;
+    }
+
+    // Requests to the plugin's API. WebODM's CSRF check applies to it, so every request carries the page's token; a
+    // refusal rejects with the server's reason (or fallback) and the status.
+    function apiClient(csrf, fallback) {
+        return function request(method, url, body) {
+            var options = {method: method, credentials: "same-origin",
+                headers: {"X-CSRFToken": csrf, "Accept": "application/json"}};
+            if (body) {
+                options.headers["Content-Type"] = "application/json";
+                options.body = JSON.stringify(body);
+            }
+            return window.fetch(url, options).then(function (response) {
+                if (response.ok) return response.status === 204 ? null : response.json();
+                function failure(message) {
+                    var error = new Error(message);
+                    error.status = response.status;
+                    return error;
+                }
+                return response.json().then(function (data) {
+                    var said = data && (data.detail || data.label || data.expires_days);
+                    if (Array.isArray(said)) said = said[0];
+                    throw failure(typeof said === "string" && said ? said : fallback);
+                }, function () {
+                    throw failure(fallback);
+                });
+            });
+        };
+    }
+
+    function button(className, caption, title) {
+        var node = element("button", "btn " + className, caption);
+        node.type = "button";
+        if (title) node.title = title;
+        return node;
+    }
+
+    // A panel shown and hidden by a button (Embed, Edit), which says whether it is open
+    function toggles(trigger, panel, opened) {
+        trigger.setAttribute("aria-expanded", "false");
+        trigger.addEventListener("click", function () {
+            panel.hidden = !panel.hidden;
+            trigger.setAttribute("aria-expanded", panel.hidden ? "false" : "true");
+            if (!panel.hidden && opened) opened();
+        });
+    }
+
+    // Embed: pick the whole page or a task's view, then copy the iframe code. ctx: {text, origin, views (the project's
+    // tasks and their views), title, signIn() (whether the link asks for a login now)}
+    function embedBox(link, ctx) {
+        var text = ctx.text;
+        var panel = element("div", "explorer-embed");
+        panel.hidden = true;
+        var label = element("label", "explorer-embed-pick explorer-card-text", text("embed-label"));
+        var select = element("select", "form-control input-sm");
+        var page = element("option", null, text("embed-page"));
+        page.value = "";
+        select.appendChild(page);
+        (ctx.views || []).forEach(function (task) {
+            var group = element("optgroup");
+            group.label = task.task;
+            task.views.forEach(function (view) {
+                var option = element("option", null, view.label);
+                option.value = view.path;
+                group.appendChild(option);
+            });
+            select.appendChild(group);
+        });
+        label.appendChild(select);
+        panel.appendChild(label);
+        var group = element("div", "input-group input-group-sm");
+        var code = element("textarea", "form-control explorer-embed-code");
+        code.readOnly = true;
+        code.rows = 3;
+        code.setAttribute("aria-label", text("embed-code"));
+        group.appendChild(code);
+        var buttons = element("span", "input-group-btn");
+        var copy = button("btn-default", text("copy"));
+        wireCopy(copy, code, text("copied"));
+        buttons.appendChild(copy);
+        group.appendChild(buttons);
+        panel.appendChild(group);
+        panel.appendChild(element("p", "explorer-card-text", text("embed-note")));
+        // A link that asks for a login shows in another site's frame only to visitors signed in to this WebODM
+        // in the same browser, which most browsers prevent (third-party cookies)
+        var signInNote = element("p", "explorer-card-text", text("embed-sign-in"));
+        panel.appendChild(signInNote);
+        function update() {
+            signInNote.hidden = !ctx.signIn();
+            code.value = embedCode(ctx.origin + link.path, select.value, ctx.title || "");
+        }
+        select.addEventListener("change", update);
+        update();
+        panel.explorerRefresh = update;  // the link's Require Sign-In may have changed since
+        return panel;
+    }
+
+    // Edit: a link's label and expiry (7, 30 or 90 days from today, or never), or the current expiry kept. On an
+    // expired link it is Renew: a new expiry is needed, and the same URL works again. ctx: {text, request, url (the
+    // link's API), saved(updated link), failed(message)}
+    function editBox(link, ctx) {
+        var text = ctx.text;
+        var renew = !!link.expired;
+        var form = element("form", "explorer-link-edit");
+        form.hidden = true;
+        var label = element("input", "form-control input-sm");
+        label.name = "label";
+        label.maxLength = 100;
+        label.value = link.label || "";
+        label.placeholder = text("label-placeholder") || "";
+        label.setAttribute("aria-label", text("label"));
+        form.appendChild(label);
+        var expiry = element("select", "form-control input-sm");
+        expiry.name = "expires_days";
+        expiry.setAttribute("aria-label", text("expiry"));
+        if (!renew) {
+            var keep = element("option", null, text("keep-expiry"));
+            keep.value = "";
+            expiry.appendChild(keep);
+        }
+        ["7", "30", "90", "never"].forEach(function (value) {
+            var option = element("option", null, text("expiry-" + value));
+            option.value = value;
+            option.selected = renew && value === "30";
+            expiry.appendChild(option);
+        });
+        form.appendChild(expiry);
+        var save = element("button", "btn btn-primary btn-sm", renew ? text("renew") : text("save"));
+        save.type = "submit";
+        form.appendChild(save);
+        var cancel = button("btn-default btn-sm", text("cancel"));
+        form.appendChild(cancel);
+        function close() {
+            form.hidden = true;
+            label.value = link.label || "";
+            expiry.selectedIndex = renew ? 1 : 0;
+            if (form.explorerTrigger) {
+                form.explorerTrigger.setAttribute("aria-expanded", "false");
+                form.explorerTrigger.focus();
+            }
+        }
+        cancel.addEventListener("click", close);
+        form.addEventListener("submit", function (event) {
+            event.preventDefault();
+            var change = window.ExplorerSharing.editChange(link, label.value, expiry.value);
+            if (!change) {
+                close();
+                return;
+            }
+            save.disabled = true;
+            ctx.request("PATCH", ctx.url, change).then(function (updated) {
+                save.disabled = false;
+                ctx.saved(updated);
+            }, function (e) {
+                save.disabled = false;
+                ctx.failed(e.message, e.status);
+            });
+        });
+        return form;
+    }
+
+    // A link's Allow Downloads or Require Sign-In (name), changed at once; the box goes back if the change fails.
+    // ctx: {request, url (the link's API), forced (Require Sign-In fixed on by Explorer Settings), forcedTitle,
+    // disabled, done(message or "")}
+    function linkToggle(link, name, caption, ctx) {
+        var label = element("label", "explorer-link-downloads explorer-card-text");
+        var toggle = element("input");
+        toggle.type = "checkbox";
+        toggle.name = name;
+        var forced = name === "sign_in" && ctx.forced;
+        toggle.checked = !!link[name] || forced;
+        toggle.disabled = forced || !!ctx.disabled;
+        if (forced) label.title = ctx.forcedTitle || "";
+        toggle.addEventListener("change", function () {
+            var wanted = toggle.checked, change = {};
+            change[name] = wanted;
+            busy(toggle, true);
+            ctx.request("PATCH", ctx.url, change).then(function (updated) {
+                link[name] = !!updated[name];
+                toggle.checked = link[name];
+                ctx.done("");
+            }, function (e) {
+                toggle.checked = !wanted;
+                ctx.done(e.message);
+            }).then(function () { busy(toggle, false); });
+        });
+        label.appendChild(toggle);
+        label.appendChild(document.createTextNode(" " + caption));
+        return label;
+    }
+
+    function expiryText(text, link) {
+        if (!link.expires) return text("never");
+        var date = new Date(link.expires).toLocaleDateString();
+        return (link.expired ? text("expired-on") : text("expires")).replace("%(date)s", date);
+    }
+
+    // The link page as anyone with the link sees it, in a new tab (this user's session changes nothing there)
+    function openButton(text, link) {
+        var open = element("a", "btn btn-default", text("open"));
+        open.href = link.path;
+        open.target = "_blank";
+        open.rel = "noopener noreferrer";
+        open.title = text("open-title");
+        return open;
+    }
+
+    // The Share panel's links: the project's live links, listed, created, changed and revoked
     function initLinks(root) {
         var box = root.querySelector("[data-links-api]");
         if (!box) return;
@@ -377,103 +593,28 @@
 
         // Explorer's Public Address where the admin set one (WebODM reached through a tunnel), else the browser's
         var origin = text("origin") || window.location.origin;
+        var request = apiClient(csrf, text("error"));
 
         function showError(message) {
             errorBox.textContent = message || "";
             errorBox.hidden = !message;
         }
 
-        // WebODM's CSRF check applies to the plugin's API, so every request carries the page's token.
-        function request(method, url, body) {
-            var options = {method: method, credentials: "same-origin",
-                headers: {"X-CSRFToken": csrf, "Accept": "application/json"}};
-            if (body) {
-                options.headers["Content-Type"] = "application/json";
-                options.body = JSON.stringify(body);
-            }
-            return window.fetch(url, options).then(function (response) {
-                if (response.ok) return response.status === 204 ? null : response.json();
-                function failure(message) {
-                    var error = new Error(message);
-                    error.status = response.status;
-                    return error;
-                }
-                return response.json().then(function (data) {
-                    throw failure((data && data.detail) || text("error"));
-                }, function () {
-                    throw failure(text("error"));
-                });
-            });
-        }
-
-        function element(tag, className, content) {
-            var node = document.createElement(tag);
-            if (className) node.className = className;
-            if (content) node.textContent = content;
-            return node;
-        }
-
         var embedViews = readJson(root, "explorer-embed-views");
-
-        // Embed: pick the whole page or a task's view, then copy the iframe code
-        function embedBox(link) {
-            var panel = element("div", "explorer-embed");
-            panel.hidden = true;
-            var label = element("label", "explorer-embed-pick explorer-card-text", text("embed-label"));
-            var select = element("select", "form-control input-sm");
-            var page = element("option", null, text("embed-page"));
-            page.value = "";
-            select.appendChild(page);
-            embedViews.forEach(function (task) {
-                var group = element("optgroup");
-                group.label = task.task;
-                task.views.forEach(function (view) {
-                    var option = element("option", null, view.label);
-                    option.value = view.path;
-                    group.appendChild(option);
-                });
-                select.appendChild(group);
-            });
-            label.appendChild(select);
-            panel.appendChild(label);
-            var group = element("div", "input-group input-group-sm");
-            var code = element("textarea", "form-control explorer-embed-code");
-            code.readOnly = true;
-            code.rows = 3;
-            code.setAttribute("aria-label", text("embed-code"));
-            group.appendChild(code);
-            var buttons = element("span", "input-group-btn");
-            var copy = element("button", "btn btn-default", text("copy"));
-            copy.type = "button";
-            wireCopy(copy, code, text("copied"));
-            buttons.appendChild(copy);
-            group.appendChild(buttons);
-            panel.appendChild(group);
-            panel.appendChild(element("p", "explorer-card-text", text("embed-note")));
-            // A link that asks for a login shows in another site's frame only to visitors signed in to this WebODM
-            // in the same browser, which most browsers prevent (third-party cookies)
-            var signInNote = element("p", "explorer-card-text", text("embed-sign-in"));
-            panel.appendChild(signInNote);
-            function update() {
-                signInNote.hidden = !(link.sign_in || signInForced);
-                code.value = embedCode(origin + link.path, select.value, text("project-name") || "");
-            }
-            select.addEventListener("change", update);
-            update();
-            panel.explorerRefresh = update;  // the link's Require Sign-In may have changed since
-            return panel;
-        }
+        // Every link of this project asks for a login (a private project under Signed-In Users Only)
+        var signInForced = box.hasAttribute("data-sign-in-forced");
 
         function renderLink(link) {
             var row = element("div", "explorer-link theme-border-secondary-07");
             row.setAttribute("data-token", link.token);
+            var url = api + link.token + "/";
+            var toggleCtx = {request: request, url: url, forced: signInForced, forcedTitle: text("forced-title"),
+                done: showError};
             var heading = element("div", "explorer-link-heading");
             heading.appendChild(element("span", "explorer-card-title", link.label || text("untitled")));
-            heading.appendChild(element("span", "explorer-card-text", link.expires
-                ? text("expires").replace("%(date)s", new Date(link.expires).toLocaleDateString())
-                : text("never")));
-            heading.appendChild(linkToggle(link, "downloads", text("downloads")));
-            heading.appendChild(linkToggle(link, "sign_in", text("sign-in")));
+            heading.appendChild(element("span", "explorer-card-text", expiryText(text, link)));
+            heading.appendChild(linkToggle(link, "downloads", text("downloads"), toggleCtx));
+            heading.appendChild(linkToggle(link, "sign_in", text("sign-in"), toggleCtx));
             row.appendChild(heading);
 
             var group = element("div", "input-group input-group-sm explorer-link-group");
@@ -484,79 +625,46 @@
             input.setAttribute("aria-label", link.label || text("untitled"));
             group.appendChild(input);
             var buttons = element("span", "input-group-btn");
-            var copy = element("button", "btn btn-default", text("copy"));
-            copy.type = "button";
+            var copy = button("btn-default", text("copy"));
             wireCopy(copy, input, text("copied"));
-            var revoke = element("button", "btn btn-danger", text("revoke"));
-            revoke.type = "button";
+            var revoke = button("btn-danger", text("revoke"));
             revoke.addEventListener("click", function () {
                 if (!window.confirm(text("confirm-revoke"))) return;
                 revoke.disabled = true;
-                request("DELETE", api + link.token + "/").then(load, function (e) {
+                request("DELETE", url).then(load, function (e) {
                     revoke.disabled = false;
                     showError(e.message);
                     // Revoked or expired meanwhile (another tab, another admin): the list as it is now
                     if (e.status === 404) load().then(function () { showError(e.message); });
                 });
             });
-            // The link page as anyone with the link sees it, in a new tab (this user's session changes nothing there)
-            var open = element("a", "btn btn-default", text("open"));
-            open.href = link.path;
-            open.target = "_blank";
-            open.rel = "noopener noreferrer";
-            open.title = text("open-title");
-            var embedPanel = embedBox(link);
-            var embed = element("button", "btn btn-default", text("embed"));
-            embed.type = "button";
-            embed.title = text("embed-title") || "";
-            embed.setAttribute("aria-expanded", "false");
-            embed.addEventListener("click", function () {
-                embedPanel.hidden = !embedPanel.hidden;
-                embed.setAttribute("aria-expanded", embedPanel.hidden ? "false" : "true");
-                if (embedPanel.hidden) return;
+            var embedPanel = embedBox(link, {text: text, origin: origin, views: embedViews, title: text("project-name"),
+                signIn: function () { return !!link.sign_in || signInForced; }});
+            var embed = button("btn-default", text("embed"), text("embed-title"));
+            toggles(embed, embedPanel, function () {
                 embedPanel.explorerRefresh();
                 embedPanel.querySelector("textarea").select();
             });
-            buttons.appendChild(open);
+            var editForm = editBox(link, {text: text, request: request, url: url, saved: function () {
+                showError("");
+                load();
+            }, failed: function (message, status) {
+                showError(message);
+                if (status === 404) load().then(function () { showError(message); });
+            }});
+            var edit = button("btn-default", text("edit"), text("edit-title"));
+            editForm.explorerTrigger = edit;
+            toggles(edit, editForm, function () { editForm.elements.label.focus(); });
+            buttons.appendChild(openButton(text, link));
             buttons.appendChild(embed);
+            buttons.appendChild(edit);
             buttons.appendChild(copy);
             buttons.appendChild(revoke);
             group.appendChild(buttons);
             row.appendChild(group);
+            row.appendChild(editForm);
             row.appendChild(embedPanel);
             return row;
-        }
-
-        // Every link of this project asks for a login (a private project under Signed-In Users Only)
-        var signInForced = box.hasAttribute("data-sign-in-forced");
-
-        // A link's Allow Downloads or Require Sign-In (name), changed at once; the box goes back if the change fails.
-        // Require Sign-In stays ticked, and can't be unticked, while every link of the project asks for a login.
-        function linkToggle(link, name, caption) {
-            var label = element("label", "explorer-link-downloads explorer-card-text");
-            var toggle = element("input");
-            toggle.type = "checkbox";
-            toggle.name = name;
-            var forced = name === "sign_in" && signInForced;
-            toggle.checked = !!link[name] || forced;
-            toggle.disabled = forced;
-            if (forced) label.title = text("sign-in-forced-title") || "";
-            toggle.addEventListener("change", function () {
-                var wanted = toggle.checked, change = {};
-                change[name] = wanted;
-                busy(toggle, true);
-                request("PATCH", api + link.token + "/", change).then(function (updated) {
-                    showError("");
-                    link[name] = !!updated[name];
-                    toggle.checked = link[name];
-                }, function (e) {
-                    toggle.checked = !wanted;
-                    showError(e.message);
-                }).then(function () { busy(toggle, false); });
-            });
-            label.appendChild(toggle);
-            label.appendChild(document.createTextNode(" " + caption));
-            return label;
         }
 
         function render(links) {
@@ -593,6 +701,287 @@
                 })
                 .then(function () { submit.disabled = false; });
         });
+
+        load();
+    }
+
+    // The Sharing Center: every link of the projects the user may manage, filtered on the page (the filters kept in
+    // its address), with the Share panel's actions, Renew and Delete for expired links, and Create Link for any of
+    // those projects. Changes go through each project's links API, as in its Share panel.
+    function initSharingCenter(root) {
+        var box = root.querySelector("[data-all-links-api]");
+        // Without a project the user may manage, the page has only its note
+        if (!box || !box.querySelector(".explorer-sharing-rows")) return;
+        var Sharing = window.ExplorerSharing;
+        var api = box.getAttribute("data-all-links-api");
+        var body = box.querySelector(".explorer-sharing-rows");
+        var table = box.querySelector(".explorer-sharing-table");
+        var empty = box.querySelector(".explorer-sharing-empty");
+        var errorBox = box.querySelector(".explorer-links-error");
+        var filtersForm = box.querySelector(".explorer-sharing-filters");
+        var createForm = box.querySelector(".explorer-sharing-create");
+        var csrf = box.querySelector("input[name=csrfmiddlewaretoken]").value;
+        var projects = readJson(root, "explorer-sharing-projects");
+        var embedViews = readJson(root, "explorer-embed-views", {});
+        var links = [];
+        var loaded = false;
+
+        function text(name) {
+            return box.getAttribute("data-" + name);
+        }
+
+        var origin = text("origin") || window.location.origin;
+        var request = apiClient(csrf, text("error"));
+
+        function showError(message) {
+            errorBox.textContent = message || "";
+            errorBox.hidden = !message;
+        }
+
+        var filters = Sharing.readFilters(window.location.search);
+
+        function fillFilters() {
+            Object.keys(filters).forEach(function (name) {
+                var field = filtersForm.elements[name];
+                if (field) field.value = filters[name];
+            });
+            // A project filter for a project no longer listed shows them all
+            if (filtersForm.elements.project.value !== filters.project) filters.project = "";
+        }
+
+        function readForm() {
+            Object.keys(Sharing.DEFAULTS).forEach(function (name) {
+                var field = filtersForm.elements[name];
+                if (field) filters[name] = field.value;
+            });
+            if (window.history && window.history.replaceState) {
+                window.history.replaceState(null, "", window.location.pathname + Sharing.writeFilters(filters));
+            }
+        }
+
+        function cell(row, labelName, className) {
+            var td = element("td", className);
+            td.setAttribute("data-label", text(labelName) || "");
+            row.appendChild(td);
+            return td;
+        }
+
+        function renderRow(link) {
+            var project = link.project;
+            var url = project.links_api + link.token + "/";
+            var state = Sharing.status(link);
+            var row = element("tr", "explorer-sharing-row" + (link.expired ? " explorer-sharing-expired" : ""));
+            row.setAttribute("data-token", link.token);
+
+            var where = cell(row, "column-project", "explorer-sharing-project");
+            var name = element("a", null, project.name);
+            name.href = project.page + "#share";
+            name.title = text("project-title") || "";
+            where.appendChild(name);
+            if (!project.links_work) {
+                where.appendChild(element("div", "explorer-sharing-note text-warning", text("blocked")));
+            }
+
+            var labelCell = cell(row, "column-link", "explorer-sharing-link");
+            labelCell.appendChild(element("div", "explorer-card-title", link.label || text("untitled")));
+            var input = element("input", "form-control input-sm explorer-link-address");
+            input.type = "text";
+            input.readOnly = true;
+            input.value = origin + link.path;
+            input.setAttribute("aria-label", link.label || text("untitled"));
+            input.hidden = !!link.expired;
+            labelCell.appendChild(input);
+
+            var toggleCtx = {request: request, url: url, forced: project.sign_in_forced,
+                forcedTitle: text("forced-title"), disabled: link.expired, done: function (message) {
+                    showError(message);
+                }};
+            cell(row, "column-access").appendChild(linkToggle(link, "sign_in", text("sign-in"), toggleCtx));
+            cell(row, "column-downloads").appendChild(linkToggle(link, "downloads", text("downloads"), toggleCtx));
+
+            var made = cell(row, "column-created", "explorer-card-text");
+            made.appendChild(element("div", null, new Date(link.created).toLocaleDateString()));
+            made.appendChild(element("div", null, text("by").replace("%(user)s", link.created_by || text("unknown-user"))));
+
+            var expiresCell = cell(row, "column-expires", "explorer-card-text");
+            expiresCell.appendChild(element("div", null, expiryText(text, link)));
+            if (state === "soon" || state === "expired") {
+                expiresCell.appendChild(element("span", "label " + (state === "soon" ? "label-warning" : "label-default"),
+                    state === "soon" ? text("expires-soon") : text("status-expired")));
+            }
+
+            var actions = cell(row, "column-actions", "explorer-sharing-actions");
+            var group = element("div", "btn-group btn-group-sm");
+            actions.appendChild(group);
+
+            var detail = element("tr", "explorer-sharing-detail");
+            var detailCell = element("td");
+            detailCell.colSpan = 7;
+            detail.appendChild(detailCell);
+            detail.hidden = true;
+
+            function showDetail() {
+                detail.hidden = Array.prototype.every.call(detailCell.children, function (child) { return child.hidden; });
+            }
+
+            var editForm = editBox(link, {text: text, request: request, url: url, saved: function (updated) {
+                showError("");
+                load().then(function () { highlight(updated.token); });
+            }, failed: function (message, status) {
+                showError(message);
+                if (status === 404) load().then(function () { showError(message); });
+            }});
+            var edit = button("btn-default", link.expired ? text("renew") : text("edit"),
+                link.expired ? text("renew-title") : text("edit-title"));
+            editForm.explorerTrigger = edit;
+            toggles(edit, editForm, function () { editForm.elements.label.focus(); });
+            edit.addEventListener("click", showDetail);
+            var cancel = editForm.querySelector("button[type=button]");
+            cancel.addEventListener("click", showDetail);
+
+            if (!link.expired) {
+                group.appendChild(openButton(text, link));
+                var embedPanel = embedBox(link, {text: text, origin: origin, views: embedViews[String(project.id)] || [],
+                    title: project.name, signIn: function () { return Sharing.asksSignIn(link); }});
+                var embed = button("btn-default", text("embed"), text("embed-title"));
+                toggles(embed, embedPanel, function () {
+                    embedPanel.explorerRefresh();
+                    embedPanel.querySelector("textarea").select();
+                });
+                embed.addEventListener("click", showDetail);
+                group.appendChild(embed);
+                var copy = button("btn-default", text("copy"));
+                wireCopy(copy, input, text("copied"));
+                group.appendChild(copy);
+                group.appendChild(edit);
+                detailCell.appendChild(embedPanel);
+            } else {
+                group.appendChild(edit);
+            }
+            detailCell.appendChild(editForm);
+
+            var remove = button("btn-danger", link.expired ? text("delete") : text("revoke"));
+            remove.addEventListener("click", function () {
+                if (!window.confirm(link.expired ? text("confirm-delete") : text("confirm-revoke"))) return;
+                remove.disabled = true;
+                request("DELETE", url).then(load, function (e) {
+                    remove.disabled = false;
+                    showError(e.message);
+                    if (e.status === 404) load().then(function () { showError(e.message); });
+                });
+            });
+            group.appendChild(remove);
+            return [row, detail];
+        }
+
+        function updateCounts() {
+            var counts = Sharing.counts(links);
+            Array.prototype.forEach.call(filtersForm.elements.status.options, function (option) {
+                var caption = option.getAttribute("data-caption") || option.textContent;
+                option.setAttribute("data-caption", caption);
+                option.textContent = caption + " (" + counts[option.value] + ")";
+            });
+        }
+
+        function render() {
+            body.innerHTML = "";
+            var shown = Sharing.filter(links, filters);
+            shown.forEach(function (link) {
+                renderRow(link).forEach(function (node) { body.appendChild(node); });
+            });
+            table.hidden = !shown.length;
+            empty.hidden = !!shown.length || !loaded;
+            empty.textContent = links.length ? text("no-match") : text("none");
+            updateCounts();
+        }
+
+        function highlight(token) {
+            var row = body.querySelector('tr[data-token="' + token + '"]');
+            if (!row) return;
+            var input = row.querySelector(".explorer-link-address");
+            if (input && !input.hidden) {
+                input.focus();
+                input.select();
+            }
+        }
+
+        function load() {
+            return request("GET", api).then(function (all) {
+                showError("");
+                links = all;
+                loaded = true;
+                render();
+            }, function (e) {
+                showError(e.message);
+            });
+        }
+
+        fillFilters();
+        filtersForm.addEventListener("submit", function (e) { e.preventDefault(); });
+        filtersForm.addEventListener("change", function () {
+            readForm();
+            render();
+        });
+        filtersForm.addEventListener("input", function (e) {
+            if (e.target.name !== "q") return;
+            readForm();
+            render();
+        });
+
+        if (createForm) initCreate();
+
+        // Create Link: one of the projects the user may manage, then the Share panel's form. Require Sign-In is fixed
+        // on for a project whose links must all ask for a login; a project whose links aren't allowed can't be picked.
+        function initCreate() {
+            var opener = box.querySelector("[data-sharing-create]");
+            var picker = createForm.elements.project;
+            var signIn = createForm.elements.sign_in;
+            var submit = createForm.querySelector("[type=submit]");
+            var createError = createForm.querySelector(".explorer-sharing-create-error");
+            function byId(id) {
+                return projects.filter(function (project) { return String(project.id) === String(id); })[0];
+            }
+            function pick() {
+                var project = byId(picker.value);
+                var forced = !!(project && project.sign_in_forced);
+                signIn.disabled = forced;
+                if (forced) signIn.checked = true;
+                signIn.parentNode.title = forced ? text("forced-title") || "" : "";
+                submit.disabled = !project;
+            }
+            picker.addEventListener("change", pick);
+            // A project filter picks the same project
+            if (filters.project && byId(filters.project) && byId(filters.project).links_work) picker.value = filters.project;
+            pick();
+            if (opener) toggles(opener, createForm, function () { picker.focus(); });
+            createForm.addEventListener("submit", function (e) {
+                e.preventDefault();
+                var project = byId(picker.value);
+                if (!project) return;
+                submit.disabled = true;
+                createError.hidden = true;
+                request("POST", project.links_api, {label: createForm.elements.label.value,
+                    expires_days: createForm.elements.expires_days.value, downloads: createForm.elements.downloads.checked,
+                    sign_in: signIn.checked}).then(function (link) {
+                    createForm.elements.label.value = "";
+                    createForm.elements.downloads.checked = false;
+                    if (!signIn.disabled) signIn.checked = false;
+                    return load().then(function () {
+                        // The new link shown even where the filters would leave it out
+                        if (!body.querySelector('tr[data-token="' + link.token + '"]')) {
+                            Object.keys(Sharing.DEFAULTS).forEach(function (name) { filters[name] = Sharing.DEFAULTS[name]; });
+                            fillFilters();
+                            readForm();
+                            render();
+                        }
+                        highlight(link.token);
+                    });
+                }, function (e) {
+                    createError.textContent = e.message;
+                    createError.hidden = false;
+                }).then(function () { submit.disabled = !byId(picker.value); });
+            });
+        }
 
         load();
     }

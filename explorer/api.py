@@ -1,6 +1,7 @@
 """
 The plugin's API (api_mount_points, under /api/plugins/explorer/):
-- the Share panel's links: list, create and revoke, for users with change_project;
+- the Share panel's links: list, create, change and revoke, for users with change_project; the Sharing Center's
+  list of every link they can manage, across projects;
 - the token views a link page streams from: WebODM's tile, thumbnail, asset and textured model views with the link's
   token check in place of WebODM's permission check (decision D1 in upcoming-changes.md), its download view for
   links that allow downloads, and the mesh tiles Explorer builds (tiles.py);
@@ -39,6 +40,7 @@ def link_json(link):
         "path": LINK_PATH.format(links.NAMESPACE, link["token"]),
         "downloads": links.allows_downloads(link),
         "sign_in": links.requires_sign_in(link),
+        "expired": links.is_expired(link),
     }
 
 
@@ -52,6 +54,29 @@ def flag_value(data, name):
 
 def downloads_value(data):
     return flag_value(data, "downloads")
+
+
+def expiry_value(data):
+    """The request's `expires_days` (7, 30 or 90, as a number or text; "never", "" or null for never); a 400 else."""
+    expires = data.get("expires_days", links.DEFAULT_EXPIRY)
+    if expires in ("", "never"):
+        expires = None
+    if isinstance(expires, bool):
+        expires = -1
+    try:
+        expires = None if expires is None else int(expires)
+    except (TypeError, ValueError):
+        expires = -1
+    if expires not in links.EXPIRY_CHOICES:
+        raise exceptions.ValidationError({"expires_days": _("Not a valid expiry.")})
+    return expires
+
+
+def label_value(data):
+    label = data.get("label", "")
+    if not isinstance(label, str):
+        raise exceptions.ValidationError({"label": _("Not a valid label.")})
+    return label
 
 
 SIGN_IN_ONLY = _("Links to this private project must require sign-in: Explorer Settings allow only those.")
@@ -152,18 +177,8 @@ class ProjectLinks(ProjectLinksBase):
     def post(self, request, project_pk=None):
         project = self.get_project(request, project_pk)
         data = object_body(request)
-        label = data.get("label", "")
-        expires = data.get("expires_days", links.DEFAULT_EXPIRY)
-        if not isinstance(label, str):
-            raise exceptions.ValidationError({"label": _("Not a valid label.")})
-        if expires in ("", "never"):
-            expires = None
-        try:
-            expires = None if expires is None else int(expires)
-        except (TypeError, ValueError):
-            expires = -1
-        if expires not in links.EXPIRY_CHOICES:
-            raise exceptions.ValidationError({"expires_days": _("Not a valid expiry.")})
+        label = label_value(data)
+        expires = expiry_value(data)
         if not links.links_allowed(project):
             raise exceptions.PermissionDenied(_("Links are allowed only for public projects here. An administrator "
                                                 "can allow them for this project."))
@@ -206,6 +221,10 @@ class ProjectLink(ProjectLinksBase):
         project = self.get_project(request, project_pk)
         data = object_body(request)
         changes = {name: flag_value(data, name) for name in ("downloads", "sign_in") if name in data}
+        if "label" in data:
+            changes["label"] = label_value(data)
+        if "expires_days" in data:
+            changes["expires_days"] = expiry_value(data)
         if not changes:
             raise exceptions.ValidationError({"detail": _("Nothing to change.")})
         if changes.get("sign_in") is False and links.sign_in_forced(project):
@@ -220,6 +239,40 @@ class ProjectLink(ProjectLinksBase):
         if not links.revoke_link(project.id, token):
             raise exceptions.NotFound()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+def project_json(project):
+    """A project as the Sharing Center shows it: its name, page and links API, and what Explorer Settings say of it."""
+    return {"id": project.id, "name": project.name,
+            "page": f"/plugins/{links.NAMESPACE}/project/{project.id}/",
+            "links_api": f"/api/plugins/{links.NAMESPACE}/projects/{project.id}/links/",
+            "links_work": links.links_allowed(project), "sign_in_forced": links.sign_in_forced(project)}
+
+
+def manageable_links(user):
+    """
+    Every kept link (live and recently expired) of the projects the user may manage, newest first, each with its
+    project and the username of who made it (None once that account is gone).
+    """
+    from django.contrib.auth.models import User
+    rows = []
+    for project in pages.manageable_projects(user, links.indexed_project_ids()):
+        info = project_json(project)
+        for link in links.kept_links(project.id):
+            rows.append(dict(link_json(link), project=info, created_by=link.get("created_by")))
+    creators = dict(User.objects.filter(id__in={row["created_by"] for row in rows if row["created_by"]})
+                    .values_list("id", "username"))
+    for row in rows:
+        row["created_by"] = creators.get(row["created_by"])
+    rows.sort(key=lambda row: row["created"], reverse=True)
+    return rows
+
+
+class AllLinks(ProjectLinksBase):
+    """The Sharing Center's list: GET every link the user may manage, across projects (manageable_links)."""
+
+    def get(self, request):
+        return Response(manageable_links(request.user))
 
 
 class TokenTaskMixin:

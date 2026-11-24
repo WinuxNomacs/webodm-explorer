@@ -159,16 +159,23 @@ class LinksApiTests(LinkTestMixin, BootTestCase):
 
 
 class LinkStoreTests(LinkTestMixin, BootTestCase):
-    def test_an_expired_link_is_refused_and_dropped_at_the_next_change(self):
+    def test_an_expired_link_is_refused_kept_for_90_days_then_dropped_at_the_next_change(self):
         token = self.link(days=7)["token"]
         later = timezone.now() + timedelta(days=8)
         with mock.patch("coreplugins.explorer.links.timezone.now", return_value=later):
             self.assertIsNone(links.project_for_token(token))
             self.assertEqual(links.list_links(self.project.id), [])
             self.assertEqual(Client().get(f"/plugins/explorer/s/{token}/").status_code, 404)
+            self.link()  # a write: the expired link is kept, with its token key, but still opens nothing
+            self.assertTrue(links.store().has_key(links.token_key(token)))
+            self.assertEqual(len(links.store().get_json(links.links_key(self.project.id))), 2)
+            self.assertIsNone(links.project_for_token(token))
+        much_later = timezone.now() + timedelta(days=7 + links.RETAIN_EXPIRED_DAYS + 1)
+        with mock.patch("coreplugins.explorer.links.timezone.now", return_value=much_later):
+            self.assertNotIn(token, [link["token"] for link in links.kept_links(self.project.id)])
             self.link()
             self.assertFalse(links.store().has_key(links.token_key(token)))
-            self.assertEqual(len(links.store().get_json(links.links_key(self.project.id))), 1)
+            self.assertEqual(len(links.store().get_json(links.links_key(self.project.id))), 2)
 
     def test_a_saved_entry_that_does_not_parse_means_no_links_until_the_next_change(self):
         for broken in ("text", {"token": "x"}, [{"token": 1}], [{"token": "a", "label": "", "created": "nope",
