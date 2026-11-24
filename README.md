@@ -4,6 +4,8 @@ A plugin for [WebODM](https://github.com/WebODM/WebODM) 4.0.1 and later, to brow
 its maps, point clouds, textured models and Gaussian splats with links that open without a WebODM account or login.
 Experimental: it is not part of WebODM and not made by WebODM's authors.
 
+![Explorer's viewer: a textured model of a row of houses, streamed as 3D Tiles](docs/public/images/viewer.jpg)
+
 The documentation is at **https://winuxnomacs.github.io/webodm-explorer/** (its sources in [docs/](docs/)):
 [Getting Started](docs/getting-started.md) and guides to [Explorer's home](docs/guide/projects.md),
 [a project's page](docs/guide/project.md), [the viewers](docs/guide/viewers.md), [sharing](docs/guide/sharing.md) and

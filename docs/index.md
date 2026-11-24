@@ -22,6 +22,8 @@ features:
     details: Explorer adds pages to WebODM. Processing, editing and measuring stay in WebODM, one click away with Open in WebODM.
 ---
 
+![Explorer's viewer: a textured model of a row of houses, streamed as 3D Tiles](/images/viewer.jpg)
+
 ## What Is Explorer
 
 Explorer is a plugin for [WebODM](https://github.com/WebODM/WebODM) 4.0.1 and later. It adds **Explorer** to WebODM's
