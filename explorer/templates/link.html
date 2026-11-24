@@ -12,7 +12,7 @@
     {% if cover %}{% with task=cover.task picture=cover.picture %}
     {# The landing page's cover: the newest task's picture and its views, the project's name, description and facts #}
     <div class="explorer-cover theme-border-secondary-07">
-        <a class="explorer-cover-picture" href="{{ cover.open }}" tabindex="-1" aria-hidden="true">
+        <a class="explorer-cover-picture" href="{{ cover.page }}" tabindex="-1" aria-hidden="true">
         {% if picture.webodm %}
         <img class="explorer-thumbnail" fetchpriority="high" alt="" data-placeholder-icon="fa fa-cube"
              src="{{ thumbnails }}{{ task.id }}/thumbnail?size=1024"{% if picture.draw %}

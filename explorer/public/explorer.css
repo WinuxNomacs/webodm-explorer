@@ -889,3 +889,48 @@ path.explorer-footprint {
         justify-content: flex-start;
     }
 }
+
+/* A task's page: its picture and views (the link page's cover), footprint and processing details */
+.explorer-task-more {
+    margin-top: 6px;
+}
+
+.explorer-task-details {
+    margin-top: 16px;
+}
+
+.explorer-task-details h5 {
+    margin-top: 12px;
+    font-weight: bold;
+}
+
+.explorer-facts {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 4px 16px;
+    margin: 0;
+}
+
+.explorer-facts dt {
+    font-weight: normal;
+    opacity: 0.75;
+}
+
+.explorer-facts dd {
+    margin: 0;
+}
+
+.explorer-options {
+    max-width: 640px;
+}
+
+.explorer-options th {
+    width: 40%;
+    font-weight: normal;
+    opacity: 0.85;
+}
+
+.explorer-options td,
+.explorer-options th {
+    overflow-wrap: anywhere;
+}

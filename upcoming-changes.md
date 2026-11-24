@@ -6,8 +6,9 @@ Released: **0.1.0** (2026-11-23, experimental; see "Done"): tagged, the GitHub r
 WebODM-Plugins entry as draft pull request #16 (the user marks it ready).
 
 Up next: **List view and the task page** (the user's request 2026-11-24: a more explorer-like feel; plan below), in
-two steps, each a branch: A. the task page (signed-in, View as Visitor and links); B. the home's List view (a folder
-pane of projects, the selected project's details and tasks beside it) and remembering each user's view.
+two steps, each a branch: A. the task page (signed-in, View as Visitor and links; done, see "Done"); B. the home's
+List view (a folder pane of projects, the selected project's details and tasks beside it) and remembering each user's
+view (next).
 
 Then: **more task files through links** (phase 2 of the Sharing Center request, 2026-11-24; plan below): the full
 assets zip, the report and the camera positions behind Allow Downloads. To be planned with the user first (the user,
@@ -981,6 +982,20 @@ The user chose to fix all four groups:
    of the plugin's folder (they survive upgrades).
 
 ## Done
+
+- **The task page** (2026-11-24, branch `task-page`, step A of "Plan: List view and the task page", the defaults
+  approved by the user): `project/<id>/task/<task>/`, `project/<id>/preview/task/<task>/` and `s/<token>/task/<task>/`
+  (`plugin.py` `task_view`, `templates/task.html`, extending WebODM's signed-in layout for the user's own page and the
+  public one otherwise). Views, Download, Open in WebODM, the Processing Report (signed-in), a Footprint map (over
+  WebODM's basemaps signed in; over Basemaps on Links otherwise, and left out without them), Processing Details
+  (`pages.task_details`: images, time, size, the options; the node signed-in only) and Previous / Next
+  (`pages.neighbours(..., "task")`); a link's version gets the link headers and an Open Graph preview, and keeps
+  `?embed=1`. Cards carry `page` (`explorable_tasks(page_for=...)`, `pages.task_page_path`): the card's thumbnail and
+  title, the link page's cover picture and the Overview Map's footprints open the task page; the view buttons still
+  open each view. Tests: `tests/test_task_page.py` (10), three older tests updated to the new card links; Django 234
+  pass. Live check: the new `task-page.js` in the `live-check` skill, all checks on the dev stack (the user's tasks
+  have no processing node recorded, so that line is shown only in the tests), its link revoked. Docs: the project and
+  sharing guides, the README.
 
 - **The Sharing Center** (2026-11-24, branch `sharing-center`, phase 1 of "Plan: the Sharing Center"): Explorer's
   menu item is a drop-down (**Projects**, **Sharing Center**; Explorer Settings stays top-level, as WebODM ignores

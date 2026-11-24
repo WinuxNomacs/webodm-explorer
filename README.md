@@ -25,7 +25,10 @@ links are public.
 - **A project's Explorer page** has the owner, tags and task count, an **Overview Map** of the tasks' footprints
   (folded when there is one task; a footprint opens its task), and a card per completed task with outputs: its
   thumbnail, date, images, size and processing time, tags, and buttons for its **Map** (orthophoto, DSM, DTM, thermal),
-  **Point Cloud**, **Textured Model** and **Gaussian Splats**. These open in Explorer's own viewer, with a
+  **Point Cloud**, **Textured Model** and **Gaussian Splats**. The thumbnail and name open **the task's page**: its
+  views, Download, Open in WebODM, **Processing Report**, a **Footprint** map, **Processing Details** (images, time,
+  size, node and processing options) and **Previous** / **Next**; through a link and View as Visitor, the same without
+  the node, the report and WebODM's pages, and with Download only on links that allow it. These open in Explorer's own viewer, with a
   **Download** menu and **Open in WebODM** (WebODM's map and 3D pages, for their measurement tools); each card's
   "..." menu has the same. The page's "..." menu has **Open in Dashboard** and **View All on Map**. Where WebODM
   can't make a thumbnail (a thermal orthophoto, or a task with elevation models only), the card draws one from the

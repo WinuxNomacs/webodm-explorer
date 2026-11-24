@@ -150,7 +150,8 @@ class Plugin(PluginBase):
             viewer = own_viewer(request, project_pk)
             project = viewer.project
             cards = pages.explorable_tasks([project], lambda task: pages.link_outputs(task, viewer.path),
-                                           lambda task: pages.link_downloads(task, viewer.api), details=True)
+                                           lambda task: pages.link_downloads(task, viewer.api), details=True,
+                                           page_for=lambda task: pages.task_page_path(viewer.path, task))
             can_share = request.user.has_perm("app.change_project", project)
             return render(request, self.template_path("project.html"), {
                 "title": project.name,
@@ -277,7 +278,8 @@ class Plugin(PluginBase):
             cards = pages.explorable_tasks([viewer.project],
                                            lambda task: pages.link_outputs(task, viewer.path, embed),
                                            (lambda task: pages.link_downloads(task, viewer.api)) if viewer.downloads
-                                           else None)
+                                           else None,
+                                           page_for=lambda task: pages.task_page_path(viewer.path, task, embed))
             # The landing page's cover: the newest task with outputs, its picture and buttons; the Overview Map only
             # over a basemap (outlines alone say little)
             cover = cards[0] if cards else None
@@ -325,6 +327,32 @@ class Plugin(PluginBase):
                 types=[{"type": kind, "label": label, "icon": icon} for kind, label, icon in types],
                 initial=initial, mesh_build=mesh_build, preparing=preparing, offset=pages.model_offset(task))))
 
+        def task_view(request, viewer, pk):
+            """
+            A task's page: everything about one task (its views, downloads, footprint, processing details), for the
+            signed-in user in WebODM's layout, and through a link or View as Visitor in the link pages' layout.
+            """
+            task = pages.explorable_task(viewer.project, pk) if viewer else None
+            outputs = pages.link_outputs(task, viewer.path, embedded(request, viewer)) if task else []
+            if not outputs:
+                return invalid_link(request)
+            embed = embedded(request, viewer)
+            title = task.name or viewer.project.name
+            shape = pages.footprint(task)
+            basemaps = options.signed_in_basemaps() if viewer.signed_in else options.link_basemaps()
+            # The footprint over a basemap only, as the link page's Overview Map (an outline alone says little)
+            footprints = ([{"name": task.name or _("Unnamed Task"), "url": outputs[0]["url"], "geometry": shape}]
+                          if shape and basemaps else [])
+            response = render(request, self.template_path("task.html"), viewer_context(
+                viewer, title=title, task=task, embed=embed,
+                base_template="app/plugins/templates/base.html" if viewer.signed_in else "app/public/base.html",
+                outputs=outputs, picture=pages.thumbnail(task), tags=pages.user_tags(task.tags),
+                details=pages.task_details(task, viewer.signed_in), footprints=footprints, basemaps=basemaps,
+                project_path=viewer.path + ("?embed=1" if embed else ""),
+                meta=preview_meta(request, viewer, f"{title} - {viewer.project.name}", task, pages.thumbnail(task)),
+                neighbours=pages.neighbours(viewer.project, task, viewer.path, "task")))
+            return response if viewer.signed_in else link_headers(response)
+
         def link_page(request, token):
             return through_link(request, token, lambda viewer: list_page(request, viewer))
 
@@ -333,6 +361,17 @@ class Plugin(PluginBase):
 
         def link_3d(request, token, pk):
             return through_link(request, token, lambda viewer: page_3d(request, viewer, pk))
+
+        def link_task(request, token, pk):
+            return through_link(request, token, lambda viewer: task_view(request, viewer, pk))
+
+        @signed_in_page
+        def preview_task(request, project_pk, pk):
+            return task_view(request, preview_viewer(request, project_pk), pk)
+
+        @signed_in_page
+        def own_task(request, project_pk, pk):
+            return task_view(request, own_viewer(request, project_pk), pk)
 
         @signed_in_page
         def preview_page(request, project_pk):
@@ -361,12 +400,15 @@ class Plugin(PluginBase):
             (r"project/(?P<project_pk>[0-9]+)/", project_page),
             (rf"project/(?P<project_pk>[0-9]+)/map/{TASK}/", own_map),
             (rf"project/(?P<project_pk>[0-9]+)/3d/{TASK}/", own_3d),
+            (rf"project/(?P<project_pk>[0-9]+)/task/{TASK}/", own_task),
             (r"project/(?P<project_pk>[0-9]+)/preview/", preview_page),
             (rf"project/(?P<project_pk>[0-9]+)/preview/map/{TASK}/", preview_map),
             (rf"project/(?P<project_pk>[0-9]+)/preview/3d/{TASK}/", preview_3d),
+            (rf"project/(?P<project_pk>[0-9]+)/preview/task/{TASK}/", preview_task),
             (rf"s/{TOKEN}/", link_page),
             (rf"s/{TOKEN}/map/{TASK}/", link_map),
             (rf"s/{TOKEN}/3d/{TASK}/", link_3d),
+            (rf"s/{TOKEN}/task/{TASK}/", link_task),
         ])
 
     def api_mount_points(self):

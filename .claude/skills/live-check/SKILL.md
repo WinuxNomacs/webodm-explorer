@@ -56,6 +56,9 @@ own (e.g. starting "Live check"), delete only that afterwards, and say what was 
   No screenshots. List the busy processes first (`ps -Ao pcpu,comm -r | head`, `docker stats --no-stream`) and
   report them with the numbers. Baseline (2026-11-21, M4 Pro, task 358acbe0): steady 16.7 ms frames while
   interacting for all three; one long task while loading: cloud 155 ms, mesh 543 ms, splats 114 ms.
+- `task-page.js` (same arguments, plus an optional project id, default 2): the task page from a card's title, its
+  views, menus, footprint map, details and Previous / Next at desktop and phone widths, View as Visitor, and through a
+  link as a visitor (no node, report, WebODM pages or downloads). Creates one "Live check" link and revokes it.
 - `sharing-center.js` (same arguments, plus an optional project id, default 2): the Sharing Center, the Explorer
   menu's drop-down, Create Link, Edit, Embed, the search in the address, an expired link's Renew (the link made to
   expire through the dev container's shell) and the same URL opening again, phone width, and the Share panel's Edit
