@@ -139,6 +139,122 @@
         for (var j = 0; j < drawn.length; j++) drawWhenSeen(drawn[j]);
     }
 
+    // The value of a name in a query string ("?a=1&b=2"), or ""
+    function queryValue(search, name) {
+        var pairs = (search || "").replace(/^\?/, "").split("&");
+        for (var i = 0; i < pairs.length; i++) {
+            var at = pairs[i].indexOf("=");
+            if (at !== -1 && decodeURIComponent(pairs[i].slice(0, at)) === name) {
+                return decodeURIComponent(pairs[i].slice(at + 1).replace(/\+/g, " "));
+            }
+        }
+        return "";
+    }
+
+    // The home's List view: choosing a project in the folder pane swaps the right pane in place (the pane alone, from
+    // the server) and keeps the address, so Back and Forward work; Up and Down move the selection. A choice made
+    // while another is loading wins: the older answer is dropped. On a phone the pane replaces the folder pane, with
+    // Back to Projects.
+    var KEY_DELAY = 150;  // ms: holding Up or Down loads only where it stops
+    function initListView(root) {
+        var list = root.querySelector("[data-explorer-list]");
+        if (!list) return;
+        var paneUrl = list.getAttribute("data-pane-url");
+        var content = list.querySelector(".explorer-pane-content");
+        var back = list.querySelector(".explorer-pane-back");
+        var items = Array.prototype.slice.call(list.querySelectorAll(".explorer-folder-item"));
+        var latest = 0;
+        var keyTimer = null;
+
+        function itemFor(id) {
+            return items.filter(function (item) { return item.getAttribute("data-project") === id; })[0];
+        }
+
+        function mark(item) {
+            items.forEach(function (other) {
+                other.classList.toggle("active", other === item);
+                other.classList.toggle("theme-background-highlight", other === item);
+                if (other === item) other.setAttribute("aria-current", "true");
+                else other.removeAttribute("aria-current");
+            });
+        }
+
+        function load(item) {
+            var mine = ++latest;
+            content.setAttribute("aria-busy", "true");
+            return window.fetch(paneUrl + item.getAttribute("data-project") + "/", {credentials: "same-origin",
+                headers: {"Accept": "text/html"}}).then(function (response) {
+                if (!response.ok) throw new Error(response.status);
+                return response.text();
+            }).then(function (html) {
+                if (mine !== latest) return;
+                content.innerHTML = html;
+                content.removeAttribute("aria-busy");
+                watchThumbnails(content);
+            }, function () {
+                if (mine !== latest) return;
+                content.removeAttribute("aria-busy");
+                content.innerHTML = "";
+                content.appendChild(element("p", "explorer-card-text explorer-pane-error", list.getAttribute("data-error")));
+            });
+        }
+
+        // history: "push" (a click: Back returns to the previous project), "replace" (keys) or none (Back, Forward)
+        function choose(item, history) {
+            mark(item);
+            list.classList.add("explorer-list-chosen");
+            if (history && window.history && window.history.pushState) {
+                window.history[history === "push" ? "pushState" : "replaceState"]({project: item.getAttribute("data-project")},
+                    "", item.getAttribute("href"));
+            }
+            return load(item);
+        }
+
+        items.forEach(function (item) {
+            item.addEventListener("click", function (event) {
+                // A new tab or window opens the page as it is
+                if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                event.preventDefault();
+                clearTimeout(keyTimer);
+                choose(item, "push");
+            });
+            item.addEventListener("keydown", function (event) {
+                var step = event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0;
+                if (!step) return;
+                var next = items[items.indexOf(item) + step];
+                event.preventDefault();
+                if (!next) return;
+                next.focus();
+                mark(next);
+                clearTimeout(keyTimer);
+                keyTimer = setTimeout(function () { choose(next, "replace"); }, KEY_DELAY);
+            });
+        });
+
+        if (back) {
+            back.addEventListener("click", function (event) {
+                if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                event.preventDefault();
+                list.classList.remove("explorer-list-chosen");
+                if (window.history && window.history.pushState) window.history.pushState({project: ""}, "", back.getAttribute("href"));
+                var active = list.querySelector(".explorer-folder-item.active");
+                if (active) active.focus();
+            });
+        }
+
+        window.addEventListener("popstate", function () {
+            if (!document.documentElement.contains(list)) return;  // a list no longer on the page
+            var id = queryValue(window.location.search, "project");
+            var item = itemFor(id) || items[0];
+            list.classList.toggle("explorer-list-chosen", !!id);
+            if (!item) return;
+            mark(item);
+            // Back to Projects and forward again on a phone shows the same project: nothing to load
+            var shown = content.querySelector("[data-pane-project]");
+            if (!shown || shown.getAttribute("data-pane-project") !== item.getAttribute("data-project")) load(item);
+        });
+    }
+
     // A field disabled while its change is saved loses the keyboard focus: given back when it is enabled again
     function busy(field, on) {
         if (on) {
@@ -304,6 +420,7 @@
         initShare(root);
         initLinks(root);
         initSharingCenter(root);
+        initListView(root);
     }
 
     // The button says "Copied" for a moment after a copy; a copy the browser refuses leaves the text selected. Its

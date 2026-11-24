@@ -328,7 +328,7 @@ class HelperTests(BootTestCase):
         self.assertEqual(pages.disk_size(5908.5), "5.8 GB")
 
     def test_an_unknown_query_falls_back_to_the_defaults(self):
-        query = pages.home_query({"scope": "everyone", "sort": "size", "view": "list", "3d": "yes", "q": " x " * 80})
+        query = pages.home_query({"scope": "everyone", "sort": "size", "view": "table", "3d": "yes", "q": " x " * 80})
         self.assertEqual((query.scope, query.sort, query.view, query.has_3d), ("all", "activity", "grid", False))
         self.assertEqual(len(query.q), pages.SEARCH_MAX)
         self.assertEqual(pages.HomeQuery().params(), "")

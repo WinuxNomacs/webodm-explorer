@@ -934,3 +934,188 @@ path.explorer-footprint {
 .explorer-options th {
     overflow-wrap: anywhere;
 }
+
+/* The home's List view: a folder pane of projects and the selected project's pane beside it */
+.explorer-list {
+    display: grid;
+    grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
+    gap: 16px;
+    margin-top: 8px;
+    align-items: start;
+}
+
+.explorer-folder {
+    border-width: 1px;
+    border-style: solid;
+    border-radius: 4px;
+    max-height: calc(100vh - 220px);
+    overflow-y: auto;
+    position: sticky;
+    top: 8px;
+}
+
+.explorer-folder ul {
+    list-style: none;
+    margin: 0;
+    padding: 4px 0;
+}
+
+.explorer-folder-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 8px;
+    color: inherit;
+    text-decoration: none;
+}
+
+.explorer-folder-item:hover,
+.explorer-folder-item:focus {
+    text-decoration: none;
+    color: inherit;
+}
+
+/* The selected project: bold, on the theme's highlight (theme-background-highlight) */
+.explorer-folder-item.active {
+    font-weight: bold;
+}
+
+.explorer-folder-item .explorer-thumbnail {
+    flex: 0 0 48px;
+    width: 48px;
+    height: 36px;
+    object-fit: cover;
+    border-radius: 3px;
+}
+
+.explorer-folder-item .explorer-no-thumbnail {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+}
+
+.explorer-folder-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.explorer-folder-count {
+    flex: 0 0 auto;
+    font-size: 12px;
+    opacity: 0.7;
+}
+
+.explorer-folder-note {
+    padding: 4px 8px;
+}
+
+.explorer-pane {
+    min-width: 0;
+}
+
+.explorer-pane-content[aria-busy="true"] {
+    opacity: 0.6;
+}
+
+.explorer-pane-back {
+    display: none;
+}
+
+.explorer-pane-title {
+    margin-top: 0;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.explorer-pane-title .explorer-link-badge {
+    margin-left: 8px;
+    font-size: 11px;
+    vertical-align: middle;
+}
+
+.explorer-pane-description {
+    margin-top: 8px;
+    overflow-wrap: anywhere;
+}
+
+.explorer-task-rows {
+    list-style: none;
+    margin: 12px 0 0;
+    padding: 0;
+}
+
+.explorer-task-row {
+    display: flex;
+    gap: 12px;
+    padding: 8px 0;
+    border-top-width: 1px;
+    border-top-style: solid;
+}
+
+.explorer-row-thumbnail {
+    flex: 0 0 160px;
+}
+
+.explorer-row-thumbnail .explorer-thumbnail {
+    width: 160px;
+    height: 110px;
+    object-fit: cover;
+    border-radius: 3px;
+}
+
+.explorer-row-thumbnail .explorer-no-thumbnail {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+}
+
+.explorer-row-body {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.explorer-row-body .explorer-outputs {
+    margin-top: 2px;
+}
+
+/* On a phone: the folder pane is the page; a chosen project's pane takes its place, with Back to Projects */
+@media (max-width: 767px) {
+    .explorer-list {
+        display: block;
+    }
+
+    .explorer-folder {
+        position: static;
+        max-height: none;
+    }
+
+    .explorer-list .explorer-pane,
+    .explorer-list-chosen .explorer-folder {
+        display: none;
+    }
+
+    .explorer-list-chosen .explorer-pane {
+        display: block;
+    }
+
+    .explorer-pane-back {
+        display: inline-block;
+        margin-bottom: 8px;
+    }
+
+    .explorer-row-thumbnail {
+        flex-basis: 96px;
+    }
+
+    .explorer-row-thumbnail .explorer-thumbnail {
+        width: 96px;
+        height: 72px;
+    }
+}

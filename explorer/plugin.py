@@ -80,7 +80,11 @@ class Plugin(PluginBase):
 
         @signed_in_page
         def project_list(request):
-            query = pages.home_query(request.GET)
+            query = pages.home_query(request.GET, pages.saved_view(request.user))
+            # A view named in the address is the user's choice: the home opens in it next time
+            if request.GET.get("view") in pages.VIEWS:
+                pages.save_view(request.user, query.view)
+                query = query._replace(default_view=query.view)
             context = {
                 "title": _("Explorer"),
                 "public": public, "v": pages.asset_version(),
@@ -88,18 +92,39 @@ class Plugin(PluginBase):
                 "scopes": [("all", _("All")), ("mine", _("Mine")), ("shared", _("Shared with Me"))],
                 "sorts": [("activity", _("Recent Activity")), ("name", _("Name")), ("created", _("Created"))],
                 "grid_params": query.params(view="grid", page="1"),
+                "list_params": query.params(view="list", page="1", project=""),
                 "map_params": query.params(view="map", page="1"),
+                # Clear Filters: everything again, in the same view
+                "clear_params": pages.HomeQuery(view=query.view, default_view=query.default_view).params(),
                 "any_projects": pages.viewable_projects(request.user).exists(),
             }
             if query.view == "map":
                 context.update(places=pages.home_map(request.user, query, public),
                                basemaps=options.signed_in_basemaps())
+            elif query.view == "list":
+                folder = pages.home_list(request.user, query)
+                selected = folder["selected"]
+                for entry in folder["entries"]:
+                    entry["params"] = query.params(project=str(entry["project"].id))
+                context.update(folder=folder, pane_template=self.template_path("project_pane.html"),
+                               cards_template=self.template_path("cards.html"),
+                               pane=pages.project_pane(request.user, selected["project"], public) if selected else None,
+                               # Back to Projects on a phone: the folder pane, without a selection
+                               back_params=query.params(project=""))
             else:
                 page = pages.home_page(request.user, query)
                 context.update(page=page, projects=pages.project_summaries(request.user, list(page.object_list)),
                                previous_params=query.params(page=str(page.number - 1)) if page.has_previous() else None,
                                next_params=query.params(page=str(page.number + 1)) if page.has_next() else None)
             return render(request, self.template_path("projects.html"), context)
+
+        @signed_in_page
+        def list_pane(request, project_pk):
+            """List view's right pane alone, for the page's script to swap in when another project is chosen."""
+            project = viewable_project(request, project_pk)
+            return render(request, self.template_path("project_pane.html"), {
+                "public": public, "pane": pages.project_pane(request.user, project, public),
+                "cards_template": self.template_path("cards.html")})
 
         @signed_in_page
         def settings_page(request):
@@ -397,6 +422,7 @@ class Plugin(PluginBase):
             ("", project_list),
             (r"settings/", settings_page),
             (r"sharing/", sharing_center),
+            (r"list/(?P<project_pk>[0-9]+)/", list_pane),
             (r"project/(?P<project_pk>[0-9]+)/", project_page),
             (rf"project/(?P<project_pk>[0-9]+)/map/{TASK}/", own_map),
             (rf"project/(?P<project_pk>[0-9]+)/3d/{TASK}/", own_3d),
