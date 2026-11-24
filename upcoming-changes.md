@@ -2,10 +2,15 @@
 
 ## Phases (current and upcoming)
 
-Released: **0.1.0** (2026-11-23, experimental; see "Done"). The user pushes, tags `v0.1.0`, attaches the zip and
-adds the WebODM-Plugins entry.
+Released: **0.1.0** (2026-11-23, experimental; see "Done"): tagged, the GitHub release with the zip, the
+WebODM-Plugins entry as draft pull request #16 (the user marks it ready).
 
-Up next: **the road to 1.0.0** (the user, 2026-11-23: recorded as phases after 0.1.0; some are taken up before 1.0 and
+Up next: **the Sharing Center** (the user's request 2026-11-24: Explorer as WebODM's center for presenting and
+sharing models, for remote viewers and for those who need the raw files; plan below), two phases: 1. the Sharing
+Center (the menu drop-down, every link across projects in one place, editing, renewing and deleting links); 2. more
+task files through links (the full assets zip, the report, camera positions).
+
+Then: **the road to 1.0.0** (the user, 2026-11-23: recorded as phases after 0.1.0; some are taken up before 1.0 and
 each is discussed when it comes up; plan below). In order: 1. field use of 0.1.0; 2. a versioned saved-data format and
 an upgrade rehearsal; 3. a check against new WebODM releases; 4. a browser and device pass; 5. the mesh parsing gap;
 6. sign-in links on the Linode setup; 7. link activity and administration; 8. accessibility and translations; 9. an
@@ -724,6 +729,64 @@ processing wants 16 GB and more).
   a download failing (retries, then stops naming the step), DNS not yet pointing at the Linode (Caddy keeps retrying
   the certificate; the script says so instead of failing), a rerun (each step checks before changing), no SSH key
   (stops before touching SSH).
+
+### Plan: the Sharing Center (the request and the user's answers, 2026-11-24)
+
+**The request:** focus Explorer on being WebODM's sharing and viewing center: presenting models, and sharing access
+through that presentation with remote viewers and with users who need the raw data files. A **Sharing Center** in a
+drop-down of Explorer's main menu entry manages every existing link, and link creation and access, across all
+projects. Each project's own sharing controls (its Explorer page, the Share panel) stay as they are.
+
+**What it builds on:** links live per project (`links:<project id>`, `links.py`) with an index of the projects that
+have any (`index:linked`); the Share panel manages one project's links through `/api/plugins/explorer/projects/<id>/links/`
+(list, create, PATCH `downloads` and `sign_in`, revoke) for users with `change_project`. WebODM's `Menu` turns an entry
+with a submenu into `#` (it stops being a link) and doesn't check `admin_only` on submenu items
+(`app/templates/app/logged_in_base.html`). Expired links are hidden (`list_links`) and dropped, with their token keys,
+on the next write to the project's links (`_write`).
+
+**The user's answers:**
+
+- **Menu:** Explorer becomes a drop-down with **Projects** (today's home, `/plugins/explorer/`) and **Sharing Center**
+  (`/plugins/explorer/sharing/`). **Explorer Settings** stays its own top-level entry, superusers only.
+- **Whose links:** every link on the projects the user can change, the Share panel's rule; superusers see every
+  project's. Each row shows who made the link.
+- **Expired links and edits:** an **Expired** filter lists expired links with **Renew** (a new expiry from today; the
+  same URL works again) and **Delete**; every link's label and expiry can be changed. The Share panel gets the same
+  edits.
+- **Raw data:** links offer more task files behind **Allow Downloads**: the full assets zip, the processing report
+  and the camera positions. Phase 2, after the Sharing Center.
+
+**Phase 1 design (the Sharing Center):**
+
+- The page, for signed-in users: one table of links, newest first, with the project (linked to its Explorer page),
+  label, access (**Anyone with the Link** or **Require Sign-In**), **Allow Downloads**, created, created by, expires
+  (an "expires soon" mark as on the project cards) and Open, Copy, Embed, Edit, Revoke. Filters: project, access,
+  downloads, status (**Active**, **Expiring Soon**, **Expired**) and a search on label and project name. On phones
+  the rows become cards. Where Links to Private Projects blocks a project's links or forces sign-in, its rows say so,
+  as the Share panel does.
+- **Create Link** on the page: pick one of the projects the user can change (those whose links are allowed), then the
+  Share panel's form (label, expiry, Allow Downloads, Require Sign-In).
+- **Edit:** label and expiry (7, 30 or 90 days from today, or never) on any link; **Renew** on an expired one is the
+  same edit. **Delete** removes an expired link for good; **Revoke** a live one (as now).
+- **Storage:** expired links are kept, with their token keys, until deleted or 90 days after they expired (then
+  dropped on the next write, as all expired ones are today); a link is still valid only while it is in its project's
+  list and not expired (`links.resolve`), so a kept expired link opens nothing.
+- **API:** `GET /api/plugins/explorer/links/` lists the user's manageable links across projects (with the project's
+  id, name and policy, the creator's username and an `expired` flag), from `index:linked` and the projects the user
+  can change (guardian, as `pages.viewable_projects`); the per-project PATCH also takes `label` and `expires_days`;
+  DELETE on an expired link deletes it. Same checks as today: `NotCrossSite`, CSRF, `change_project` per project.
+- The Explorer home's **Shared by Link** filter and the project cards' link badge are unchanged; the Sharing Center
+  links to a project's Share panel (`#share`) for the per-project view.
+- Overlap with the road to 1.0.0: this covers the administration half of phase 7 ("link activity and
+  administration"); link activity (opens, last used) stays there.
+- Tests: the list's scope (a view-only project's links and another user's projects are left out; superusers see
+  all), renew brings the same URL back, delete, label and expiry validation, kept expired links never resolve, the
+  menu's drop-down; Jest for the page's logic; a live check at desktop and phone widths, and the guide page
+  (`docs/guide/sharing-center.md`), the README and the Sharing guide updated.
+
+**Phase 2 (more task files):** add WebODM's `all.zip`, the report and the camera positions to `api.DOWNLOADABLE` and
+the link's Download menu, behind **Allow Downloads**; the exact asset names come from WebODM 4.0.1's `ASSETS_MAP`
+(`app/models/task.py`), checked when the phase is planned.
 
 ### Plan: the road to 1.0.0 (the review and the user's answer, 2026-11-23)
 
