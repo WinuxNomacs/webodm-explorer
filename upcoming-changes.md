@@ -5,8 +5,13 @@
 Released: **0.1.0** (2026-11-23, experimental; see "Done"): tagged, the GitHub release with the zip, the
 WebODM-Plugins entry as draft pull request #16 (the user marks it ready).
 
-Up next: **more task files through links** (phase 2 of the Sharing Center request, 2026-11-24; plan below): the full
-assets zip, the report and the camera positions behind Allow Downloads. To be planned with the user first.
+Up next: **List view and the task page** (the user's request 2026-11-24: a more explorer-like feel; plan below), in
+two steps, each a branch: A. the task page (signed-in, View as Visitor and links); B. the home's List view (a folder
+pane of projects, the selected project's details and tasks beside it) and remembering each user's view.
+
+Then: **more task files through links** (phase 2 of the Sharing Center request, 2026-11-24; plan below): the full
+assets zip, the report and the camera positions behind Allow Downloads. To be planned with the user first (the user,
+2026-11-24: after List view).
 
 Built: **the Sharing Center** (phase 1 of the user's request 2026-11-24: Explorer as WebODM's center for presenting
 and sharing models; plan below; see "Done").
@@ -730,6 +735,61 @@ processing wants 16 GB and more).
   a download failing (retries, then stops naming the step), DNS not yet pointing at the Linode (Caddy keeps retrying
   the certificate; the script says so instead of failing), a rerun (each step checks before changing), no SSH key
   (stops before touching SSH).
+
+### Plan: List view and the task page (the request and the user's answers, 2026-11-24)
+
+**The request:** a **List** view beside **Grid** (and Map) on the Explorer home: the projects listed with their
+thumbnails like a folder pane, alphabetically, the first one selected; the right pane shows the selected project's
+details and options and a list of its tasks with thumbnails; choosing a task opens a page with all of that task's
+options. A more explorer-like feel.
+
+**What it builds on:** the home (`projects.html`, `pages.HomeQuery`: `view` is `grid` or `map`, Grid pages 24
+projects sorted by Recent Activity, Map caps at 500); the project page's task cards (`cards.html`: the title and
+thumbnail open the first view, view buttons, a "..." menu with Open in WebODM and Download for signed-in users, a
+Download menu on links that allow it); `pages.explorable_tasks`, `task_facts`, `footprint`, `neighbours`; the three
+viewer kinds (`pages.Viewer`: own, preview, link). No task page exists.
+
+**The user's answers:**
+
+- **Default view:** each user's last choice: Grid the first time, then whichever of Grid, List or Map they last picked,
+  saved per user in the plugin's `UserDataStore` (an approved extension point).
+- **Task page audience:** signed-in users (with Open in WebODM and WebODM's downloads), **View as Visitor**, and links
+  (under the link, with Download only when the link allows downloads).
+- **Task page contents**, besides the views, downloads and Open in WebODM: a **footprint map**, **processing
+  details**, and WebODM's **processing report** (signed-in only for now; through links in the "more task files"
+  phase). Not chosen: embed code per view.
+- **Order:** List view and the task page first, then more task files.
+
+**Design (defaults chosen by Claude, open to the user's change):**
+
+- **Step A, the task page:** `project/<id>/task/<task>/` (signed-in), `project/<id>/preview/task/<task>/` (View as
+  Visitor) and `s/<token>/task/<task>/` (links; sign-in links and Links to Private Projects as for every link page),
+  with the link pages' headers. Contents: the task's picture, name, date and tags; its view buttons (Map, Point Cloud,
+  Textured Model, Gaussian Splats); Download (as the card's); Open in WebODM (signed-in); the footprint map over the
+  basemaps (Basemaps on Links for links and View as Visitor, as their maps); processing details: images, size,
+  processing time and the processing options (for everyone), the processing node's name (signed-in only: an internal
+  name); Processing Report (signed-in: WebODM's `report.pdf` download, when the task has it); Previous and Next
+  through the project's tasks and a way back to the project. A link's page gets an Open Graph preview as the map and 3D
+  pages do. **Cards change:** a card's title and thumbnail open the task page (today: the first view); the view
+  buttons still open each view directly.
+- **Step B, List view:** a third button, **List**, in the home's Grid / Map switch (`view=list`). The left pane lists
+  every matching project (Search, the scope, Has 3D and Shared by Link apply; always by name, so Sort is hidden in
+  List; up to 500, as Map, with a note past that), each with a small thumbnail, name and task count; the first is
+  selected, or the one in the address (`project=<id>`). The right pane: the project's name, description, owner, tags,
+  output counts and link badge; its options (Open Project Page, Share, View as Visitor, Open in Dashboard, View All
+  on Map); then its tasks as rows with a thumbnail, name, date, facts and view buttons, each row opening the task
+  page. Choosing a project swaps the right pane in place (a fetched fragment, the address updated, Back works), plain
+  links without scripts; Up and Down move the selection. On a phone the folder pane is the page and choosing a
+  project shows its pane with **Back to Projects**.
+- **Remembering the view:** a home address with `view=` saves that view for the user; one without it opens the saved
+  view (Grid when none).
+- **Smoothness:** thumbnails lazy-load in both panes; the right pane's fragment is rendered server-side from the same
+  helpers as the project page, so a switch costs one request.
+- Tests: the task page for each viewer kind (signed-in, preview, link, a sign-in link, a link without downloads, a
+  task of another project, an unfinished task), the processing node hidden from links, the report only for signed-in
+  users; List view's order, filters and selection, the fragment's permissions, the saved view; Jest for the pane
+  switching and keys; a live check at desktop and phone widths; the guide pages (home, project, sharing) and the
+  README.
 
 ### Plan: the Sharing Center (the request and the user's answers, 2026-11-24)
 
