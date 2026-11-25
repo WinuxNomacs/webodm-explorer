@@ -11,8 +11,10 @@ assets zip, the report and the camera positions behind Allow Downloads. To be pl
 
 Built: **presentation tools** (the user's request 2026-11-25; plan below; see "Done").
 
-Proposed: **Source Frames in Explorer's viewer** (the user's request 2026-11-25, plan below; not yet planned with the
-user): the photos that show a clicked spot on the map or the 3D model, as in TweakUI.
+Planned: **Source Frames in Explorer's viewer** (the user's request 2026-11-25, planned with the user the same day;
+plan below): the photos that show a clicked spot on a task's map or 3D page, as in TweakUI. Step A: signed-in users
+and View as Visitor. Step B: links, with Allow Source Photos (D1 widened). To be built when the user asks; where it
+goes beside "more task files through links" is the user's call.
 
 Built: **List view and the task page** (the user's request 2026-11-24: a more explorer-like feel; plan below), both
 steps: A. the task page; B. the home's List view and each user's remembered view (see "Done").
@@ -853,37 +855,101 @@ on the next write to the project's links (`_write`).
 the link's Download menu, behind **Allow Downloads**; the exact asset names come from WebODM 4.0.1's `ASSETS_MAP`
 (`app/models/task.py`), checked when the phase is planned.
 
-### The request: Source Frames in Explorer's viewer (2026-11-25, to be planned with the user)
+### Plan: Source Frames in Explorer's viewer (the request and the user's answers, 2026-11-25)
 
 - **The request:** "Is it possible to add a Source Frame viewer control to Explorer's viewer similar to that of the
   Source Frame feature of our WebODM TweakUI plugin? This would provide the ability for a user to select a spot/pin
   on a Model or Ortho and it would show the source photo that witnessed the spot on the ortho/model. The images are
   displayed in an in browser image viewer the user can close/esc out of."
-- **Yes, it is possible.** What TweakUI does (read 2026-11-25 in `../webodm-tweakui`: `tweakui/frames.py`,
-  `public/source_frames.js`, `docs/map-2d.md`): a button turns the mode on; each click on the map or the 3D model
-  sets the spot; the server ranks the task's photos by how near the middle of the frame the spot falls, using each
-  photo's pose from `odm_report/shots.geojson`, the lens from `cameras.json`, and the ground's height from the DSM
-  (else the point cloud's mean height; a 3D click gives its own height). A window lists the photos best first with
-  the spot marked; Open Full Frame shows one full screen with zoom, pan, previous and next, and Esc to close.
-  Hidden spots (behind a roof or a tree) still count. It uses numpy and rasterio, both in WebODM's requirements.
-- **What it builds on in Explorer:**
-  - The map page (Leaflet, `public/map.js`): a click gives the map's coordinates, as in TweakUI.
-  - The 3D page: `viewer/scene.js` already has `pick(clientX, clientY)` for the mesh, its tiles, the splats and the
-    streamed point cloud. Still to check: how the scene's coordinates map back to the task's (the frame of
-    `shots.geojson`) for each of the mesh, tiles, point cloud and splats.
-  - The code: copied from TweakUI and adapted (both are the user's, AGPL-3.0), not shared between the two plugins,
-    so neither needs the other installed.
-- **Where it would show:** Explorer's map and 3D pages for signed-in users and in View as Visitor. For links, the photos
-  are new: WebODM serves them through `ImageThumbnail` and `ImageDownload` (`app/api/imageuploads.py`), which are
-  `TaskNestedView`s like the views D1 already subclasses. A link would need two more token views, which widens the D1
-  exception (the user's approval). The photos are the raw inputs, with their EXIF location, camera serial and time,
-  so a link would show them only with a link option of its own, off by default.
-- **Smoothness:** the ranking runs on the server, a fast numpy pass over the shots; thumbnails load lazily and the
-  full frame loads on request. A click never waits on the model.
-- **Proposed phases:** A. the map and 3D pages for signed-in users and the preview (no new WebODM internals);
-  B. links, with their own option, if the user wants it.
-- **Open decisions:** links (no, or yes with an option off by default and D1 widened); whether a project's map searches all
-  its tasks as TweakUI does (Explorer's map shows one task); where it goes in the phase order.
+- **The user's answers** (2026-11-25):
+  - **Links:** yes, with a link option of their own, Allow Source Photos, off by default. Signed-in users and View as
+    Visitor come first (step A), links second (step B).
+  - **Viewer:** as in TweakUI: a window, then Open Full Frame.
+  - **Overview Map:** not now. Only a task's own map and 3D pages; the project page's Overview Map could come later.
+  - **Hidden spots:** listed, as TweakUI does. A spot inside a photo's frame counts even if a roof or a tree hides it.
+- **What TweakUI does** (read 2026-11-25 in `../webodm-tweakui`: `tweakui/frames.py`, `public/source_frames.js`,
+  `docs/map-2d.md`). The server ranks a task's photos by how near the middle of the frame the spot falls, using:
+  - each photo's pose from `odm_report/shots.geojson` (OpenSfM's axis-angle rotation);
+  - the lens from `cameras.json` (perspective, Brown and fisheye distortion);
+  - the ground's height from the DSM (else the point cloud's mean height; a 3D pick gives its own height).
+  The spot comes as a GeoJSON Point, in WGS84 from a map or in the task's coordinates from a 3D pick. It needs numpy,
+  pyproj and rasterio, all in WebODM 4.0.1's `requirements.txt` (numpy 2.5.4, pyproj 3.8.0, rasterio 1.5.2).
+- **Checked in Explorer and the dev data** (2026-11-25):
+  - All four of the user's tasks on the dev stack have `shots.geojson`, `coords.txt` and their photos (220 to 2,727).
+  - The 3D page's scene is the task's coordinates minus WebODM's offset (`pages.model_offset`, the page's
+    `data-offset`), Z-up, for the mesh, its tiles, the splats and the point cloud alike. So a pick from
+    `scene.js` `pick()` plus the offset is the point in the task's coordinates, as TweakUI's 3D pick sends it.
+  - A task without `coords.txt` has no offset: its 3D page doesn't offer Source Frames; its map still does.
+- **Server** (`explorer/frames.py`, copied from TweakUI's `frames.py` and adapted; both are the user's and AGPL-3.0,
+  and neither plugin needs the other):
+  - `POST /api/plugins/explorer/projects/<p>/tasks/<t>/frames/` for users who can view the project. Its CSRF token
+    comes from the page, as WebODM's plugin API needs.
+  - It answers the photos best first (at most 50), each with its name, where the spot falls on it (fractions of its
+    width and height), its capture time, camera and size, and the camera's altitude.
+  - Ranking is a numpy pass over the shots, with the DSM read at one point. It stays in the request, as TweakUI's
+    does; if a large task proves slow, it moves to `run_function_async`.
+- **Photos:** WebODM's `Thumbnail` view (`app/api/imageuploads.py`) serves a photo re-encoded as a JPEG at the size
+  asked for, up to the photo's own, and can draw the spot on it (`draw_point`). The window uses it at 256 and 1024 px,
+  Open Full Frame at full size. WebODM's `ImageDownload` serves the original file (Download).
+- **The pages** (Explorer's map and 3D pages of a task, `link_map.html` and `link_3d.html`):
+  - A **Source Frames** button (S, `fa-images`) in the bar's Present group. It is shown only when the task has camera
+    shots (and, on the 3D page, an offset). It is a third tool beside Laser Pointer and Area Highlight: turning it on
+    turns the others off. While it is on, the label "Click to View Source Frames" shows over the view.
+  - A click (not a drag, which still pans or orbits) sets the spot, marked with a pin: a Leaflet marker on the map, a
+    small marker in the 3D scene. The first click opens the window, later ones update it. A click on empty 3D space
+    says so in the status line.
+  - The window floats over the view (a bottom sheet on a phone). It lists the photos best first, with the best one
+    selected and shown at 1024 px with the spot marked. Below it: its file name, capture time, camera, size and
+    altitude; Download, where allowed; and Open Full Frame.
+  - **Open Full Frame:** the photo full screen at full size, with zoom (wheel, pinch, buttons, double-click), pan,
+    previous and next (arrow keys), and Esc to close. Focus moves to its Close button, and returns to Open Full Frame
+    when it closes.
+  - Esc, the window's Close, or the button again turns Source Frames off. Code: `public/frames.js` (ES5), sharing the
+    tool switching with `present.js`. Thumbnails load lazily, and a newer click drops the answer to an older one.
+  - **Smoothness:** nothing runs on the main thread but the request and the images. The live check measures frame
+    times while the window loads.
+- **Step A: signed-in users and View as Visitor.** The signed-in map and 3D pages use WebODM's own photo endpoints
+  under `/api/projects/<p>/tasks/<t>/images/` (viewing the project is enough). View as Visitor shows what a link
+  would. Until step B, the button there is disabled with "Not available on links yet"; after step B it follows a
+  link's default, off. No new WebODM internals.
+- **Step B: links.**
+  - **The option:** **Allow Source Photos** on a link, off by default. It sits on the create form and each link's
+    row, in the Share panel and the Sharing Center, beside Allow Downloads (`links.py` `photos`, as `downloads`; links
+    made before it mean off).
+  - **The views (D1 widened, the user's approval 2026-11-25):**
+    - the frames view under the link's token;
+    - a `Thumbnail` subclass that overrides only `get_and_check_task`, with the token check and the link's photos
+      option;
+    - an `ImageDownload` subclass, only when the link also allows downloads.
+    Tests import both classes, as for D1's others.
+  - **EXIF:** to check while building: `Thumbnail` re-encodes with Pillow without passing EXIF on, so a link's photos
+    should carry no GPS position, camera serial or capture time. If they do, the token view strips EXIF itself. Only
+    Download (with Allow Downloads) gives the original file.
+  - The window's capture time and altitude come from Explorer's answer, so they show on links too: they are what
+    Allow Source Photos shares.
+  - **Revoked mid-visit:** the next request is refused, and the window says the link is no longer valid, as the map
+    and 3D pages already do.
+- **How it can fail and what happens:**
+  - `shots.geojson` or `cameras.json` missing or unreadable: no button. They are read when asked; if read but
+    unreadable, the window says "This task's cameras could not be read".
+  - The DSM unreadable: TweakUI's fallbacks (the point cloud's mean height, then 0, then an error the window shows).
+  - A photo file missing (WebODM removed it): that thumbnail shows a placeholder and Download is hidden. The list
+    stays.
+  - A spot outside every photo: "No photo shows this spot".
+  - A request that errors unexpectedly: answered 500 with a message, logged.
+  - A pick far from the model or NaN: refused by `parse`, as in TweakUI.
+- **Tests:**
+  - Django, ranking: `frames.py` on a fixture task (the shots, cameras and DSM written by the test). It checks
+    perspective and fisheye; the best photo being the one with the spot nearest its middle; WGS84 and task
+    coordinates; and refusing bad input.
+  - Django, the API: permissions (a stranger gets 404, a viewer 200), CSRF, and a task without cameras.
+  - Django, step B: the link option (default off, old links off, PATCH); each token view refusing an unknown, revoked
+    or expired token and a link without photos; Download only with downloads; EXIF absent from a link's thumbnail.
+  - Jest (`frames.test.js`): the tool switch with Laser Pointer and Area Highlight; click versus drag; the window
+    filling and updating; a stale answer dropped; Open Full Frame's keys and focus; errors shown; a revoked link.
+  - Live check `frames.js`: the map and 3D pages at desktop and phone widths on the user's tasks, frame times while
+    the window loads, and step B through a "Live check" link, revoked afterwards.
+- **Docs:** a Source Frames section in the viewers guide, the sharing guide's new option, and the README.
 
 ### Plan: presentation tools (the request and the user's answers, 2026-11-25)
 
@@ -1637,6 +1703,9 @@ The user chose to fix all four groups:
   `TaskDownloads`, and override only `get_and_check_task`. The project stays private, and links can expire and be
   revoked; downloads are off unless a link allows them. This is an exception to "official extension points only",
   approved for this use; tests import those classes so a WebODM release that changes them fails loudly.
+  Widened (the user, 2026-11-25, for Source Frames step B): `Thumbnail` for links that allow source photos, and
+  `ImageDownload` for links that allow both source photos and downloads (`app/api/imageuploads.py`). The
+  repository's `CLAUDE.md` gains them when step B is built.
 - **D2: WebODM's viewers first** (the user, 2026-11-21): the project page links to WebODM's map and 3D views;
   Explorer's own viewer serves links. Signed-in users keep WebODM's 3D page, also once meshes are tiled (the user,
   2026-11-21). Revised (the user, 2026-11-21): Explorer may offer its own viewer to signed-in users as an additional
