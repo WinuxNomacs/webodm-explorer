@@ -25,7 +25,7 @@ from rest_framework.permissions import AllowAny, BasePermission, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from . import links, options, pages, tiles
+from . import frames, links, options, pages, tiles
 
 logger = logging.getLogger("app.logger")
 LINK_PATH = "/plugins/{}/s/{}/"
@@ -379,6 +379,31 @@ class TokenDownloads(TokenTaskMixin, TaskDownloads):
 
 
 TILE_TYPES = {".json": "application/json", ".glb": "model/gltf-binary"}
+
+
+def frames_response(task, data):
+    """The photos of a task that show the spot `data` gives (frames.py), best first; 400 with what was wrong."""
+    try:
+        return Response({"frames": frames.find(task, data)})
+    except frames.FramesError as e:
+        return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    except Exception:
+        logger.exception("Explorer: Source Frames failed for task %s", task.id)
+        return Response({"detail": _("The photos could not be found.")}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class Frames(APIView):
+    """POST: Source Frames for a signed-in user who can view the project (the task in it, completed)."""
+    permission_classes = (NotCrossSite, IsAuthenticated)
+
+    def post(self, request, project_pk=None, pk=None):
+        project = Project.objects.filter(pk=project_pk, deleting=False).first()
+        if project is None or not request.user.has_perm("app.view_project", project):
+            raise exceptions.NotFound()
+        task = pages.explorable_task(project, pk)
+        if task is None:
+            raise exceptions.NotFound()
+        return frames_response(task, request.data)
 
 
 class MeshTilesView(APIView):

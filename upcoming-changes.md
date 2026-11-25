@@ -11,10 +11,8 @@ assets zip, the report and the camera positions behind Allow Downloads. To be pl
 
 Built: **presentation tools** (the user's request 2026-11-25; plan below; see "Done").
 
-Planned: **Source Frames in Explorer's viewer** (the user's request 2026-11-25, planned with the user the same day;
-plan below): the photos that show a clicked spot on a task's map or 3D page, as in TweakUI. Step A: signed-in users
-and View as Visitor. Step B: links, with Allow Source Photos (D1 widened). To be built when the user asks; where it
-goes beside "more task files through links" is the user's call.
+Built: **Source Frames in Explorer's viewer**, step A (signed-in users and View as Visitor; see "Done"). Step B (links,
+with Allow Source Photos, D1 widened) is planned (plan below); to be built when the user asks.
 
 Built: **List view and the task page** (the user's request 2026-11-24: a more explorer-like feel; plan below), both
 steps: A. the task page; B. the home's List view and each user's remembered view (see "Done").
@@ -1147,6 +1145,31 @@ The user chose to fix all four groups:
    of the plugin's folder (they survive upgrades).
 
 ## Done
+
+- **Source Frames, step A** (2026-11-25, branch `source-frames-a`, "Plan: Source Frames in Explorer's viewer"):
+  - **Server:** `explorer/frames.py` is TweakUI's `frames.py` with Explorer's header, `MAX_FRAMES = 50` and unreadable
+    shots refused ("This task's cameras could not be read"). `api.Frames` answers
+    `POST projects/<p>/tasks/<t>/frames/` for users who can view the project, through `api.frames_response`, which
+    gives 400 with the reason and 500 logged.
+  - **Pages:** `pages.source_frames` and `pages.frames_texts` supply the button in `present_tools.html` on the
+    signed-in map and 3D pages. The 3D page needs WebODM's offset. View as Visitor shows the button disabled; links
+    have none.
+  - **Script:** `public/frames.js` is ported from TweakUI's `source_frames.js`, with theme colours and Explorer's
+    texts. It uses Leaflet's click on the map (`map.js` sets `page.explorerMap`). On the 3D page it uses
+    `scene.pick` plus `scene.offset`, with the spot drawn by `scene.setMarker` (a sprite of one size on screen).
+    The window, Open Full Frame and the 3D tool are all in it.
+  - **One tool at a time:** `present.js` and `frames.js` turn each other off through an `explorer-tool` event on the
+    page.
+  - **Tests:** Django `test_frames.py` (15: ranking with TweakUI's fixture, fisheye, the 50 limit, unreadable
+    cameras, bad input, an unexpected failure logged, permissions, CSRF, the button on each page, no offset, no
+    shots). Jest `frames.test.js` (12; the stale answer and the viewer's key capture were seen failing when broken).
+  - **Live check `frames.js`:** all checks pass on task 819e6ca7. Answers took 45 to 67 ms on that task and 128 to
+    230 ms on task 25cdbf17 (2,727 photos), so the ranking stays in the request. The best photo's spot is near its
+    middle for the textured model and the point cloud. Frames held 16.7 ms with no long task while the window loads,
+    except on task 25cdbf17's mesh, where the tiles were still streaming (the known slowdown in "Later").
+  - **Found:** on the point cloud a click can pick a stray point floating in front of the ground (z 212 m against a
+    mean of 186 m on 25cdbf17); its photos then show it in the sky, which is right for that point. Noted in the guide.
+  - **Docs:** the viewers guide's Source Frames section, and the README.
 
 - **Presentation tools** (2026-11-25, branch `presentation-tools`, "Plan: presentation tools"):
   `templates/present_tools.html` (the Present group: Laser Pointer, Area Highlight and the shape menu with Spotlight

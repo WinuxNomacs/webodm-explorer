@@ -75,3 +75,10 @@ own (e.g. starting "Live check"), delete only that afterwards, and say what was 
   orbits, a highlight drawn without moving the map and fading, Shift keeping one until Esc, Spotlight, the 3D page's
   frame times with and without the laser moving (Metal), and a phone with touch: one finger points without moving
   the map, two fingers still pinch, no sideways scroll. Creates nothing on the server.
+- `frames.js` (repo, folder, user, password, optional project id, default 2, and task id prefix): Source Frames on
+  the signed-in map and 3D pages of a task with camera shots: the map's window and Open Full Frame (arrows, Esc, the
+  focus given back), the textured model's and the point cloud's spot near the best photo's middle (the offset is
+  right), frame times and long tasks while the window loads, the Laser Pointer and Source Frames turning each other
+  off, View as Visitor showing it unavailable, and a phone (the window as a sheet). Creates nothing. On the point
+  cloud a click can pick a stray point floating in front of the ground (task 25cdbf17, 2026-11-25): its best photos
+  then show the spot in the sky, which is right for that point.

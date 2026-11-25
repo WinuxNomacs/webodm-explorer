@@ -34,7 +34,7 @@ The map shows one layer at a time: the **Orthophoto**, **DSM**, **DTM**, or a th
 | Focus | Double-click a point to orbit around it | Double-tap a point |
 
 Keys: **R** resets the view, **F** turns fullscreen on and off, **B** changes the background, **L** and **H** turn
-the [presentation tools](#presentation-tools) on and off. The "?" button shows these controls on the page.
+the [presentation tools](#presentation-tools) on and off, **S** [Source Frames](#source-frames). The "?" button shows these controls on the page.
 
 - **Background** (B): a dark **Grid** floor under the model (the default), a **Sky**, **Space** with stars, or
   **Plain** (the page's own colour).
@@ -49,6 +49,32 @@ the [presentation tools](#presentation-tools) on and off. The "?" button shows t
   uploaded to the task in WebODM.
 
 Point size, colour, background, opacity, basemap and units are remembered in the browser.
+
+## Source Frames
+
+On your own map and 3D pages of a task (signed in), **Source Frames** (S, the photos button in the bar) finds the
+task's photos that show a spot. Turn it on and "Click to View Source Frames" shows over the view. Each click on the
+map or the model (a drag still pans or orbits) moves the spot there. The first click opens a window, and each later
+one updates it.
+
+- The window lists up to 50 photos, best first: those where the spot is nearest the middle of the frame. The best one
+  is selected and shown with the spot marked. Below it are its file name, capture time, camera, size and the camera's
+  altitude, **Download** (the original photo) and **Open Full Frame**.
+- **Open Full Frame** shows the photo full screen. Zoom with the wheel, a pinch, the buttons or a double-click; drag
+  to pan; step through the photos with the arrow keys; **Esc** closes it and returns to the window, on the photo you
+  ended on.
+- **Esc**, the window's × or the button again turns Source Frames off. Turning on the Laser Pointer or Area Highlight
+  turns it off too, and the other way round.
+- On a phone the window is a panel along the bottom of the view.
+
+How it finds the photos: from each photo's position, direction and lens (the task's camera shots) and the spot's
+height. On the map that is the ground's height from the task's DSM (without one, the point cloud's mean height); in
+3D, the height of the point you clicked. A spot counts as shown when it falls inside a photo's frame, even if
+something (a roof, a tree) hides it in that photo. On the point cloud, a click can land on a stray point floating in
+front of the ground: the textured model gives the more exact spot.
+
+Only tasks with camera shots have the button, and the 3D page only when WebODM knows the model's offset. Visitors with
+a link don't have Source Frames yet: View as Visitor shows the button unavailable.
 
 ## Presentation tools
 

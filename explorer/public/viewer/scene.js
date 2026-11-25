@@ -250,6 +250,38 @@ function createScene(container, options) {
         return hits[0].point;
     }
 
+    // Source Frames' spot (frames.js): a ring of one size on screen, drawn over the model wherever the camera is;
+    // colours are CSS colours (the theme's). null removes it.
+    let marker = null;
+    function setMarker(point, colours) {
+        if (marker) {
+            scene.remove(marker);
+            marker.material.map.dispose();
+            marker.material.dispose();
+            marker = null;
+        }
+        if (!point) return;
+        const canvas = document.createElement("canvas");
+        canvas.width = canvas.height = 64;
+        const ctx = canvas.getContext("2d");
+        ctx.beginPath();
+        ctx.arc(32, 32, 22, 0, 2 * Math.PI);
+        ctx.lineWidth = 11;
+        ctx.strokeStyle = colours.outline;
+        ctx.stroke();
+        ctx.lineWidth = 6;
+        ctx.strokeStyle = colours.spot;
+        ctx.stroke();
+        const material = new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(canvas), depthTest: false,
+            depthWrite: false, sizeAttenuation: false, transparent: true });
+        marker = new THREE.Sprite(material);
+        marker.position.copy(point);
+        marker.scale.set(0.06, 0.06, 1);
+        marker.renderOrder = 999;
+        marker.raycast = () => {};
+        scene.add(marker);
+    }
+
     // Double-click (double-tap): the camera turns to orbit the point under it, where there is one (declared with the
     // camera's state above, as framing cancels it)
     async function focusAt(clientX, clientY) {
@@ -584,7 +616,8 @@ function createScene(container, options) {
         });
     }
 
-    return { show, resize, stats, place, reset, setCloudStyle, cloudRange, pick, watchContext, setBackground: backdrop.set };
+    return { show, resize, stats, place, reset, setCloudStyle, cloudRange, pick, setMarker, watchContext,
+        setBackground: backdrop.set, offset: offset ? offset.clone() : null };
 }
 
 // "x y" (the page's data-offset) as [x, y, 0], or null

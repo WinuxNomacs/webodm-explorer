@@ -71,6 +71,9 @@ links are public.
   **layer opacity** slider over the basemap and a scale bar in the legend's units. The 3D page's **Background** menu
   (B) draws a dark **Grid** floor under the model (the default), a **Sky**, **Space** with stars, or **Plain** (the
   page's own colour). Size, colour, background, opacity and units are remembered in the browser.
+- **Source Frames** on your own map and 3D pages of a task (S): click a spot on the map, the textured model or the
+  point cloud to see the task's photos that show it, best first, with the spot marked, their details, Download and a
+  full-screen viewer (zoom, pan, arrow keys, Esc). Not on links yet.
 - **Presentation tools** on the map and 3D pages, for pointing at things while you talk about them: a **Laser
   Pointer** (L) with a fading trail, and **Area Highlight** (H) to draw a freehand loop, rectangle or ellipse that
   fades after a few seconds (Shift keeps it), optionally as a **Spotlight** that dims everything else. For visitors

@@ -331,7 +331,8 @@ class Plugin(PluginBase):
                 bands=task.orthophoto_bands or [], crop=task.crop is not None,
                 # A signed-in user's own map has WebODM's basemaps, as WebODM's map does; Basemaps on Links rules
                 # the link's maps and View as Visitor, which shows them as a link does
-                basemaps=options.signed_in_basemaps() if viewer.signed_in else options.link_basemaps())))
+                basemaps=options.signed_in_basemaps() if viewer.signed_in else options.link_basemaps(),
+                frames=pages.source_frames(viewer, task), frames_texts=pages.frames_texts())))
 
         def page_3d(request, viewer, pk):
             task = pages.explorable_task(viewer.project, pk) if viewer else None
@@ -346,12 +347,14 @@ class Plugin(PluginBase):
                 store = tiles.Tiles.current()
                 mesh_build, preparing = store.tileset(task) if store else (None, False)
             title = task.name or viewer.project.name
+            offset = pages.model_offset(task)
             return link_headers(render(request, self.template_path("link_3d.html"), viewer_context(
                 viewer, title=title, task=task, embed=embedded(request, viewer),
                 meta=preview_meta(request, viewer, f"{title} - {viewer.project.name}", task, pages.thumbnail(task)),
                 neighbours=pages.neighbours(viewer.project, task, viewer.path, initial),
                 types=[{"type": kind, "label": label, "icon": icon} for kind, label, icon in types],
-                initial=initial, mesh_build=mesh_build, preparing=preparing, offset=pages.model_offset(task))))
+                initial=initial, mesh_build=mesh_build, preparing=preparing, offset=offset,
+                frames=pages.source_frames(viewer, task, offset is not None), frames_texts=pages.frames_texts())))
 
         def task_view(request, viewer, pk):
             """
@@ -447,6 +450,7 @@ class Plugin(PluginBase):
             MountPoint(r"projects/(?P<project_pk>[0-9]+)/links/$", api.ProjectLinks.as_view()),
             MountPoint(r"projects/(?P<project_pk>[0-9]+)/links-allowed/$", api.ProjectLinksAllowed.as_view()),
             MountPoint(rf"projects/(?P<project_pk>[0-9]+)/links/{TOKEN}/$", api.ProjectLink.as_view()),
+            MountPoint(rf"projects/(?P<project_pk>[0-9]+)/tasks/{TASK}/frames/$", api.Frames.as_view()),
             # Preview: the mesh tiles for signed-in users who can view the project (everything else is WebODM's API)
             MountPoint(rf"projects/(?P<project_pk>[0-9]+)/tasks/{TASK}/tiles/(?P<build>[0-9a-f]{{16}})/"
                        r"(?P<path>[A-Za-z0-9_\-/.]+)$", api.PreviewMeshTiles.as_view()),

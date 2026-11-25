@@ -419,6 +419,34 @@ def asset_version(folder=PUBLIC):
     return digest.hexdigest()[:12]
 
 
+def source_frames(viewer, task, offset=True):
+    """
+    Source Frames on a task's map or 3D page (frames.py), or None: a task with camera shots, on the 3D page only with
+    WebODM's offset (a pick in the scene plus the offset is the point in the task's coordinates). The signed-in
+    user's own pages ask Explorer's API and show the photos through WebODM's; View as Visitor shows the button
+    unavailable ({"api": None}), as links don't have it yet (Source Frames step B).
+    """
+    if task is None or "shots.geojson" not in (task.available_assets or []) or not offset:
+        return None
+    if viewer.signed_in:
+        return {"api": f"/api/plugins/{links.NAMESPACE}/projects/{viewer.project.id}/tasks/{task.id}/frames/",
+                "images": f"/api/projects/{viewer.project.id}/tasks/{task.id}/images/"}
+    return {"api": None} if viewer.preview else None
+
+
+def frames_texts():
+    """What the Source Frames window says (public/frames.js), translated."""
+    return {
+        "label": _("Click to View Source Frames"), "title": _("Source Frames"), "finding": _("Finding the photos..."),
+        "none": _("No photo shows this spot."), "failed": _("The photos could not be found."),
+        "nothing": _("Nothing there: click on the model."), "open": _("Open Full Frame"), "download": _("Download"),
+        "close": _("Close"), "previous": _("Previous Photo"), "next": _("Next Photo"), "zoomIn": _("Zoom In"),
+        "zoomOut": _("Zoom Out"), "list": _("Photos, best first"), "full": _("Full Frame"), "file": _("File"),
+        "captured": _("Captured"), "camera": _("Camera"), "size": _("Size"), "altitude": _("Camera Altitude"),
+        "missing": _("This photo could not be loaded."),
+    }
+
+
 def model_offset(task):
     """WebODM's offset for a task, "x y" (coords.txt's second line: the mesh's and the splats' origin in the model's
     coordinates), or None. The 3D page lines its views up with it, so switching keeps the camera."""
