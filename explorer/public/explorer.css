@@ -299,6 +299,29 @@ a.explorer-card-link:focus .explorer-card-title {
     touch-action: none;
 }
 
+/* The presentation tools' marks (present.js): over the view and its legend, under the status line; never in the way
+   of the pointer, which the script reads on the page */
+.explorer-map .explorer-present-canvas,
+.explorer-scene .explorer-present-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 900;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.explorer-present-laser,
+.explorer-present-laser * {
+    cursor: none !important;
+}
+
+.explorer-present-highlight,
+.explorer-present-highlight * {
+    cursor: crosshair !important;
+}
+
 /* A signed-in user's preview of the link pages */
 .explorer-preview-bar {
     /* Clear of WebODM's fixed navbar, as .explorer-public's padding is */

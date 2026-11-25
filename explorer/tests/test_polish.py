@@ -106,6 +106,21 @@ class ViewerControlTests(LinkTestMixin, BootTestCase):
         self.assertNotIn("data-opacity", html)  # nothing under the layer to see
         self.assertIn("data-reset", html)
 
+    def test_the_map_and_3d_pages_have_the_presentation_tools_for_everyone_who_sees_them(self):
+        token = self.link()["token"]
+        client = self.client_for("testuser")
+        for kind in ("map", "3d"):
+            for who, path in (("signed in", f"{self.own}{kind}/{self.full.id}/"),
+                              ("preview", f"{self.own}preview/{kind}/{self.full.id}/"),
+                              ("link", f"/plugins/explorer/s/{token}/{kind}/{self.full.id}/"),
+                              ("embed", f"/plugins/explorer/s/{token}/{kind}/{self.full.id}/?embed=1")):
+                html = (Client() if who in ("link", "embed") else client).get(path).content.decode()
+                for marker in ("data-present", 'data-tool="laser"', 'data-tool="highlight"', 'data-shape="ellipse"',
+                               "data-spotlight", "data-clear", "present.js?v="):
+                    self.assertIn(marker, html, f"{kind} {who}")
+        # The 3D page's Controls help names the keys
+        self.assertIn("L turns the Laser Pointer on and off", client.get(f"{self.own}3d/{self.full.id}/").content.decode())
+
     def test_basemaps_on_links_off_leaves_the_signed_in_users_own_map_its_basemaps(self):
         options.set_basemaps_on_links(False)
         client = self.client_for("testuser")
