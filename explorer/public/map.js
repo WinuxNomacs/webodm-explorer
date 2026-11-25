@@ -106,6 +106,8 @@
         var switches = page.querySelectorAll("[data-layer]");
         var picker = page.querySelector("[data-basemap]");
         var map = L.map(mapElement, {maxZoom: 24});
+        // For Source Frames (frames.js), which puts its spot on the map
+        page.explorerMap = map;
         // A scale bar in the unit system of the elevation legend
         var scale = null;
         function drawScale() {

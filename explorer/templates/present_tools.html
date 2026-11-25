@@ -1,9 +1,19 @@
-{% load i18n %}{# The map and 3D pages' presentation tools (public/present.js): Laser Pointer and Area Highlight with its shape menu #}
+{% load i18n %}{# The map and 3D pages' presentation tools (public/present.js): Laser Pointer and Area Highlight with its shape menu, and Source Frames (public/frames.js) #}
 <div class="btn-group explorer-present" role="group" aria-label="{% trans "Present" %}" data-present>
     <button type="button" class="btn btn-default btn-sm" data-tool="laser" aria-pressed="false"
             title="{% trans "Laser Pointer (L)" %}" aria-label="{% trans "Laser Pointer" %}"><i class="fa fa-bullseye"></i></button>
     <button type="button" class="btn btn-default btn-sm" data-tool="highlight" aria-pressed="false"
             title="{% trans "Area Highlight (H): drag to draw, hold Shift to keep it" %}" aria-label="{% trans "Area Highlight" %}"><i class="fa fa-highlighter"></i></button>
+    {% if frames %}{% if frames.api %}
+    <button type="button" class="btn btn-default btn-sm" data-tool="frames" aria-pressed="false"
+            data-frames-api="{{ frames.api }}" data-images="{{ frames.images }}"
+            title="{% trans "Source Frames (S): click a spot to see the photos that show it" %}" aria-label="{% trans "Source Frames" %}"><i class="fa fa-images"></i></button>
+    {% csrf_token %}{{ frames_texts|json_script:"explorer-frames-texts" }}
+    {% else %}
+    {# View as Visitor: links don't have Source Frames yet (step B) #}
+    <button type="button" class="btn btn-default btn-sm disabled" data-tool="frames" aria-disabled="true"
+            title="{% trans "Source Frames: not available on links yet" %}" aria-label="{% trans "Source Frames: not available on links yet" %}"><i class="fa fa-images"></i></button>
+    {% endif %}{% endif %}
     <div class="btn-group">
         <button type="button" class="btn btn-default btn-sm dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
                 title="{% trans "Highlight Shape" %}" aria-label="{% trans "Highlight Shape" %}"><span class="caret"></span></button>

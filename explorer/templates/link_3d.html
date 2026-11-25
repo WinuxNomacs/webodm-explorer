@@ -95,6 +95,7 @@
             <tr><th>{% trans "Focus" %}</th><td>{% trans "Double-click or double-tap a point to orbit around it" %}</td></tr>
             <tr><th>{% trans "Keys" %}</th><td>{% trans "R resets the view, F turns fullscreen on and off, B changes the background" %}</td></tr>
             <tr><th>{% trans "Present" %}</th><td>{% trans "L turns the Laser Pointer on and off, H Area Highlight (drag to draw, hold Shift to keep it), Esc turns them off and clears highlights" %}</td></tr>
+            {% if frames.api %}<tr><th>{% trans "Source Frames" %}</th><td>{% trans "S turns it on and off; click the model to see the photos that show that spot" %}</td></tr>{% endif %}
         </table>
     </div>
     <div class="explorer-scene"></div>
@@ -119,5 +120,6 @@
 <script src="{{ public }}ept-tree.js?v={{ v }}"></script>
 <script src="{{ public }}frame.js?v={{ v }}"></script>
 <script src="{{ public }}present.js?v={{ v }}"></script>
+{% if frames.api %}<script src="{{ public }}frames.js?v={{ v }}"></script>{% endif %}
 <script type="module" src="{{ public }}viewer/scene.js?v={{ v }}"></script>
 {% endblock %}

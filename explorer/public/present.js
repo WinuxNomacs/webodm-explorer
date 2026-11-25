@@ -265,6 +265,8 @@
                 }
                 view.classList.toggle("explorer-present-" + kind, on);
             });
+            // One tool at a time on the page: Source Frames (frames.js) turns off when one of these turns on
+            if (tool) page.dispatchEvent(new window.CustomEvent("explorer-tool", {detail: {tool: tool, source: "present"}}));
             if (tool !== "laser") { state.dot = null; state.trail = []; }
             if (tool !== "highlight") state.drawing = null;
             endGesture(false);
@@ -414,6 +416,9 @@
             }, true);
         });
 
+        page.addEventListener("explorer-tool", function (event) {
+            if (event.detail && event.detail.source !== "present" && state.tool) setTool(null);
+        });
         Object.keys(buttons).forEach(function (kind) {
             if (buttons[kind]) buttons[kind].addEventListener("click", function () { toggle(kind); });
         });
@@ -477,7 +482,7 @@
         if (page) init(page);
     }
 
-    var api = {init: init, makeShape: makeShape, opacity: opacity, trail: trail, addPoint: addPoint, shapeChoice: shapeChoice,
+    var api = {init: init, themeColours: themeColours, makeShape: makeShape, opacity: opacity, trail: trail, addPoint: addPoint, shapeChoice: shapeChoice,
         HOLD_MS: HOLD_MS, FADE_MS: FADE_MS, TRAIL_MS: TRAIL_MS, MIN_DRAG: MIN_DRAG};
     if (node) {
         module.exports = api;
