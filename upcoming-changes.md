@@ -9,6 +9,10 @@ Up next: **more task files through links** (phase 2 of the Sharing Center reques
 assets zip, the report and the camera positions behind Allow Downloads. To be planned with the user first (the user,
 2026-11-24: after List view).
 
+Proposed (the user's requests 2026-11-25, plans below; not yet planned with the user, where they go is open):
+**Source Frames in Explorer's viewer** (the photos that show a clicked spot on the map or the 3D model, as in
+TweakUI) and **presentation tools** (Laser Pointer and Area Highlight on the map and the 3D view).
+
 Built: **List view and the task page** (the user's request 2026-11-24: a more explorer-like feel; plan below), both
 steps: A. the task page; B. the home's List view and each user's remembered view (see "Done").
 
@@ -847,6 +851,62 @@ on the next write to the project's links (`_write`).
 **Phase 2 (more task files):** add WebODM's `all.zip`, the report and the camera positions to `api.DOWNLOADABLE` and
 the link's Download menu, behind **Allow Downloads**; the exact asset names come from WebODM 4.0.1's `ASSETS_MAP`
 (`app/models/task.py`), checked when the phase is planned.
+
+### The request: Source Frames in Explorer's viewer (2026-11-25, to be planned with the user)
+
+- **The request:** "Is it possible to add a Source Frame viewer control to Explorer's viewer similar to that of the
+  Source Frame feature of our WebODM TweakUI plugin? This would provide the ability for a user to select a spot/pin
+  on a Model or Ortho and it would show the source photo that witnessed the spot on the ortho/model. The images are
+  displayed in an in browser image viewer the user can close/esc out of."
+- **Yes, it is possible.** What TweakUI does (read 2026-11-25 in `../webodm-tweakui`: `tweakui/frames.py`,
+  `public/source_frames.js`, `docs/map-2d.md`): a button turns the mode on; each click on the map or the 3D model
+  sets the spot; the server ranks the task's photos by how near the middle of the frame the spot falls, using each
+  photo's pose from `odm_report/shots.geojson`, the lens from `cameras.json`, and the ground's height from the DSM
+  (else the point cloud's mean height; a 3D click gives its own height). A window lists the photos best first with
+  the spot marked; Open Full Frame shows one full screen with zoom, pan, previous and next, and Esc to close.
+  Hidden spots (behind a roof or a tree) still count. It uses numpy and rasterio, both in WebODM's requirements.
+- **What it builds on in Explorer:**
+  - The map page (Leaflet, `public/map.js`): a click gives the map's coordinates, as in TweakUI.
+  - The 3D page: `viewer/scene.js` already has `pick(clientX, clientY)` for the mesh, its tiles, the splats and the
+    streamed point cloud. Still to check: how the scene's coordinates map back to the task's (the frame of
+    `shots.geojson`) for each of the mesh, tiles, point cloud and splats.
+  - The code: copied from TweakUI and adapted (both are the user's, AGPL-3.0), not shared between the two plugins,
+    so neither needs the other installed.
+- **Where it would show:** Explorer's map and 3D pages for signed-in users and in View as Visitor. For links, the photos
+  are new: WebODM serves them through `ImageThumbnail` and `ImageDownload` (`app/api/imageuploads.py`), which are
+  `TaskNestedView`s like the views D1 already subclasses. A link would need two more token views, which widens the D1
+  exception (the user's approval). The photos are the raw inputs, with their EXIF location, camera serial and time,
+  so a link would show them only with a link option of its own, off by default.
+- **Smoothness:** the ranking runs on the server, a fast numpy pass over the shots; thumbnails load lazily and the
+  full frame loads on request. A click never waits on the model.
+- **Proposed phases:** A. the map and 3D pages for signed-in users and the preview (no new WebODM internals);
+  B. links, with their own option, if the user wants it.
+- **Open decisions:** links (no, or yes with an option off by default and D1 widened); whether a project's map searches all
+  its tasks as TweakUI does (Explorer's map shows one task); where it goes in the phase order.
+
+### The request: presentation tools (2026-11-25, to be planned with the user)
+
+- **The request:** "The viewer needs presentation controls/tools such as a Laser Pointer and Area Highlight to
+  quickly point at areas on the map/model while discussing what's on screen."
+- **What it builds on:** the map page (Leaflet) and the 3D page (three.js), and their toolbars (`viewer-controls.js`,
+  `viewer-ui.js`). Only the browser is involved, with no server side and no new libraries.
+- **Proposed design (Claude's, for discussion):**
+  - **Laser Pointer:** a bright dot that follows the pointer with a short fading trail, drawn on a transparent canvas
+    over the map or the model. A drag still pans or orbits, so the presenter can keep moving the view.
+  - **Area Highlight:** drag to draw a freehand loop or an ellipse that stays a few seconds and fades. A
+    "spotlight" variant dims everything outside it.
+  - On touch screens: press and hold to point.
+  - Keyboard shortcuts for each tool, with Esc to turn it off.
+  - Colours come from the theme variables, with a fixed high-contrast accent where the rules allow it.
+  - One canvas over the view, redrawn only while something is drawn, so frame times stay as they are.
+- **Open decisions:**
+  - Whether marks follow the screen (simple, and they fade anyway) or stick to the map or model as it moves.
+  - Whether highlights fade or stay until cleared.
+  - Freehand, ellipse, or both.
+  - Who gets the tools: signed-in users only, or link visitors too.
+  - Whether other viewers should see the marks live. That needs a channel between browsers, which WebODM doesn't
+    have (polling the plugin's API would be the only way), so the proposal leaves it out.
+  - Where it goes in the phase order. It is small and has no server side, so it could come before Source Frames.
 
 ### Plan: the road to 1.0.0 (the review and the user's answer, 2026-11-23)
 
