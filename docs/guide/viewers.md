@@ -33,8 +33,8 @@ The map shows one layer at a time: the **Orthophoto**, **DSM**, **DTM**, or a th
 | Zoom | Wheel (out to about 20 times the first view's distance) | Pinch |
 | Focus | Double-click a point to orbit around it | Double-tap a point |
 
-Keys: **R** resets the view, **F** turns fullscreen on and off, **B** changes the background. The "?" button shows
-these controls on the page.
+Keys: **R** resets the view, **F** turns fullscreen on and off, **B** changes the background, **L** and **H** turn
+the [presentation tools](#presentation-tools) on and off. The "?" button shows these controls on the page.
 
 - **Background** (B): a dark **Grid** floor under the model (the default), a **Sky**, **Space** with stars, or
   **Plain** (the page's own colour).
@@ -49,6 +49,26 @@ these controls on the page.
   uploaded to the task in WebODM.
 
 Point size, colour, background, opacity, basemap and units are remembered in the browser.
+
+## Presentation tools
+
+Both pages have two tools for pointing at things while you talk about what's on screen, for example in a meeting or
+on a shared screen. They are for everyone who sees the page, link visitors too. Nothing is saved or sent: the marks
+show only on your screen.
+
+- **Laser Pointer** (L, the target button): a red dot with a short fading trail follows the pointer. With a mouse,
+  dragging still pans the map or orbits the model, so you can point while you move the view. On a touch screen one
+  finger points; two fingers still pan and zoom (on the 3D page, one-finger orbit is off while the tool is on).
+- **Area Highlight** (H, the highlighter button): drag to draw around an area. It fades after about 3 seconds; hold
+  **Shift** while drawing to keep it until you clear it. While it is on, a drag draws instead of moving the view: the
+  wheel, right drag and two fingers still move it. The menu beside it picks the shape (**Freehand**, **Rectangle** or
+  **Ellipse**), turns **Spotlight** on (everything outside the shape is dimmed instead of outlining it), and has
+  **Clear Highlights**.
+- **Esc** turns the tool off and clears the highlights. Marks stay where you drew them on the screen, not on the map
+  or model, so they clear when the window changes size.
+
+The colours come from WebODM's theme (Button Danger for the laser, Dialog Warning for highlights). The shape and
+Spotlight are remembered in the browser.
 
 ## When something doesn't show
 

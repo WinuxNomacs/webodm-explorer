@@ -70,3 +70,8 @@ own (e.g. starting "Live check"), delete only that afterwards, and say what was 
   and on an existing link, the link page's Download menu at desktop and phone widths, one file downloaded as a
   visitor (deleted when the browser closes), 404s for a view-only link and once downloads are turned off, and
   `?filename=` ignored. Creates two "Live check" links and revokes both, also on failure.
+- `present.js` (repo, folder, user, password, optional project id, default 2): the presentation tools on the
+  signed-in map and 3D pages of a task with an orthophoto and a mesh: the laser drawn while the mouse still pans and
+  orbits, a highlight drawn without moving the map and fading, Shift keeping one until Esc, Spotlight, the 3D page's
+  frame times with and without the laser moving (Metal), and a phone with touch: one finger points without moving
+  the map, two fingers still pinch, no sideways scroll. Creates nothing on the server.

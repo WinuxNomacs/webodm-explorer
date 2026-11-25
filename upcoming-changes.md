@@ -9,9 +9,7 @@ Up next: **more task files through links** (phase 2 of the Sharing Center reques
 assets zip, the report and the camera positions behind Allow Downloads. To be planned with the user first (the user,
 2026-11-24: after List view).
 
-Planned: **presentation tools** (the user's request 2026-11-25, planned with the user the same day; plan below):
-Laser Pointer and Area Highlight on Explorer's map and 3D pages. To be built when the user asks; where it goes beside
-"more task files through links" is the user's call.
+Built: **presentation tools** (the user's request 2026-11-25; plan below; see "Done").
 
 Proposed: **Source Frames in Explorer's viewer** (the user's request 2026-11-25, plan below; not yet planned with the
 user): the photos that show a clicked spot on the map or the 3D model, as in TweakUI.
@@ -927,10 +925,11 @@ the link's Download menu, behind **Allow Downloads**; the exact asset names come
   - It is drawn only while a mark is on screen (`requestAnimationFrame` stops when nothing is left), so the map's and
     the scene's frame times don't change.
   - Pointer events on the view are captured with `setPointerCapture`, so a drag that leaves the view still ends.
-  - Colours come from the theme: the Laser Pointer from WebODM's failed colour (red in the default theme), highlights
-    from its highlight colour. They are read once from elements with `theme-background-failed` and
-    `theme-background-highlight` (canvas needs the values, not class names). A dark outline keeps both visible on any
-    background.
+  - Colours come from the theme, read once from elements carrying its classes (canvas needs the values, not class
+    names). Changed while building (2026-11-25): WebODM's "failed" and "highlight" colours are background tints
+    (defaults `#ffcbcb` and `#f7f7f7`), unreadable over a map, so the laser takes Button Danger
+    (`theme-color-button-danger`, default `#e74c3c`) and highlights Dialog Warning (`alert-warning`'s border, default
+    `#f39c12`). The outline and the Spotlight's dimming take Primary, so on a dark theme the dimming is a light veil.
   - Code: `public/present.js` (ES5, like the bars), shared by both pages. The shapes, the fading and the key handling
     are pure functions for Jest.
 - **How it can fail and what happens:**
@@ -1082,6 +1081,22 @@ The user chose to fix all four groups:
    of the plugin's folder (they survive upgrades).
 
 ## Done
+
+- **Presentation tools** (2026-11-25, branch `presentation-tools`, "Plan: presentation tools"):
+  `templates/present_tools.html` (the Present group: Laser Pointer, Area Highlight and the shape menu with Spotlight
+  and Clear Highlights) is included in `link_map.html` and `link_3d.html`, so signed-in users, the preview, links and
+  embeds all have it. The 3D page's Controls help gains the keys. `public/present.js` (ES5) draws on one canvas over
+  `.explorer-map` or `.explorer-scene` (`explorer.css`, `pointer-events: none`), only while a mark shows. It reads
+  the pointer on the page in the capture phase, so a press it takes never reaches Leaflet or OrbitControls. Found in
+  the live check: on touch screens Leaflet listens to touch events, not pointer events, so a finger the script took
+  also keeps its `touchstart` and `touchmove` from the map. A second finger gives the first finger's press back (a
+  copy of its `pointerdown`), so the pinch works. Tests: Jest `present.test.js` (16: shapes, fading, trail, keys, one
+  tool at a time, remembered choices with a store that throws, the laser not taking mouse presses, touch, a second
+  finger, lost capture, resize, no Pointer Events); Django `test_polish.py` (the group on both pages for a signed-in
+  user, the preview, a link and an embed). Live check `present.js`: all checks pass at desktop and phone widths. The
+  3D page's frame times with the mouse moving are the same with the laser on and off (p50 16.7 ms, p95 33.3 ms both,
+  headless Chromium on Metal, task 819e6ca7, 2026-11-25). Docs: the viewers guide's Presentation Tools section and
+  the README.
 
 - **The home's List view** (2026-11-24, branch `list-view`, step B of "Plan: List view and the task page"): a **List**
   button between Grid and Map (`view=list`). `pages.home_list` lists the matching projects by name (500 at most,

@@ -1,0 +1,19 @@
+{% load i18n %}{# The map and 3D pages' presentation tools (public/present.js): Laser Pointer and Area Highlight with its shape menu #}
+<div class="btn-group explorer-present" role="group" aria-label="{% trans "Present" %}" data-present>
+    <button type="button" class="btn btn-default btn-sm" data-tool="laser" aria-pressed="false"
+            title="{% trans "Laser Pointer (L)" %}" aria-label="{% trans "Laser Pointer" %}"><i class="fa fa-bullseye"></i></button>
+    <button type="button" class="btn btn-default btn-sm" data-tool="highlight" aria-pressed="false"
+            title="{% trans "Area Highlight (H): drag to draw, hold Shift to keep it" %}" aria-label="{% trans "Area Highlight" %}"><i class="fa fa-highlighter"></i></button>
+    <div class="btn-group">
+        <button type="button" class="btn btn-default btn-sm dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"
+                title="{% trans "Highlight Shape" %}" aria-label="{% trans "Highlight Shape" %}"><span class="caret"></span></button>
+        <ul class="dropdown-menu dropdown-menu-right" role="menu">
+            <li><a href="#" role="menuitemradio" aria-checked="false" data-shape="freehand"><i class="fa fa-pencil-alt fa-fw"></i> {% trans "Freehand" %}</a></li>
+            <li><a href="#" role="menuitemradio" aria-checked="false" data-shape="rectangle"><i class="far fa-square fa-fw"></i> {% trans "Rectangle" %}</a></li>
+            <li><a href="#" role="menuitemradio" aria-checked="false" data-shape="ellipse"><i class="far fa-circle fa-fw"></i> {% trans "Ellipse" %}</a></li>
+            <li role="separator" class="divider"></li>
+            <li><a href="#" role="menuitemcheckbox" aria-checked="false" data-spotlight><i class="fa fa-lightbulb fa-fw"></i> {% trans "Spotlight" %}</a></li>
+            <li><a href="#" role="menuitem" data-clear><i class="fa fa-eraser fa-fw"></i> {% trans "Clear Highlights" %}</a></li>
+        </ul>
+    </div>
+</div>

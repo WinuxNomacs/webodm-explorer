@@ -61,6 +61,7 @@
             <button type="button" class="btn btn-default btn-sm" data-reset title="{% trans "Reset View (R)" %}" aria-label="{% trans "Reset View" %}"><i class="fa fa-crosshairs"></i></button>
             <button type="button" class="btn btn-default btn-sm" data-fullscreen hidden title="{% trans "Fullscreen (F)" %}" aria-label="{% trans "Fullscreen" %}"><i class="fa fa-expand"></i></button>
         </div>
+        {% include present_template %}
         {% include viewer_tools_template %}
         </div>
     </div>
@@ -74,4 +75,5 @@
 <script src="{{ public }}layers.js?v={{ v }}"></script>
 <script src="{{ public }}viewer-controls.js?v={{ v }}"></script>
 <script src="{{ public }}map.js?v={{ v }}"></script>
+<script src="{{ public }}present.js?v={{ v }}"></script>
 {% endblock %}

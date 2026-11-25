@@ -265,6 +265,7 @@ class Plugin(PluginBase):
                        "cards_template": self.template_path("cards.html"),
                        "preview_template": self.template_path("preview_bar.html"),
                        "viewer_tools_template": self.template_path("viewer_tools.html"),
+                       "present_template": self.template_path("present_tools.html"),
                        "neighbours_template": self.template_path("neighbours.html"),
                        "meta_template": self.template_path("meta.html"), **extra}
             if task is not None:

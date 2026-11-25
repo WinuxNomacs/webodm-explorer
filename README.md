@@ -71,6 +71,10 @@ links are public.
   **layer opacity** slider over the basemap and a scale bar in the legend's units. The 3D page's **Background** menu
   (B) draws a dark **Grid** floor under the model (the default), a **Sky**, **Space** with stars, or **Plain** (the
   page's own colour). Size, colour, background, opacity and units are remembered in the browser.
+- **Presentation tools** on the map and 3D pages, for pointing at things while you talk about them: a **Laser
+  Pointer** (L) with a fading trail, and **Area Highlight** (H) to draw a freehand loop, rectangle or ellipse that
+  fades after a few seconds (Shift keeps it), optionally as a **Spotlight** that dims everything else. For visitors
+  and signed-in users alike; the marks show only on your own screen.
 - **A link's page** opens on a cover: the project's name, description and facts beside its newest task's picture
   and views, then an **Overview Map** of the tasks (over a basemap) and the other tasks. Pasted into a chat app or a
   social site, a link shows a preview with the project's name, description and that picture (search engines are
