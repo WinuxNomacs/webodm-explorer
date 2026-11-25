@@ -9,9 +9,12 @@ Up next: **more task files through links** (phase 2 of the Sharing Center reques
 assets zip, the report and the camera positions behind Allow Downloads. To be planned with the user first (the user,
 2026-11-24: after List view).
 
-Proposed (the user's requests 2026-11-25, plans below; not yet planned with the user, where they go is open):
-**Source Frames in Explorer's viewer** (the photos that show a clicked spot on the map or the 3D model, as in
-TweakUI) and **presentation tools** (Laser Pointer and Area Highlight on the map and the 3D view).
+Planned: **presentation tools** (the user's request 2026-11-25, planned with the user the same day; plan below):
+Laser Pointer and Area Highlight on Explorer's map and 3D pages. To be built when the user asks; where it goes beside
+"more task files through links" is the user's call.
+
+Proposed: **Source Frames in Explorer's viewer** (the user's request 2026-11-25, plan below; not yet planned with the
+user): the photos that show a clicked spot on the map or the 3D model, as in TweakUI.
 
 Built: **List view and the task page** (the user's request 2026-11-24: a more explorer-like feel; plan below), both
 steps: A. the task page; B. the home's List view and each user's remembered view (see "Done").
@@ -884,29 +887,68 @@ the link's Download menu, behind **Allow Downloads**; the exact asset names come
 - **Open decisions:** links (no, or yes with an option off by default and D1 widened); whether a project's map searches all
   its tasks as TweakUI does (Explorer's map shows one task); where it goes in the phase order.
 
-### The request: presentation tools (2026-11-25, to be planned with the user)
+### Plan: presentation tools (the request and the user's answers, 2026-11-25)
 
 - **The request:** "The viewer needs presentation controls/tools such as a Laser Pointer and Area Highlight to
   quickly point at areas on the map/model while discussing what's on screen."
-- **What it builds on:** the map page (Leaflet) and the 3D page (three.js), and their toolbars (`viewer-controls.js`,
-  `viewer-ui.js`). Only the browser is involved, with no server side and no new libraries.
-- **Proposed design (Claude's, for discussion):**
-  - **Laser Pointer:** a bright dot that follows the pointer with a short fading trail, drawn on a transparent canvas
-    over the map or the model. A drag still pans or orbits, so the presenter can keep moving the view.
-  - **Area Highlight:** drag to draw a freehand loop or an ellipse that stays a few seconds and fades. A
-    "spotlight" variant dims everything outside it.
-  - On touch screens: press and hold to point.
-  - Keyboard shortcuts for each tool, with Esc to turn it off.
-  - Colours come from the theme variables, with a fixed high-contrast accent where the rules allow it.
-  - One canvas over the view, redrawn only while something is drawn, so frame times stay as they are.
-- **Open decisions:**
-  - Whether marks follow the screen (simple, and they fade anyway) or stick to the map or model as it moves.
-  - Whether highlights fade or stay until cleared.
-  - Freehand, ellipse, or both.
-  - Who gets the tools: signed-in users only, or link visitors too.
-  - Whether other viewers should see the marks live. That needs a channel between browsers, which WebODM doesn't
-    have (polling the plugin's API would be the only way), so the proposal leaves it out.
-  - Where it goes in the phase order. It is small and has no server side, so it could come before Source Frames.
+- **The user's answers** (2026-11-25):
+  - **Anchoring:** marks are drawn over the view and stay where they were drawn on the screen; they fade, so moving
+    the view is no problem.
+  - **Fading:** a highlight fades after about 3 seconds. Holding Shift while drawing keeps it until Esc or
+    Clear Highlights.
+  - **Shapes:** freehand loop, rectangle and ellipse, with Spotlight.
+  - **Who:** everyone who sees Explorer's map and 3D pages: signed-in users, View as Visitor, link visitors and
+    embeds. Nothing is saved or sent anywhere.
+- **Where** (the map page and the 3D page of a task, `link_map.html` and `link_3d.html`, used by all of the above):
+  a Present group in the top bar, after View Controls, with two toggle buttons:
+  - **Laser Pointer** (L, `fa-bullseye`; both icons are in WebODM's Font Awesome 5.11.2, checked 2026-11-25);
+  - **Area Highlight** (H, `fa-highlighter`), with a caret menu: Freehand, Rectangle, Ellipse (one chosen, Freehand
+    by default), Spotlight (on or off), and Clear Highlights.
+  - Turning one tool on turns the other off. Esc turns the tool off and clears kept highlights. The choices are
+    remembered per browser (localStorage, read and written in try/catch).
+  - The 3D page's Controls help gains a line for L, H, Shift and Esc. On a phone the buttons show icons only, as the
+    bar's other buttons do.
+- **Laser Pointer:**
+  - A bright dot follows the pointer over the view, with a short trail that fades in about half a second.
+  - The mouse still pans, orbits and zooms as usual, so the presenter can point while moving the view.
+  - On a touch screen, one finger points instead of moving the view. Two fingers still pan and zoom; on the 3D page
+    one-finger orbit is lost while the tool is on.
+  - The system cursor is hidden over the view while the tool is on.
+- **Area Highlight:**
+  - A drag with the left button (or one finger) draws the chosen shape instead of moving the view. The wheel,
+    right-drag and two fingers still move it.
+  - Freehand closes the loop when the drag ends. Rectangle and Ellipse go from corner to corner.
+  - Highlights are an outline with a light fill. With Spotlight on, everything outside the shape is dimmed instead
+    (several kept shapes are all lit).
+  - A drag shorter than a few pixels draws nothing, so a stray click leaves no mark.
+- **Drawing:**
+  - One transparent canvas over the view, sized to it at the device pixel ratio, and resized with the view
+    (fullscreen, rotation, the window).
+  - It is drawn only while a mark is on screen (`requestAnimationFrame` stops when nothing is left), so the map's and
+    the scene's frame times don't change.
+  - Pointer events on the view are captured with `setPointerCapture`, so a drag that leaves the view still ends.
+  - Colours come from the theme: the Laser Pointer from WebODM's failed colour (red in the default theme), highlights
+    from its highlight colour. They are read once from elements with `theme-background-failed` and
+    `theme-background-highlight` (canvas needs the values, not class names). A dark outline keeps both visible on any
+    background.
+  - Code: `public/present.js` (ES5, like the bars), shared by both pages. The shapes, the fading and the key handling
+    are pure functions for Jest.
+- **How it can fail and what happens:**
+  - Pointer capture is lost (an alert, a tab switch): the drawing is ended and kept as drawn.
+  - The window loses focus while Shift is held: the shape follows Shift's state when the drag ends.
+  - The view is resized while marks show: the canvas is cleared, since screen positions no longer match.
+  - localStorage refused: the defaults apply.
+  - A browser without Pointer Events: none of Explorer's supported browsers lacks them, but the Present group is
+    hidden there.
+- **Tests:**
+  - Jest: shape geometry (freehand closing, rectangle and ellipse from two corners, a short drag drawing nothing).
+  - Jest: fading over time and kept highlights; the keys (L, H, Esc, typing in a field ignored); one tool at a time;
+    remembered choices with localStorage throwing; capture loss ending a drag.
+  - Django: the Present group on the map and 3D pages for a link, the preview and a signed-in user.
+  - Live check (`present.js` in the live-check skill): desktop and phone widths; drawing on both pages; that the view
+    still pans and orbits; frame times while the Laser Pointer moves and a highlight fades, against the baseline.
+- **Docs:** a Presentation Tools section in the viewer guide pages, and the README's feature list (interface
+  screenshots only, no model or location).
 
 ### Plan: the road to 1.0.0 (the review and the user's answer, 2026-11-23)
 
