@@ -13,6 +13,7 @@ import posixpath
 import re
 
 from app import pending_actions
+from app.api.imageuploads import ImageDownload, Thumbnail
 from app.api.tasks import TaskAssets, TaskDownloads, TaskSafeTexturedModel, TaskThumbnail
 from app.api.tiler import Bounds, Metadata, TileJson, Tiles
 from app.models import Project, Task
@@ -40,12 +41,13 @@ def link_json(link):
         "path": LINK_PATH.format(links.NAMESPACE, link["token"]),
         "downloads": links.allows_downloads(link),
         "sign_in": links.requires_sign_in(link),
+        "photos": links.allows_photos(link),
         "expired": links.is_expired(link),
     }
 
 
 def flag_value(data, name):
-    """The request's `downloads` or `sign_in` (a JSON boolean), False when absent; a 400 for anything else."""
+    """The request's `downloads`, `sign_in` or `photos` (a JSON boolean), False when absent; a 400 for anything else."""
     value = data.get(name, False)
     if not isinstance(value, bool):
         raise exceptions.ValidationError({name: _("Not a valid choice.")})
@@ -186,7 +188,8 @@ class ProjectLinks(ProjectLinksBase):
         sign_in = flag_value(data, "sign_in")
         if links.sign_in_forced(project) and not sign_in:
             raise exceptions.PermissionDenied(SIGN_IN_ONLY)
-        link = links.create_link(project.id, label, expires, request.user, downloads, sign_in)
+        link = links.create_link(project.id, label, expires, request.user, downloads, sign_in,
+                                 flag_value(data, "photos"))
         prepare_tiles(project)
         return Response(link_json(link), status=status.HTTP_201_CREATED)
 
@@ -220,7 +223,7 @@ class ProjectLink(ProjectLinksBase):
     def patch(self, request, project_pk=None, token=None):
         project = self.get_project(request, project_pk)
         data = object_body(request)
-        changes = {name: flag_value(data, name) for name in ("downloads", "sign_in") if name in data}
+        changes = {name: flag_value(data, name) for name in links.FLAGS if name in data}
         if "label" in data:
             changes["label"] = label_value(data)
         if "expires_days" in data:
@@ -283,6 +286,7 @@ class TokenTaskMixin:
     """
     allowed = True
     needs_downloads = False
+    needs_photos = False
 
     def dispatch(self, request, *args, **kwargs):
         # WebODM's get() methods don't take the token
@@ -291,7 +295,8 @@ class TokenTaskMixin:
 
     def get_and_check_task(self, request, pk, annotate=None):
         project, link = links.resolve(self.share_token)
-        if project is None or not self.allowed or (self.needs_downloads and not links.allows_downloads(link)):
+        if (project is None or not self.allowed or (self.needs_downloads and not links.allows_downloads(link))
+                or (self.needs_photos and not links.allows_photos(link))):
             raise exceptions.NotFound()
         # Active as well: DRF's authentication already refuses inactive users; the same rule as the link pages
         user = request.user
@@ -390,6 +395,43 @@ def frames_response(task, data):
     except Exception:
         logger.exception("Explorer: Source Frames failed for task %s", task.id)
         return Response({"detail": _("The photos could not be found.")}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class TokenPhotoMixin(TokenTaskMixin):
+    """
+    A link's photo views (decision D1, widened for Source Frames step B): WebODM's photo thumbnail and download with
+    the link's check, for links that allow source photos, and only for the task's photos (frames.photo_names).
+    """
+    needs_photos = True
+
+    def dispatch(self, request, *args, **kwargs):
+        self.photo_name = kwargs.get("image_filename")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_and_check_task(self, request, pk, annotate=None):
+        task = super().get_and_check_task(request, pk, annotate)
+        if self.photo_name not in frames.photo_names(task):
+            raise exceptions.NotFound()
+        return task
+
+
+class TokenPhotoThumbnail(TokenPhotoMixin, Thumbnail):
+    """The photo re-encoded as a JPEG, at the size asked for: Pillow saves it without the photo's EXIF."""
+
+
+class TokenPhotoDownload(TokenPhotoMixin, ImageDownload):
+    """The original photo, EXIF and all: only for links that allow downloads too."""
+    needs_downloads = True
+
+
+class TokenFrames(TokenTaskMixin, APIView):
+    """POST: Source Frames through a link that allows source photos."""
+    permission_classes = (AllowAny,)
+    queryset = Task.objects.all().select_related("project")
+    needs_photos = True
+
+    def post(self, request, pk=None):
+        return frames_response(self.get_and_check_task(request, pk), request.data)
 
 
 class Frames(APIView):

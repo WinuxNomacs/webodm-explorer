@@ -647,7 +647,8 @@
         return form;
     }
 
-    // A link's Allow Downloads or Require Sign-In (name), changed at once; the box goes back if the change fails.
+    // A link's Allow Downloads, Require Sign-In or Allow Source Photos (name), changed at once; the box goes back if the
+    // change fails.
     // ctx: {request, url (the link's API), forced (Require Sign-In fixed on by Explorer Settings), forcedTitle,
     // disabled, done(message or "")}
     function linkToggle(link, name, caption, ctx) {
@@ -731,6 +732,7 @@
             heading.appendChild(element("span", "explorer-card-title", link.label || text("untitled")));
             heading.appendChild(element("span", "explorer-card-text", expiryText(text, link)));
             heading.appendChild(linkToggle(link, "downloads", text("downloads"), toggleCtx));
+            heading.appendChild(linkToggle(link, "photos", text("photos"), toggleCtx));
             heading.appendChild(linkToggle(link, "sign_in", text("sign-in"), toggleCtx));
             row.appendChild(heading);
 
@@ -804,10 +806,12 @@
             submit.disabled = true;
             var signIn = form.elements.sign_in;
             request("POST", api, {label: form.elements.label.value, expires_days: form.elements.expires_days.value,
-                downloads: form.elements.downloads.checked, sign_in: signIn ? signIn.checked : false})
+                downloads: form.elements.downloads.checked, photos: form.elements.photos.checked,
+                sign_in: signIn ? signIn.checked : false})
                 .then(function (link) {
                     form.elements.label.value = "";
                     form.elements.downloads.checked = false;
+                    form.elements.photos.checked = false;
                     if (signIn && !signInForced) signIn.checked = false;
                     return load().then(function () {
                         var input = list.querySelector('[data-token="' + link.token + '"] .explorer-link-address');
@@ -914,7 +918,9 @@
                     showError(message);
                 }};
             cell(row, "column-access").appendChild(linkToggle(link, "sign_in", text("sign-in"), toggleCtx));
-            cell(row, "column-downloads").appendChild(linkToggle(link, "downloads", text("downloads"), toggleCtx));
+            var files = cell(row, "column-downloads");
+            files.appendChild(linkToggle(link, "downloads", text("downloads"), toggleCtx));
+            files.appendChild(linkToggle(link, "photos", text("photos"), toggleCtx));
 
             var made = cell(row, "column-created", "explorer-card-text explorer-sharing-dates");
             made.appendChild(element("div", null, new Date(link.created).toLocaleDateString()));
@@ -1079,9 +1085,10 @@
                 createError.hidden = true;
                 request("POST", project.links_api, {label: createForm.elements.label.value,
                     expires_days: createForm.elements.expires_days.value, downloads: createForm.elements.downloads.checked,
-                    sign_in: signIn.checked}).then(function (link) {
+                    photos: createForm.elements.photos.checked, sign_in: signIn.checked}).then(function (link) {
                     createForm.elements.label.value = "";
                     createForm.elements.downloads.checked = false;
+                    createForm.elements.photos.checked = false;
                     if (!signIn.disabled) signIn.checked = false;
                     return load().then(function () {
                         // The new link shown even where the filters would leave it out

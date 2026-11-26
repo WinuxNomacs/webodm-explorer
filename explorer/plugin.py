@@ -219,7 +219,7 @@ class Plugin(PluginBase):
             api_path = f"/api/plugins/{links.NAMESPACE}/s/{token}/tasks/"
             return pages.Viewer(project=project, path=f"{public}s/{token}/", api=api_path, tiles_api=api_path,
                                 downloads=links.allows_downloads(link), preview=False,
-                                sign_in_link=links.needs_sign_in(project, link))
+                                sign_in_link=links.needs_sign_in(project, link), photos=links.allows_photos(link))
 
         def through_link(request, token, show):
             """
@@ -461,6 +461,9 @@ class Plugin(PluginBase):
             MountPoint(rf"{tile}\.?(?P<ext>png|jpg|webp)?$", api.TokenTiles.as_view()),
             MountPoint(rf"{tile}@(?P<scale>[\d]+)x\.?(?P<ext>png|jpg|webp)?$", api.TokenTiles.as_view()),
             MountPoint(rf"{base}thumbnail$", api.TokenThumbnail.as_view()),
+            MountPoint(rf"{base}frames/$", api.TokenFrames.as_view()),
+            MountPoint(rf"{base}images/thumbnail/(?P<image_filename>.+)$", api.TokenPhotoThumbnail.as_view()),
+            MountPoint(rf"{base}images/download/(?P<image_filename>.+)$", api.TokenPhotoDownload.as_view()),
             MountPoint(rf"{base}textured_model/$", api.TokenTexturedModel.as_view()),
             MountPoint(rf"{base}assets/(?P<unsafe_asset_path>.+)$", api.TokenAssets.as_view()),
             MountPoint(rf"{base}download/(?P<asset>[A-Za-z0-9_.]+)$", api.TokenDownloads.as_view()),

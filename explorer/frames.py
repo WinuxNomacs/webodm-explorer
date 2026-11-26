@@ -210,6 +210,35 @@ def parse(data):
     return point, crs
 
 
+_photo_names = {}
+
+
+def photo_names(task):
+    """
+    The names of the task's photos that have a pose in its shots.geojson (the photos Source Frames lists), read again
+    only when the file changes. A link's photo views serve only these: WebODM's own resolve any path inside the task's
+    folder (its outputs, all.zip), which a link that allows source photos must not reach.
+    """
+    path = task.assets_path("odm_report", "shots.geojson")
+    try:
+        stat = os.stat(path)
+    except OSError:
+        return frozenset()
+    key = (stat.st_mtime_ns, stat.st_size)
+    cached = _photo_names.get(path)
+    if cached and cached[0] == key:
+        return cached[1]
+    shots = _dict(load_json(path)).get("features")
+    names = frozenset(
+        props["filename"] for props in ((shot.get("properties") if isinstance(shot, dict) else None) or {}
+                                        for shot in (shots if isinstance(shots, list) else []))
+        if isinstance(props.get("filename"), str) and "/" not in props["filename"] and "\\" not in props["filename"])
+    if len(_photo_names) > 64:
+        _photo_names.clear()
+    _photo_names[path] = (key, names)
+    return names
+
+
 def find(task, data):
     """The photos of a task that show the spot a request gives (see parse), best first"""
     point, crs = parse(data)

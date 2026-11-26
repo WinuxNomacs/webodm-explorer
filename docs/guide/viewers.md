@@ -52,14 +52,16 @@ Point size, colour, background, opacity, basemap and units are remembered in the
 
 ## Source Frames
 
-On your own map and 3D pages of a task (signed in), **Source Frames** (S, the photos button in the bar) finds the
+On your own map and 3D pages of a task (signed in), and on a link's when it has
+[Allow Source Photos](/guide/sharing#what-a-link-serves), **Source Frames** (S, the photos button in the bar) finds the
 task's photos that show a spot. Turn it on and "Click to View Source Frames" shows over the view. Each click on the
 map or the model (a drag still pans or orbits) moves the spot there. The first click opens a window, and each later
 one updates it.
 
 - The window lists up to 50 photos, best first: those where the spot is nearest the middle of the frame. The best one
   is selected and shown with the spot marked. Below it are its file name, capture time, camera, size and the camera's
-  altitude, **Download** (the original photo) and **Open Full Frame**.
+  altitude, **Download** (the original photo; on a link, only when it has Allow Downloads too) and
+  **Open Full Frame**.
 - **Open Full Frame** shows the photo full screen. Zoom with the wheel, a pinch, the buttons or a double-click; drag
   to pan; step through the photos with the arrow keys; **Esc** closes it and returns to the window, on the photo you
   ended on.
@@ -73,8 +75,8 @@ height. On the map that is the ground's height from the task's DSM (without one,
 something (a roof, a tree) hides it in that photo. On the point cloud, a click can land on a stray point floating in
 front of the ground: the textured model gives the more exact spot.
 
-Only tasks with camera shots have the button, and the 3D page only when WebODM knows the model's offset. Visitors with
-a link don't have Source Frames yet: View as Visitor shows the button unavailable.
+Only tasks with camera shots have the button, and the 3D page only when WebODM knows the model's offset. View as Visitor
+shows a link as made by default, without Allow Source Photos, so its button is unavailable.
 
 ## Presentation tools
 

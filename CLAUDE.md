@@ -19,8 +19,9 @@ public: nothing private, nothing true only on one machine. Keep it short; edit i
     `SharePopup.addLinkControl`, `Workers.*`). No Django models or migrations (data goes in the plugin's data
     stores, `GlobalDataStore` and `UserDataStore`, which store it unencrypted).
   - Approved exceptions: share-link views subclass WebODM's tile, asset, safe textured model and download API
-    views (`app/api/tiler.py`, `app/api/tasks.py`) and override only `get_and_check_task` with the link's token check (`upcoming-changes.md`,
-    decision D1). A second: the basemaps under Explorer's maps (the link map, the home's Map view, the project page's Overview
+    views (`app/api/tiler.py`, `app/api/tasks.py`), and for Allow Source Photos its photo `Thumbnail` and `ImageDownload`
+    (`app/api/imageuploads.py`, only the task's photos), and override only `get_and_check_task` with the link's token
+    check (`upcoming-changes.md`, decision D1). A second: the basemaps under Explorer's maps (the link map, the home's Map view, the project page's Overview
     Map) come from `app.models.Basemap.get_cached_basemaps()` (the user, 2026-11-21 and 2026-11-22). Tests import those classes, so a WebODM release that changes them fails the tests. No other
     WebODM internals without the user's approval.
   - **No changes to WebODM itself; avoid pull requests to it.** A feature that needs a hook WebODM lacks is

@@ -3,7 +3,10 @@
 // and gives the focus back, a click on the textured model and on the point cloud finds photos with the spot near
 // their middle (the scene's coordinates plus WebODM's offset are right), frame times on the 3D page while the
 // window loads (headless Chromium on Metal), the Laser Pointer and Source Frames turning each other off, View as
-// Visitor showing it unavailable, and a phone (the window as a sheet, no sideways scroll). Creates nothing.
+// Visitor showing it unavailable, and a phone (the window as a sheet, no sideways scroll). Step B: Allow Source
+// Photos in the Share panel, then a "Live check" link that allows source photos opened as a visitor (photos found,
+// thumbnails served through the link, no Download until the link allows downloads too, a stray path refused), and a
+// revoke while the window is open. The link is revoked at the end, also on failure.
 // Usage: node .claude/skills/live-check/frames.js <repo> <screenshot folder> <user> <password> [project id] [task id prefix]
 const path = require("path");
 const [repo, out, user, password, projectArg, taskArg] = process.argv.slice(2);
@@ -15,10 +18,21 @@ const shot = (page, name) => page.screenshot({ path: path.join(out, name + ".png
 const errors = [];
 const checks = [];
 const check = (ok, what) => { checks.push((ok ? "ok   " : "FAIL ") + what); };
+const masked = (text) => text.replace(/[A-Za-z0-9_-]{43}/g, "<token>");
+// Refusals the check asks for itself (a stray path; anything after it revokes the link) are not errors
+let refusalsExpected = false;
 const watch = (page, label) => {
-    page.on("console", (m) => { if (m.type() === "error" && !/35729|ERR_CONNECTION_REFUSED/.test(m.text())) errors.push(`${label}: ${m.text().slice(0, 160)}`); });
-    page.on("pageerror", (e) => errors.push(`${label} pageerror: ${e.message.slice(0, 160)}`));
-    page.on("response", (r) => { if (r.status() >= 400 && !r.url().includes("35729")) errors.push(`${label}: ${r.status()} ${r.url()}`); });
+    page.on("console", (m) => {
+        if (m.type() === "error" && !/35729|ERR_CONNECTION_REFUSED/.test(m.text()) && !(refusalsExpected && /404/.test(m.text()))) {
+            errors.push(`${label}: ${masked(m.text().slice(0, 160))}`);
+        }
+    });
+    page.on("pageerror", (e) => errors.push(`${label} pageerror: ${masked(e.message.slice(0, 160))}`));
+    page.on("response", (r) => {
+        if (r.status() >= 400 && !r.url().includes("35729") && !(refusalsExpected && r.status() === 404 && r.url().includes("/s/"))) {
+            errors.push(`${label}: ${r.status()} ${masked(r.url())}`);
+        }
+    });
 };
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const bestSpot = (page) => page.evaluate(() => {
@@ -66,6 +80,8 @@ async function clickAndWait(page, x, y) {
     }, null, { timeout: 20000 }).catch(() => null);
     return Date.now() - t0;
 }
+
+let token = null;  // the check's link, until revoked
 
 (async () => {
     const browser = await chromium.launch({ headless: true, args: ["--use-angle=metal", "--enable-gpu", "--ignore-gpu-blocklist"] });
@@ -140,6 +156,59 @@ async function clickAndWait(page, x, y) {
         // View as Visitor: shown unavailable
         await page.goto(`${own}preview/map/${task.id}/`);
         check(await page.getAttribute("[data-tool=frames]", "aria-disabled") === "true", "View as Visitor shows Source Frames unavailable");
+
+        // Step B: the Share panel's option, then a link that allows source photos, opened as a visitor
+        await page.goto(own);
+        check(await page.locator(".explorer-links-form input[name=photos], form input[name=photos]").count() > 0,
+            "the Share panel's create form has Allow Source Photos");
+        const call = (method, url, body) => page.evaluate(async ([m, u, b]) => {
+            const csrf = document.cookie.match(/csrftoken=([^;]+)/);
+            const res = await fetch(u, { method: m, credentials: "same-origin",
+                headers: { "Content-Type": "application/json", "X-CSRFToken": csrf ? csrf[1] : "" }, body: b ? JSON.stringify(b) : undefined });
+            return { status: res.status, body: res.status === 204 ? null : await res.json() };
+        }, [method, url, body]);
+        const linksApi = `/api/plugins/explorer/projects/${PROJECT}/links/`;
+        const made = await call("POST", linksApi, { label: "Live check photos", expires_days: "7", photos: true });
+        check(made.status === 201 && made.body.photos === true, "a link is made with Allow Source Photos");
+        token = made.body.token;
+        const visitorContext = await browser.newContext({ viewport: { width: 1280, height: 860 } });
+        const visitor = await visitorContext.newPage();
+        watch(visitor, "visitor");
+        const linkMap = `${BASE}/plugins/explorer/s/${token}/map/${task.id}/`;
+        await visitor.goto(linkMap);
+        await visitor.waitForSelector(".leaflet-tile-loaded", { timeout: 30000 }).catch(() => null);
+        await sleep(1000);
+        const vb = await visitor.locator(".explorer-map").boundingBox();
+        await visitor.keyboard.press("s");
+        await clickAndWait(visitor, vb.x + vb.width / 2, vb.y + vb.height / 2 + 30);
+        check(await visitor.locator(".explorer-sf-item").count() > 0, "a visitor finds the photos through the link");
+        await visitor.waitForFunction(() => { const i = document.querySelector(".explorer-sf-main-photo img"); return i && i.complete && i.naturalWidth > 0; },
+            null, { timeout: 20000 }).catch(() => null);
+        check(await visitor.evaluate(() => { const i = document.querySelector(".explorer-sf-main-photo img"); return !!i && i.naturalWidth > 0 && i.src.includes("/s/"); }),
+            "the photo is served through the link");
+        check(await visitor.locator(".explorer-sf-download").count() === 0, "no Download on a link that doesn't allow downloads");
+        await shot(visitor, "frames-link");
+        refusalsExpected = true;
+        const stray = await visitor.evaluate(async (u) => (await fetch(u)).status,
+            `/api/plugins/explorer/s/${token}/tasks/${task.id}/images/thumbnail/assets/odm_orthophoto/odm_orthophoto.tif`);
+        check(stray === 404, "the link refuses a path that isn't one of the task's photos (" + stray + ")");
+        refusalsExpected = false;
+        await call("PATCH", `${linksApi}${token}/`, { downloads: true });
+        await visitor.goto(linkMap);
+        await visitor.waitForSelector(".leaflet-tile-loaded", { timeout: 30000 }).catch(() => null);
+        await sleep(800);
+        await visitor.keyboard.press("s");
+        await clickAndWait(visitor, vb.x + vb.width / 2, vb.y + vb.height / 2 + 30);
+        check(await visitor.locator(".explorer-sf-download").count() === 1, "Download shows once the link allows downloads too");
+        // Revoked while open: the next spot says the link is no longer valid
+        refusalsExpected = true;
+        await call("DELETE", `${linksApi}${token}/`);
+        token = null;
+        await visitor.mouse.click(vb.x + vb.width / 2 - 40, vb.y + vb.height / 2);
+        await visitor.waitForSelector(".explorer-sf-message.text-danger", { timeout: 20000 }).catch(() => null);
+        const said = await visitor.textContent(".explorer-sf-body").catch(() => "");
+        check(/no longer valid/.test(said), "a revoke while open says the link is no longer valid");
+        await visitorContext.close();
         await context.close();
 
         // Phone
@@ -167,6 +236,20 @@ async function clickAndWait(page, x, y) {
     } catch (e) {
         console.log("ERROR " + e.message.split("\n")[0]);
     } finally {
+        if (token) {
+            // The check's link, revoked even when a step failed
+            const cleanup = await browser.newContext();
+            const p = await cleanup.newPage();
+            await login(p).catch(() => null);
+            const status = await p.evaluate(async ([pid, tok]) => {
+                const csrf = document.cookie.match(/csrftoken=([^;]+)/);
+                const res = await fetch(`/api/plugins/explorer/projects/${pid}/links/${tok}/`, {
+                    method: "DELETE", credentials: "same-origin", headers: { "X-CSRFToken": csrf ? csrf[1] : "" } });
+                return res.status;
+            }, [PROJECT, token]).catch((e) => e.message);
+            console.log("cleanup revoke " + status);
+            await cleanup.close();
+        }
         await browser.close();
         checks.forEach((c) => console.log(c));
         console.log(errors.length ? "errors:\n" + errors.join("\n") : "no console or HTTP errors");

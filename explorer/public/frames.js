@@ -56,10 +56,16 @@
         if (signal) options.signal = signal;
         return fetchFn(api, options).then(function (res) {
             return res.json().then(function (body) {
-                if (!res.ok || !body || !Array.isArray(body.frames)) throw new Error((body && body.detail) || failed);
+                if (!res.ok || !body || !Array.isArray(body.frames)) throw refused((body && body.detail) || failed, res.status);
                 return body.frames;
-            }, function () { throw new Error(failed); });
+            }, function () { throw refused(failed, res.status); });
         });
+    }
+
+    function refused(message, status) {
+        var error = new Error(message);
+        error.status = status;
+        return error;
     }
 
     // The spot drawn on a photo: a ring in an SVG over it, in fractions of its width and height
@@ -180,7 +186,7 @@
         control("fa-chevron-right", t.next, function () { show(index + 1); });
         control("fa-search-minus", t.zoomOut, function () { zoom(1 / 1.5); });
         control("fa-search-plus", t.zoomIn, function () { zoom(1.5); });
-        bar.appendChild(download);
+        if (ctx.download) bar.appendChild(download);
         var closeButton = control("fa-times", t.close, close);
         root.appendChild(bar);
         root.appendChild(stage);
@@ -327,7 +333,7 @@
                 ctx.assign(imageUrl(ctx.images, frame.filename, "download"));
             });
             actions.appendChild(open);
-            actions.appendChild(download);
+            if (ctx.download) actions.appendChild(download);
             main.appendChild(actions);
             main.appendChild(details(frame));
         }
@@ -483,6 +489,8 @@
             page: page, view: view, texts: JSON.parse(textsScript.textContent),
             api: toggleButton.getAttribute("data-frames-api"), images: toggleButton.getAttribute("data-images"),
             csrf: csrfInput ? csrfInput.value : "",
+            // Download where allowed (a link that allows downloads too); a link refusing a request has been revoked
+            download: toggleButton.getAttribute("data-download") !== "0", link: toggleButton.hasAttribute("data-link"),
             fetch: options.fetch || function (url, o) { return window.fetch(url, o); },
             assign: options.assign || function (url) { window.location.assign(url); },
             colours: null
@@ -534,7 +542,9 @@
             findFrames(ctx.fetch, ctx.api, ctx.csrf, place, abort && abort.signal, ctx.texts.failed).then(function (found) {
                 if (mine === latest && box === target) target.show(found);
             }, function (error) {
-                if (mine === latest && box === target && !(error && error.name === "AbortError")) target.fail(error.message || ctx.texts.failed);
+                if (mine !== latest || box !== target || (error && error.name === "AbortError")) return;
+                var gone = ctx.link && (error.status === 404 || error.status === 403);
+                target.fail(gone ? page.getAttribute("data-invalid") || error.message : error.message || ctx.texts.failed);
             });
         }
 

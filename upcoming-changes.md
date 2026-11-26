@@ -11,8 +11,8 @@ assets zip, the report and the camera positions behind Allow Downloads. To be pl
 
 Built: **presentation tools** (the user's request 2026-11-25; plan below; see "Done").
 
-Built: **Source Frames in Explorer's viewer**, step A (signed-in users and View as Visitor; see "Done"). Step B (links,
-with Allow Source Photos, D1 widened) is planned (plan below); to be built when the user asks.
+Built: **Source Frames in Explorer's viewer**, both steps: A. signed-in users and View as Visitor; B. links with Allow
+Source Photos (see "Done").
 
 Built: **List view and the task page** (the user's request 2026-11-24: a more explorer-like feel; plan below), both
 steps: A. the task page; B. the home's List view and each user's remembered view (see "Done").
@@ -1146,6 +1146,30 @@ The user chose to fix all four groups:
 
 ## Done
 
+- **Source Frames, step B** (2026-11-26, branch `source-frames-b`):
+  - **The option:** links gain Allow Source Photos: `links.py` `photos` and `FLAGS`, off by default and on links made
+    before it; `api.py` `link_json`, POST and PATCH. It is on the create forms and each link of the Share panel and
+    the Sharing Center (whose Downloads column became **Files**). `explorer.js` posts it and `linkToggle` changes it.
+  - **The views:** `api.TokenFrames` (POST, CSRF from the link page's token). `api.TokenPhotoThumbnail` and
+    `TokenPhotoDownload` subclass WebODM's `Thumbnail` and `ImageDownload` through `TokenPhotoMixin`, which overrides
+    only `get_and_check_task` (D1). Download also needs Allow Downloads.
+  - **Found while building:** WebODM's photo views resolve any path inside the task's folder. Through them, a link
+    would have served the full orthophoto (re-encoded) and, with downloads, any file such as `all.zip`. So the
+    mixin allows only the names in `shots.geojson` (`frames.photo_names`, cached by the file's time and size). A
+    test showed the orthophoto served without the check.
+  - **EXIF:** WebODM's `Thumbnail` re-encodes without EXIF; a test checks a photo's Make and Model don't come
+    through.
+  - **The pages:** `pages.source_frames` gives a link's pages its token API with `download` and `link`.
+    `frames.js` hides Download where it isn't allowed and says "This link is no longer valid" when a link refuses.
+    View as Visitor's button says "only on links that allow source photos".
+  - **Tests:** Django `test_frames.py` (25: the option, refusals for an unknown, revoked, expired or sign-in link and
+    one without photos, CSRF from the link page, EXIF absent, stray paths refused, Download only with both options,
+    the pages and forms). Jest (171: the row's toggle, no Download, a revoked link).
+  - **Live check `frames.js`:** all 28 checks pass, step B included: a "Live check photos" link made, used as a
+    visitor, given downloads, revoked while open, then gone. The check's output masks link tokens.
+  - **Docs:** the sharing guide (What a Link Serves), the Sharing Center and viewers guides, the README and
+    `CLAUDE.md`'s exceptions.
+
 - **Source Frames, step A** (2026-11-25, branch `source-frames-a`, "Plan: Source Frames in Explorer's viewer"):
   - **Server:** `explorer/frames.py` is TweakUI's `frames.py` with Explorer's header, `MAX_FRAMES = 50` and unreadable
     shots refused ("This task's cameras could not be read"). `api.Frames` answers
@@ -1728,7 +1752,8 @@ The user chose to fix all four groups:
   approved for this use; tests import those classes so a WebODM release that changes them fails loudly.
   Widened (the user, 2026-11-25, for Source Frames step B): `Thumbnail` for links that allow source photos, and
   `ImageDownload` for links that allow both source photos and downloads (`app/api/imageuploads.py`). The
-  repository's `CLAUDE.md` gains them when step B is built.
+  repository's `CLAUDE.md` names them (2026-11-26). They serve only the task's photos (`frames.photo_names`):
+  WebODM's own resolve any path inside the task's folder.
 - **D2: WebODM's viewers first** (the user, 2026-11-21): the project page links to WebODM's map and 3D views;
   Explorer's own viewer serves links. Signed-in users keep WebODM's 3D page, also once meshes are tiled (the user,
   2026-11-21). Revised (the user, 2026-11-21): Explorer may offer its own viewer to signed-in users as an additional

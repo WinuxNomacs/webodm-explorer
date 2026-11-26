@@ -27,15 +27,16 @@ To create one:
 1. Give it a **Label** (optional; who it is for, say). Links without one show as **Untitled Link**.
 2. Pick an **Expiry**: 7, 30 or 90 days, or **Never expires**.
 3. Tick **Allow Downloads** if visitors may download the outputs (see below).
-4. Tick **Require Sign-In** if visitors must sign in to WebODM first (see below).
-5. Choose **Create Link**.
+4. Tick **Allow Source Photos** if visitors may see the task's photos that show a spot (see below).
+5. Tick **Require Sign-In** if visitors must sign in to WebODM first (see below).
+6. Choose **Create Link**.
 
 Each link in the list has:
 
 - **Copy**, to copy it again at any time. Links start with the browser's address, or with the **Public Address**
   an admin set ([Administration](/guide/administration)).
 - **Open**, to open it as visitors see it.
-- **Allow Downloads** and **Require Sign-In**, to turn them on or off later.
+- **Allow Downloads**, **Allow Source Photos** and **Require Sign-In**, to turn them on or off later.
 - **Embed**, for code that shows the link's views in another website (below).
 - **Edit**, to change its label or its expiry: **Keep the Current Expiry**, or 7, 30 or 90 days from today, or
   **Never expires**. The link's address stays the same.
@@ -62,8 +63,15 @@ Without **Allow Downloads**, a link serves only what its views stream: map tiles
 splats. A determined visitor could still save what their browser has loaded, as with any web viewer.
 
 With **Allow Downloads**, task cards and views get a **Download** menu with the orthophoto, DSM, DTM, point cloud
-(LAZ) and textured model (zip and glTF). A link never serves the report, camera positions, the images or **All
-Assets**.
+(LAZ) and textured model (zip and glTF). A link never serves the report, camera positions or **All Assets**.
+
+With **Allow Source Photos**, the link's map and 3D pages have [Source Frames](/guide/viewers#source-frames): a
+visitor clicks a spot and sees the task's photos that show it. They see each photo re-encoded as a JPEG at up to its
+full size, without its EXIF data (its GPS position, camera serial number and the like), and its capture time, camera
+and the camera's altitude in the window. Only the task's photos are served, nothing else in its folder. With
+**Allow Downloads** too, the window also has **Download**, which gives the original photo, EXIF and all. The photos
+are the raw inputs of the survey: tick it only for people who may see them. A link made without it, and links made
+before Explorer had it, don't show the photos.
 
 ### Links that require sign-in
 
@@ -100,7 +108,7 @@ embeds work.
 
 - Links are kept in plain text in WebODM's database, so they can be copied again. Anyone with access to the database
   or its backups can read them.
-- Revoking a link, or unticking **Allow Downloads**, takes effect on the visitor's next request, even on a page they
+- Revoking a link, or unticking **Allow Downloads** or **Allow Source Photos**, takes effect on the visitor's next request, even on a page they
   already have open.
 - Basemaps on link maps load from their provider in each visitor's browser. An admin can turn them off:
   [Administration](/guide/administration).

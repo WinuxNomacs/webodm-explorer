@@ -5,7 +5,8 @@ link of the projects you can change, in one place. WebODM's admins see every pro
 **Share** panel stays for its links alone.
 
 Each row shows the link's project (choose it to open the project's page with its Share panel), its label and
-address, **Require Sign-In** and **Allow Downloads** (to turn on or off, as in the Share panel), when it was made
+address, **Require Sign-In**, and under **Files** **Allow Downloads** and **Allow Source Photos** (to turn on or off, as
+in the Share panel), when it was made
 and by whom, and when it expires, marked **Expires Soon** within 7 days. On a phone the rows become cards.
 
 ## Finding a link
@@ -21,7 +22,7 @@ Sharing Center on that project's links with **All Links in the Sharing Center**.
 ## Creating a link
 
 **Create Link**, at the top of the page: choose one of the projects you can change, then a label, an expiry,
-**Allow Downloads** and **Require Sign-In**, as in [the Share panel](/guide/sharing#anyone-with-the-link). A project
+**Allow Downloads**, **Allow Source Photos** and **Require Sign-In**, as in [the Share panel](/guide/sharing#anyone-with-the-link). A project
 whose links Explorer Settings don't allow is listed but can't be chosen; for one whose links must all ask for a
 login, **Require Sign-In** is ticked and can't be unticked. The new link is shown with its address selected, ready to
 copy.

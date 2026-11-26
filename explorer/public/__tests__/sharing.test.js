@@ -74,7 +74,7 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 const TEXTS = `data-copy="Copy" data-copied="Copied" data-revoke="Revoke" data-confirm-revoke="Revoke?"
     data-untitled="Untitled Link" data-never="Never expires" data-expires="Expires %(date)s" data-expired-on="Expired %(date)s"
-    data-downloads="Allow Downloads" data-sign-in="Require Sign-In" data-forced-title="Forced."
+    data-downloads="Allow Downloads" data-photos="Allow Source Photos" data-sign-in="Require Sign-In" data-forced-title="Forced."
     data-embed-sign-in="Asks for a login." data-open="Open" data-open-title="Open it" data-embed="Embed"
     data-embed-page="The Whole Page" data-embed-label="Show" data-edit="Edit" data-save="Save" data-cancel="Cancel"
     data-renew="Renew" data-label="Label" data-expiry="Expiry" data-keep-expiry="Keep the Current Expiry"
@@ -94,7 +94,7 @@ function renderCenter(responses, search) {
             <form class="explorer-sharing-create" hidden>
                 <select name="project"><option value="">Choose</option><option value="7">Roof Survey</option><option value="9">Bridge</option></select>
                 <input name="label"><select name="expires_days"><option value="30" selected>30</option></select>
-                <label><input type="checkbox" name="downloads"></label><label><input type="checkbox" name="sign_in"></label>
+                <label><input type="checkbox" name="downloads"></label><label><input type="checkbox" name="photos"></label><label><input type="checkbox" name="sign_in"></label>
                 <button type="submit">Create Link</button>
                 <div class="explorer-sharing-create-error" hidden></div>
             </form>
@@ -236,7 +236,7 @@ describe("the Sharing Center", () => {
         await settle();
         expect(window.fetch.mock.calls[1][0]).toBe(OTHER.links_api);
         expect(JSON.parse(window.fetch.mock.calls[1][1].body)).toEqual(
-            {label: "Inspector", expires_days: "30", downloads: false, sign_in: true});
+            {label: "Inspector", expires_days: "30", downloads: false, photos: false, sign_in: true});
         // The search would hide the new link: the filters go back to their defaults so it shows
         expect(rows().map((r) => r.getAttribute("data-token")[0])).toEqual(["n"]);
         expect(window.location.search).toBe("");
@@ -271,7 +271,7 @@ describe("the Share panel's Edit", () => {
                 <div class="explorer-links-list"></div>
                 <form class="explorer-link-form"><input type="hidden" name="csrfmiddlewaretoken" value="c">
                     <input name="label"><select name="expires_days"><option value="30">30</option></select>
-                    <input type="checkbox" name="downloads"><button type="submit">Create Link</button></form>
+                    <input type="checkbox" name="downloads"><input type="checkbox" name="photos"><button type="submit">Create Link</button></form>
                 <div class="explorer-links-error" hidden></div>
             </div>`;
         init(document);

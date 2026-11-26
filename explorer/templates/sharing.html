@@ -14,7 +14,7 @@
      data-project-title="{% trans "The project's Explorer page, with its Share panel open" %}"
      data-blocked="{% trans "Its links don't work: Explorer Settings allow links for public projects only." %}"
      data-column-project="{% trans "Project" %}" data-column-link="{% trans "Link" %}" data-column-access="{% trans "Access" %}"
-     data-column-downloads="{% trans "Downloads" %}" data-column-created="{% trans "Created" %}"
+     data-column-downloads="{% trans "Files" %}" data-column-created="{% trans "Created" %}"
      data-column-expires="{% trans "Expires" %}" data-column-actions="{% trans "Actions" %}">
     {% csrf_token %}
     <div class="explorer-header">
@@ -27,7 +27,7 @@
         </div>
         {% endif %}
     </div>
-    <p class="explorer-card-text">{% trans "Every anyone-with-the-link link of the projects you can change, in one place. Anyone with a link can open its project's maps and 3D views without signing in, until the link expires or is revoked; with Allow Downloads, they can also download the outputs; with Require Sign-In, it asks for a WebODM login first (any account on this WebODM). Expired links are kept here for 90 days, to renew or delete." %}</p>
+    <p class="explorer-card-text">{% trans "Every anyone-with-the-link link of the projects you can change, in one place. Anyone with a link can open its project's maps and 3D views without signing in, until the link expires or is revoked; with Allow Downloads, they can also download the outputs; with Allow Source Photos, they can see the task's photos that show a spot; with Require Sign-In, it asks for a WebODM login first (any account on this WebODM). Expired links are kept here for 90 days, to renew or delete." %}</p>
 
     {% if projects %}
     <form id="explorer-sharing-create" class="explorer-sharing-create explorer-share theme-border-secondary-07" hidden>
@@ -47,6 +47,7 @@
                 <option value="never">{% trans "Never expires" %}</option>
             </select>
             <label class="explorer-link-downloads"><input type="checkbox" name="downloads"> {% trans "Allow Downloads" %}</label>
+            <label class="explorer-link-downloads" title="{% trans "Source Frames on the link's maps and 3D views: the task's photos that show a spot" %}"><input type="checkbox" name="photos"> {% trans "Allow Source Photos" %}</label>
             <label class="explorer-link-downloads"><input type="checkbox" name="sign_in"> {% trans "Require Sign-In" %}</label>
             <button type="submit" class="btn btn-primary btn-sm"><i class="fa fa-link"></i> {% trans "Create Link" %}</button>
         </div>
@@ -91,7 +92,7 @@
                     <th scope="col">{% trans "Project" %}</th>
                     <th scope="col">{% trans "Link" %}</th>
                     <th scope="col">{% trans "Access" %}</th>
-                    <th scope="col">{% trans "Downloads" %}</th>
+                    <th scope="col">{% trans "Files" %}</th>
                     <th scope="col">{% trans "Created" %}</th>
                     <th scope="col">{% trans "Expires" %}</th>
                     <th scope="col"><span class="sr-only">{% trans "Actions" %}</span></th>

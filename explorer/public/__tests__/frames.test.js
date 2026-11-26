@@ -59,13 +59,13 @@ afterEach(() => {
     document.body.innerHTML = "";
 });
 
-function render(kind, responses, options) {
+function render(kind, responses, options, buttonExtra) {
     document.body.innerHTML = `
-        <div class="page" data-explorer-${kind === "map" ? "map" : "viewer"}>
+        <div class="page" data-explorer-${kind === "map" ? "map" : "viewer"} data-invalid="This link is no longer valid.">
             <div data-present>
                 <button data-tool="laser" aria-pressed="false"></button>
                 <button data-tool="highlight" aria-pressed="false"></button>
-                <button data-tool="frames" aria-pressed="false" data-frames-api="/api/frames/" data-images="/api/images/"></button>
+                <button data-tool="frames" aria-pressed="false" data-frames-api="/api/frames/" data-images="/api/images/" ${buttonExtra || ""}></button>
                 <input type="hidden" name="csrfmiddlewaretoken" value="tok">
             </div>
             <script type="application/json" id="explorer-frames-texts">${JSON.stringify(TEXTS)}</script>
@@ -261,6 +261,30 @@ test("before the 3D scene has started, the button does nothing yet", () => {
 test("a page without the button (a link, View as Visitor) has no Source Frames", () => {
     document.body.innerHTML = `<div class="page"><button data-tool="frames" aria-disabled="true"></button><div class="explorer-map"></div></div>`;
     expect(Frames.init(document.querySelector(".page"))).toBeNull();
+});
+
+test("on a link that doesn't allow downloads, the window and Open Full Frame offer no Download", async () => {
+    const { page, leaflet } = render("map", [answer(200, {frames: [frame("a.jpg")]})], {}, 'data-download="0" data-link');
+    key("s");
+    leaflet.map.click(1, 1);
+    await settle();
+    expect(page.querySelector(".explorer-sf-download")).toBeNull();
+    page.querySelector(".explorer-sf-open").click();
+    expect(page.querySelector(".explorer-sf-viewer [aria-label=Download]")).toBeNull();
+    key("Escape");  // the viewer's keyboard capture would outlive the test
+});
+
+test("a link revoked while open says it is no longer valid; a signed-in page shows the server's reason", async () => {
+    let { page, leaflet } = render("map", [answer(404, {detail: "Not found."})], {}, 'data-download="1" data-link');
+    key("s");
+    leaflet.map.click(1, 1);
+    await settle();
+    expect(page.querySelector(".explorer-sf-body").textContent).toBe("This link is no longer valid.");
+    ({ page, leaflet } = render("map", [answer(404, {detail: "Not found."})]));
+    key("s");
+    leaflet.map.click(1, 1);
+    await settle();
+    expect(page.querySelector(".explorer-sf-body").textContent).toBe("Not found.");
 });
 
 test("capture times read as dates, and none as nothing", () => {

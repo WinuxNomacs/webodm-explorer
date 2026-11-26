@@ -3,16 +3,21 @@ Tests of Source Frames, step A (upcoming-changes.md, "Plan: Source Frames in Exp
 (ported from TweakUI's tests), Explorer's API for signed-in users, and the button on the map and 3D pages. Run inside
 the dev stack's web container:
 docker exec -w /webodm ex-webapp python manage.py test --noinput coreplugins.explorer.tests
+
+Step B: links with Allow Source Photos, their token views (D1 widened: WebODM's photo Thumbnail and ImageDownload
+with the link's check, only for the task's photos), and the option in the Share panel and the Sharing Center.
 """
+import io
 import json
 import math
 import os
 import shutil
 from unittest import mock
 
+from app.api.imageuploads import ImageDownload, Thumbnail
 from app.models import Project
 from app.tests.classes import BootTestCase
-from coreplugins.explorer import frames, pages
+from coreplugins.explorer import api, frames, links, pages
 from coreplugins.explorer.tests.test_links import ALL_OUTPUTS, LinkTestMixin
 from django.test import Client
 from guardian.shortcuts import assign_perm
@@ -202,10 +207,10 @@ class FramesPageTests(FramesTestMixin, BootTestCase):
             self.assertIn('name="csrfmiddlewaretoken"', html)
         self.assertIn("S turns it on and off", self.html(f"{own}3d/{self.cameras.id}/"))
 
-    def test_view_as_visitor_shows_it_unavailable_and_links_dont_have_it_yet(self):
+    def test_view_as_visitor_shows_it_unavailable_and_a_link_without_photos_has_none(self):
         preview = self.html(f"/plugins/explorer/project/{self.project.id}/preview/map/{self.cameras.id}/")
         self.assertIn('data-tool="frames" aria-disabled="true"', preview)
-        self.assertIn("not available on links yet", preview)
+        self.assertIn("only on links that allow source photos", preview)
         self.assertNotIn("data-frames-api", preview)
         self.assertNotIn("frames.js?v=", preview)
         token = self.link()["token"]
@@ -227,3 +232,126 @@ class FramesPageTests(FramesTestMixin, BootTestCase):
         self.assertIsNotNone(pages.source_frames(viewer, self.cameras))
         self.assertIsNone(pages.source_frames(viewer, self.cameras, offset=False))
         self.assertIsNone(pages.source_frames(viewer, None))
+
+
+class LinkPhotosTests(FramesTestMixin, BootTestCase):
+    def setUp(self):
+        super().setUp()
+        # Two photos in the task's folder, as WebODM keeps them; a.jpg with EXIF a link must not pass on
+        from PIL import Image
+        exif = Image.Exif()
+        exif[0x010F] = "Test Maker"  # Make
+        exif[0x0110] = "Serial 12345"  # Model
+        for name in ("a.jpg", "b.jpg"):
+            Image.new("RGB", (400, 300), (120, 60, 30)).save(self.cameras.task_path(name), exif=exif)
+        self.photos = links.create_link(self.project.id, "Photos", 30, self.owner, photos=True)
+        self.plain = links.create_link(self.project.id, "Plain", 30, self.owner)
+        self.both = links.create_link(self.project.id, "Both", 30, self.owner, downloads=True, photos=True)
+
+    def base(self, link):
+        return f"/api/plugins/explorer/s/{link['token']}/tasks/{self.cameras.id}/"
+
+    def spot(self):
+        return {"type": "Point", "coordinates": self.lnglat(self.X, self.Y)}
+
+    def test_the_views_are_webodms_photo_views_with_the_links_check(self):
+        self.assertTrue(issubclass(api.TokenPhotoThumbnail, Thumbnail))
+        self.assertTrue(issubclass(api.TokenPhotoDownload, ImageDownload))
+
+    def test_allow_source_photos_is_off_by_default_and_on_old_links_and_set_through_the_api(self):
+        client = self.client_for("testuser")
+        made = client.post(self.links_api(), {"label": "x"}, content_type="application/json").json()
+        self.assertFalse(made["photos"])
+        made = client.post(self.links_api(), {"label": "y", "photos": True}, content_type="application/json").json()
+        self.assertTrue(made["photos"])
+        self.assertEqual(client.post(self.links_api(), {"photos": "yes"}, content_type="application/json").status_code, 400)
+        url = f"{self.links_api()}{self.plain['token']}/"
+        self.assertTrue(client.patch(url, {"photos": True}, content_type="application/json").json()["photos"])
+        self.assertTrue(links.allows_photos(links.resolve(self.plain["token"])[1]))
+        self.assertFalse(links.allows_photos({"token": "t"}))  # made before the option: off
+        with self.assertRaises(TypeError):
+            links.set_options(self.project.id, self.plain["token"], photos="yes")
+
+    def test_a_link_with_photos_finds_them_and_one_without_is_refused_like_any_bad_link(self):
+        response = self.post(self.spot(), client=Client(), url=self.base(self.photos) + "frames/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([f["filename"] for f in response.json()["frames"]], ["a.jpg", "b.jpg"])
+        self.assertEqual(self.post(self.spot(), client=Client(), url=self.base(self.plain) + "frames/").status_code, 404)
+        self.assertEqual(self.post(self.spot(), client=Client(),
+                                   url=f"/api/plugins/explorer/s/{'x' * 43}/tasks/{self.cameras.id}/frames/").status_code, 404)
+        links.revoke_link(self.project.id, self.photos["token"])
+        self.assertEqual(self.post(self.spot(), client=Client(), url=self.base(self.photos) + "frames/").status_code, 404)
+
+    def test_an_expired_link_or_one_that_asks_for_a_login_refuses_a_visitor(self):
+        login = links.create_link(self.project.id, "Login", 30, self.owner, sign_in=True, photos=True)
+        self.assertEqual(self.post(self.spot(), client=Client(), url=self.base(login) + "frames/").status_code, 404)
+        self.assertEqual(self.post(self.spot(), client=self.client_for("testuser2"),
+                                   url=self.base(login) + "frames/").status_code, 200)
+        from datetime import timedelta
+
+        from django.utils import timezone
+        with mock.patch("django.utils.timezone.now", return_value=timezone.now() + timedelta(days=31)):
+            self.assertEqual(self.post(self.spot(), client=Client(), url=self.base(self.photos) + "frames/").status_code, 404)
+
+    def test_a_visitor_posts_with_the_link_pages_csrf_token(self):
+        strict = Client(enforce_csrf_checks=True)
+        page = strict.get(f"/plugins/explorer/s/{self.photos['token']}/map/{self.cameras.id}/")
+        self.assertEqual(page.status_code, 200)
+        token = page.cookies["csrftoken"].value
+        url = self.base(self.photos) + "frames/"
+        self.assertEqual(strict.post(url, json.dumps(self.spot()), content_type="application/json").status_code, 403)
+        response = strict.post(url, json.dumps(self.spot()), content_type="application/json", HTTP_X_CSRFTOKEN=token)
+        self.assertEqual(response.status_code, 200)
+
+    def test_a_links_photo_thumbnail_is_a_jpeg_without_the_photos_exif(self):
+        from PIL import Image
+        response = Client().get(self.base(self.photos) + "images/thumbnail/a.jpg?size=200")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "image/jpeg")
+        self.assertEqual(response["Referrer-Policy"], "strict-origin")
+        image = Image.open(io.BytesIO(response.content))
+        self.assertEqual(max(image.size), 200)
+        self.assertEqual(dict(image.getexif()), {})
+        self.assertNotIn(b"Serial 12345", response.content)
+        self.assertEqual(Client().get(self.base(self.plain) + "images/thumbnail/a.jpg").status_code, 404)
+
+    def test_only_the_tasks_photos_are_served_never_another_file_in_its_folder(self):
+        # WebODM's own views resolve any path inside the task's folder; a link's only the photos with a pose
+        os.makedirs(self.cameras.assets_path("odm_orthophoto"), exist_ok=True)
+        from PIL import Image
+        Image.new("RGB", (50, 50)).save(self.cameras.assets_path("odm_orthophoto", "orthophoto.tif"))
+        Image.new("RGB", (50, 50)).save(self.cameras.task_path("stray.jpg"))
+        with open(self.cameras.assets_path("all.zip"), "wb") as f:
+            f.write(b"PK")
+        for name in ("assets/odm_orthophoto/orthophoto.tif", "stray.jpg", "../a.jpg", "assets/all.zip", "%2e%2e/a.jpg"):
+            self.assertEqual(Client().get(self.base(self.both) + f"images/thumbnail/{name}").status_code, 404, name)
+            self.assertEqual(Client().get(self.base(self.both) + f"images/download/{name}").status_code, 404, name)
+
+    def test_the_original_photo_downloads_only_through_a_link_that_also_allows_downloads(self):
+        self.assertEqual(Client().get(self.base(self.photos) + "images/download/a.jpg").status_code, 404)
+        response = Client().get(self.base(self.both) + "images/download/a.jpg")
+        self.assertEqual(response.status_code, 200)
+        with open(self.cameras.task_path("a.jpg"), "rb") as f:
+            self.assertEqual(b"".join(response.streaming_content) if response.streaming else response.content, f.read())
+
+    def test_the_link_pages_offer_source_frames_as_the_link_allows(self):
+        for link, download in ((self.photos, "0"), (self.both, "1")):
+            for kind in ("map", "3d"):
+                html = Client().get(f"/plugins/explorer/s/{link['token']}/{kind}/{self.cameras.id}/").content.decode()
+                self.assertIn(f'data-frames-api="{self.base(link)}frames/"', html, kind)
+                self.assertIn(f'data-images="{self.base(link)}images/"', html)
+                self.assertIn(f'data-download="{download}" data-link', html)
+                self.assertIn("frames.js?v=", html)
+        html = Client().get(f"/plugins/explorer/s/{self.plain['token']}/map/{self.cameras.id}/").content.decode()
+        self.assertNotIn('data-tool="frames"', html)
+        # The signed-in user's own page: WebODM's photo views, with Download
+        own = self.client_for("testuser").get(f"/plugins/explorer/project/{self.project.id}/map/{self.cameras.id}/")
+        self.assertIn('data-download="1"', own.content.decode())
+        self.assertNotIn("data-link", own.content.decode().split('data-tool="frames"')[1].split(">")[0])
+
+    def test_the_share_panel_and_sharing_center_offer_allow_source_photos(self):
+        client = self.client_for("testuser")
+        for path in (f"/plugins/explorer/project/{self.project.id}/", "/plugins/explorer/sharing/"):
+            html = client.get(path).content.decode()
+            self.assertIn('<input type="checkbox" name="photos">', html, path)
+            self.assertIn('data-photos="Allow Source Photos"', html, path)
