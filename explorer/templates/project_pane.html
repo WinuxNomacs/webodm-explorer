@@ -1,6 +1,7 @@
 {% load i18n %}{# List view's right pane (pages.project_pane): a project's details, options and tasks; also served alone for the page's script #}
 {% with project=pane.project %}
 <div class="explorer-pane-body" data-pane-project="{{ project.id }}">
+    {% if pane.results_href %}<a class="explorer-pane-results" href="{{ pane.results_href }}" data-pane-results><i class="fa fa-chevron-left"></i> {% trans "Back to Search Results" %}</a>{% endif %}
     <div class="explorer-header">
         <h3 class="explorer-pane-title"><a href="{{ pane.path }}">{{ project.name }}</a>{% if pane.links.count %}
             <span class="label {% if pane.links.expires_soon %}label-warning{% else %}label-default{% endif %} explorer-link-badge"
@@ -34,31 +35,7 @@
         <a href="{{ pane.path }}" data-pane-all="{{ project.id }}">{% trans "Show All Tasks" %}</a></p>
     {% endif %}
     {% if pane.cards %}
-    <ul class="explorer-task-rows">
-        {% for card in pane.cards %}{% with task=card.task picture=card.picture %}
-        <li class="explorer-task-row theme-border-secondary-07">
-            <a class="explorer-row-thumbnail" href="{{ card.page }}" tabindex="-1" aria-hidden="true">
-            {% if picture.webodm %}
-            <img class="explorer-thumbnail" loading="lazy" alt="" data-placeholder-icon="fa fa-cube"
-                 src="/api/projects/{{ project.id }}/tasks/{{ task.id }}/thumbnail?size=256"{% if picture.draw %}
-                 data-draw="{{ picture.draw }}" data-api="/api/projects/{{ project.id }}/tasks/{{ task.id }}/"{% if task.crop %} data-crop="1"{% endif %}{% endif %}>
-            {% else %}
-            <div class="explorer-thumbnail explorer-no-thumbnail theme-border-secondary-07"{% if picture.draw %}
-                 data-draw="{{ picture.draw }}" data-api="/api/projects/{{ project.id }}/tasks/{{ task.id }}/"{% if task.crop %} data-crop="1"{% endif %}{% endif %}><i class="fa fa-cube"></i></div>
-            {% endif %}
-            </a>
-            <div class="explorer-row-body">
-                <a class="explorer-card-title explorer-title-link" href="{{ card.page }}">{% if task.name %}{{ task.name }}{% else %}{% trans "Unnamed Task" %}{% endif %}</a>
-                <div class="explorer-card-text">{{ task.created_at|date:"SHORT_DATETIME_FORMAT" }}{% for fact in card.facts %} &middot; {{ fact }}{% endfor %}</div>
-                <div class="explorer-outputs">
-                    {% for output in card.outputs %}
-                    <a class="btn btn-default btn-xs explorer-chip" href="{{ output.url }}"{% if output.detail %} title="{{ output.detail }}"{% endif %}><i class="{{ output.icon }}"></i> {{ output.label }}</a>
-                    {% endfor %}
-                </div>
-            </div>
-        </li>
-        {% endwith %}{% endfor %}
-    </ul>
+    {% include task_rows_template with cards=pane.cards %}
     {% else %}
     <p class="explorer-card-text">{% trans "No completed tasks with outputs yet. Tasks appear here once they finish processing." %}</p>
     {% endif %}

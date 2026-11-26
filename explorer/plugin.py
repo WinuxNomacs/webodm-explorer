@@ -102,11 +102,14 @@ class Plugin(PluginBase):
                 context.update(places=pages.home_map(request.user, query, public),
                                basemaps=options.signed_in_basemaps())
             elif query.view == "list":
-                folder = pages.home_list(request.user, query)
+                folder = pages.home_list(request.user, query, public)
                 selected = folder["selected"]
                 for entry in folder["entries"]:
                     entry["params"] = query.params(project=str(entry["project"].id))
                 context.update(folder=folder, pane_template=self.template_path("project_pane.html"),
+                               results_template=self.template_path("search_results.html"),
+                               task_rows_template=self.template_path("task_rows.html"),
+                               results_params=query.params(project=""),
                                cards_template=self.template_path("cards.html"),
                                downloads_template=self.template_path("download_items.html"),
                                pane=(pages.project_pane(request.user, selected["project"], public, query.q)
@@ -129,10 +132,23 @@ class Plugin(PluginBase):
             """
             project = viewable_project(request, project_pk)
             q = pages.home_query(request.GET).q
+            # Show All Tasks: every task, still under the search (Back to Search Results)
+            narrow = request.GET.get("all") != "1"
             return render(request, self.template_path("project_pane.html"), {
-                "public": public, "pane": pages.project_pane(request.user, project, public, q),
+                "public": public, "pane": pages.project_pane(request.user, project, public, q, narrow),
+                "task_rows_template": self.template_path("task_rows.html"),
                 "cards_template": self.template_path("cards.html"),
                 "downloads_template": self.template_path("download_items.html")})
+
+        @signed_in_page
+        def list_results(request):
+            """List view's Search Results alone, for the page's script, with the home's search and filters."""
+            query = pages.home_query(request.GET)._replace(view="list")
+            if not query.q:
+                raise Http404()
+            return render(request, self.template_path("search_results.html"), {
+                "public": public, "results": pages.search_results(request.user, query, public),
+                "task_rows_template": self.template_path("task_rows.html")})
 
         @signed_in_page
         def settings_page(request):
@@ -440,6 +456,7 @@ class Plugin(PluginBase):
             (r"settings/", settings_page),
             (r"sharing/", sharing_center),
             (r"list/(?P<project_pk>[0-9]+)/", list_pane),
+            (r"list/results/", list_results),
             (r"project/(?P<project_pk>[0-9]+)/", project_page),
             (rf"project/(?P<project_pk>[0-9]+)/map/{TASK}/", own_map),
             (rf"project/(?P<project_pk>[0-9]+)/3d/{TASK}/", own_3d),

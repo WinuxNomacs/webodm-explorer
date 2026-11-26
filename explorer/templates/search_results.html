@@ -1,0 +1,20 @@
+{% load i18n %}{# List view's Search Results (pages.search_results): the tasks a search matched, under their projects; also served alone for the page's script #}
+<div class="explorer-pane-body explorer-search-results" data-pane-project="">
+    <div class="explorer-header">
+        <h3 class="explorer-pane-title"><i class="fa fa-search"></i> {% trans "Search Results" %}</h3>
+    </div>
+    <p class="explorer-card-text">{% blocktrans with q=results.q count count=results.tasks %}{{ count }} task matches "{{ q }}".{% plural %}{{ count }} tasks match "{{ q }}".{% endblocktrans %}{% if results.capped %} {% blocktrans with count=results.limit %}The {{ count }} newest are shown.{% endblocktrans %}{% endif %}</p>
+    {% for group in results.groups %}
+    <section class="explorer-results-group">
+        <div class="explorer-results-heading theme-border-secondary-07">
+            <a class="explorer-card-title explorer-title-link" href="?view=list&amp;q={{ results.q|urlencode }}&amp;project={{ group.project.id }}" data-pane-open="{{ group.project.id }}">{{ group.project.name }}</a>
+            <a class="btn btn-default btn-xs" href="{{ group.path }}"><i class="fa fa-folder-open"></i> {% trans "Open Project Page" %}</a>
+        </div>
+        {% if group.cards %}
+        {% include task_rows_template with cards=group.cards %}
+        {% else %}
+        <p class="explorer-card-text explorer-results-note">{% trans "The project's name, description or tags match." %}</p>
+        {% endif %}
+    </section>
+    {% endfor %}
+</div>

@@ -18,7 +18,8 @@ links are public.
 
 - **Explorer** in the main menu opens a drop-down: **Projects** and **Sharing Center**. **Projects** lists the projects you can view (WebODM's admins: every project), with **Search Projects & Tasks**
   (projects' names, descriptions and tags and their tasks' names, filtering as you type from the second letter; a
-  project found by a task's name shows that task), **All**, **Mine** or **Shared with Me**, sorting by **Recent Activity**, **Name**
+  project found by a task's name shows that task, and List view opens on Search Results: every project's matching
+  tasks under its name), **All**, **Mine** or **Shared with Me**, sorting by **Recent Activity**, **Name**
   or **Created**, and **Has 3D** and **Shared by Link** filters, 24 projects to a page; the page's address keeps
   them, so a view can be bookmarked. Each card shows the project's picture, description, tags, a count per output
   type, its last activity, its owner when it isn't you, and its active links (marked when one expires within 7 days)
