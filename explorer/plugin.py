@@ -7,6 +7,7 @@ from django.contrib.auth.views import redirect_to_login
 from django.dispatch import receiver
 from django.http import Http404, HttpResponseRedirect
 from django.shortcuts import get_object_or_404, render
+from django.utils.cache import patch_vary_headers
 from django.utils.translation import gettext as _
 
 from . import api, links, options, pages, tiles
@@ -80,10 +81,14 @@ class Plugin(PluginBase):
 
         @signed_in_page
         def project_list(request):
-            query = pages.home_query(request.GET, pages.saved_view(request.user))
-            # A view named in the address is the user's choice: the home opens in it next time
+            # A phone always opens in Grid; a computer in the user's last choice (List at first)
+            phone = pages.is_phone(request)
+            query = pages.home_query(request.GET, pages.PHONE_VIEW if phone else pages.saved_view(request.user))
+            # A view named in the address is the user's choice: on a computer the home opens in it next time (a
+            # phone's choice isn't kept, so it never changes the computer's)
             if request.GET.get("view") in pages.VIEWS:
-                pages.save_view(request.user, query.view)
+                if not phone:
+                    pages.save_view(request.user, query.view)
                 query = query._replace(default_view=query.view)
             context = {
                 "title": _("Explorer"),
@@ -122,7 +127,10 @@ class Plugin(PluginBase):
                                                                            query.q),
                                previous_params=query.params(page=str(page.number - 1)) if page.has_previous() else None,
                                next_params=query.params(page=str(page.number + 1)) if page.has_next() else None)
-            return render(request, self.template_path("projects.html"), context)
+            response = render(request, self.template_path("projects.html"), context)
+            # The view depends on the device: no cache may give a phone's page to a computer
+            patch_vary_headers(response, ("Sec-CH-UA-Mobile", "User-Agent"))
+            return response
 
         @signed_in_page
         def list_pane(request, project_pk):

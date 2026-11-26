@@ -43,7 +43,7 @@ class ThermalAndPicturesTests(LinkTestMixin, BootTestCase):
 
     def test_the_project_list_draws_a_thermal_projects_picture(self):
         thermal = self.task("Thermal", ["orthophoto.tif"], orthophoto_bands=THERMAL_BANDS)
-        html = self.client_for("testuser").get("/plugins/explorer/").content.decode()
+        html = self.client_for("testuser").get("/plugins/explorer/?view=grid").content.decode()
         self.assertIn(f'data-draw="thermal"\n                 data-api="/api/projects/{self.project.id}/tasks/{thermal.id}/"', html)
 
     def test_a_thermal_link_map_offers_thermal_first(self):

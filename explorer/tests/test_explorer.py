@@ -107,7 +107,7 @@ class ExplorerTestCase(BootTestCase):
         task = self.task("With Ortho", ["orthophoto.tif"])
         self.task("Point Cloud Only", ["georeferenced_model.laz"])
         self.task("Running", ["orthophoto.tif"], status=status_codes.RUNNING)
-        response = self.client_for("testuser").get("/plugins/explorer/")
+        response = self.client_for("testuser").get("/plugins/explorer/?view=grid")
         self.assertContains(response, '<i class="fa fa-globe"></i> 2<span class="sr-only"> Map</span>')
         self.assertContains(response, '<i class="fa fa-pointcloud"></i> 1<span class="sr-only"> Point Cloud</span>')
         self.assertContains(response, f"/api/projects/{self.project.id}/tasks/{task.id}/thumbnail?size=512")

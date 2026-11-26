@@ -30,22 +30,22 @@ class SearchTests(HubTestMixin, BootTestCase):
         self.assertContains(response, "data-explorer-results")
 
     def test_a_task_name_finds_its_project_in_any_case_and_the_card_names_the_task(self):
-        response = self.home("q=barn+ROOF")
+        response = self.grid("q=barn+ROOF")
         self.assertEqual(self.names(response), ["User Test Project"])
         self.assertContains(response, "Matching task: Barn Roof")
         self.assertNotContains(response, "North Field")
 
     def test_project_names_descriptions_and_tags_still_match_without_naming_tasks(self):
         Project.objects.filter(pk=self.other_project.pk).update(description="the gravel pit")
-        response = self.home("q=gravel")
+        response = self.grid("q=gravel")
         self.assertEqual(self.names(response), ["User 2 Test Project"])
         self.assertNotContains(response, "Matching task")
-        self.assertEqual(self.names(self.home("q=User+2")), ["User 2 Test Project"])
+        self.assertEqual(self.names(self.grid("q=User+2")), ["User 2 Test Project"])
 
     def test_a_card_names_three_matching_tasks_and_counts_the_rest(self):
         for name in ("Roof A", "Roof B", "Roof C"):
             self.task(name)
-        response = self.home("q=roof")
+        response = self.grid("q=roof")
         self.assertContains(response, "Matching tasks:")
         self.assertContains(response, "and 1 more")
 

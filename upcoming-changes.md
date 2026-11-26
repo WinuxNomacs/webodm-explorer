@@ -8,7 +8,8 @@ WebODM-Plugins entry as draft pull request #16 (the user marks it ready).
 Up next: **the road to 1.0.0** (below): each phase discussed with the user when it comes up.
 
 Built: **Search Projects & Tasks** (the user's request 2026-11-26; plan below; see "Done"), then **List view's
-Search Results** (the user's follow-up the same day).
+Search Results** (the user's follow-up the same day), then **List by default, Grid on phones** (the same day; see
+"Done").
 
 Built: **fix: the Sharing Center's table too wide for the page** (see "Done").
 
@@ -1217,6 +1218,18 @@ The user chose to fix all four groups:
    of the plugin's folder (they survive upgrades).
 
 ## Done
+
+- **List by default, Grid on phones** (2026-11-26, branch `default-list`). The request: "Make List view the default
+  view, but make Grid the default on mobile/phone platforms." The user's answer on how it meets the remembered view:
+  phones always open in Grid (a view named in the address shows, but a phone's choice isn't kept, so it can't change
+  the computer's); computers open in List until the user picks another view, then in their choice. `pages.is_phone`
+  (the `Sec-CH-UA-Mobile: ?1` client hint Chromium sends, else "Mobi" in the user agent, as MDN recommends; tablets
+  get the computer's view), `COMPUTER_VIEW` / `PHONE_VIEW`, `saved_view` (List when none or unreadable);
+  `plugin.project_list` (no save from a phone; `Vary: Sec-CH-UA-Mobile, User-Agent`). Tests: `test_list_view.py` (the
+  computer's default and memory, a phone by its user agent and by the client hint, a failing store); Grid card tests
+  now ask for Grid (`HubTestMixin.grid`). A mutation check (no user-agent detection) failed the phone test. Live: a
+  computer opens in List; an iPhone 15 and a Pixel 7 (Playwright's devices) in Grid, Map chosen there not kept; the
+  user's saved view unchanged.
 
 - **List view's Search Results** (2026-11-26, branch `search-results`): `pages.search_results` (the listed projects
   with their matching tasks' rows, the newest `RESULTS_TASKS` = 100 in all), `home_list` (no project selected during a

@@ -36,6 +36,10 @@ class HubTestMixin(LinkTestMixin):
     def home(self, query="", username="testuser"):
         return self.client_for(username).get(HOME + ("?" + query if query else ""))
 
+    def grid(self, query="", username="testuser"):
+        """The home in Grid (computers open in List by default)."""
+        return self.home("view=grid" + ("&" + query if query else ""), username)
+
     def names(self, response):
         """The project names on the home's cards, in order."""
         return re.findall(r'<span class="explorer-card-title">([^<]*)</span>', response.content.decode())
@@ -48,25 +52,25 @@ class HubTestMixin(LinkTestMixin):
 
 class HomeTests(HubTestMixin, BootTestCase):
     def test_admins_see_every_project_and_can_narrow_to_their_own(self):
-        response = self.home(username="testsuperuser")
+        response = self.grid(username="testsuperuser")
         self.assertEqual(set(self.names(response)),
                          {"Super User Test Project", "User Test Project", "User 2 Test Project"})
-        self.assertEqual(self.names(self.home("scope=mine", "testsuperuser")), ["Super User Test Project"])
+        self.assertEqual(self.names(self.grid("scope=mine", "testsuperuser")), ["Super User Test Project"])
 
     def test_a_user_sees_their_own_and_shared_projects_and_can_pick_either(self):
         assign_perm("view_project", self.owner, self.other_project)
-        self.assertEqual(set(self.names(self.home())), {"User Test Project", "User 2 Test Project"})
-        self.assertEqual(self.names(self.home("scope=mine")), ["User Test Project"])
-        self.assertEqual(self.names(self.home("scope=shared")), ["User 2 Test Project"])
+        self.assertEqual(set(self.names(self.grid())), {"User Test Project", "User 2 Test Project"})
+        self.assertEqual(self.names(self.grid("scope=mine")), ["User Test Project"])
+        self.assertEqual(self.names(self.grid("scope=shared")), ["User 2 Test Project"])
 
     def test_the_search_matches_names_descriptions_and_tags_in_any_case(self):
         assign_perm("view_project", self.owner, self.other_project)
         Project.objects.filter(pk=self.project.pk).update(description="Roof survey of the barn")
         Project.objects.filter(pk=self.other_project.pk).update(tags="quarry .dji-thermal-dataset")
-        self.assertEqual(self.names(self.home("q=BARN")), ["User Test Project"])
-        self.assertEqual(self.names(self.home("q=Quarry")), ["User 2 Test Project"])
-        self.assertEqual(self.names(self.home("q=User+2")), ["User 2 Test Project"])
-        response = self.home("q=nothing-like-this")
+        self.assertEqual(self.names(self.grid("q=BARN")), ["User Test Project"])
+        self.assertEqual(self.names(self.grid("q=Quarry")), ["User 2 Test Project"])
+        self.assertEqual(self.names(self.grid("q=User+2")), ["User 2 Test Project"])
+        response = self.grid("q=nothing-like-this")
         self.assertEqual(self.names(response), [])
         self.assertContains(response, "No projects match.")
         self.assertContains(response, 'value="nothing-like-this"')
@@ -78,24 +82,24 @@ class HomeTests(HubTestMixin, BootTestCase):
         Project.objects.filter(pk=self.other_project.pk).update(created_at=timezone.now() - timedelta(days=5),
                                                                name="a quarry")
         self.task("New", created_at=timezone.now())
-        self.assertEqual(self.names(self.home()), ["User Test Project", "a quarry"])
-        self.assertEqual(self.names(self.home("sort=created")), ["a quarry", "User Test Project"])
-        self.assertEqual(self.names(self.home("sort=name")), ["a quarry", "User Test Project"])
-        self.assertEqual(self.names(self.home("sort=bogus")), ["User Test Project", "a quarry"])
+        self.assertEqual(self.names(self.grid()), ["User Test Project", "a quarry"])
+        self.assertEqual(self.names(self.grid("sort=created")), ["a quarry", "User Test Project"])
+        self.assertEqual(self.names(self.grid("sort=name")), ["a quarry", "User Test Project"])
+        self.assertEqual(self.names(self.grid("sort=bogus")), ["User Test Project", "a quarry"])
 
     def test_has_3d_keeps_projects_with_a_3d_output(self):
         assign_perm("view_project", self.owner, self.other_project)
         self.task("Flat", ["orthophoto.tif"])
         self.task("Cloud", ["georeferenced_model.laz"], project=self.other_project)
         self.task("Failed Cloud", ["georeferenced_model.laz"], status=status_codes.FAILED)
-        self.assertEqual(self.names(self.home("3d=1")), ["User 2 Test Project"])
+        self.assertEqual(self.names(self.grid("3d=1")), ["User 2 Test Project"])
 
     def test_shared_by_link_keeps_projects_with_a_live_link(self):
         assign_perm("view_project", self.owner, self.other_project)
         self.link()
-        self.assertEqual(self.names(self.home("linked=1")), ["User Test Project"])
+        self.assertEqual(self.names(self.grid("linked=1")), ["User Test Project"])
         links.revoke_link(self.project.id, links.list_links(self.project.id)[0]["token"])
-        self.assertEqual(self.names(self.home("linked=1")), [])
+        self.assertEqual(self.names(self.grid("linked=1")), [])
 
     def test_an_expired_link_does_not_count_as_shared(self):
         self.link()
@@ -120,20 +124,20 @@ class HomeTests(HubTestMixin, BootTestCase):
     def test_projects_come_24_to_a_page_keeping_the_query_in_the_page_links(self):
         for i in range(25):
             Project.objects.create(owner=self.owner, name=f"Many {i:02d}")
-        first = self.home("q=many&sort=name")
+        first = self.grid("q=many&sort=name")
         self.assertEqual(len(self.names(first)), 24)
         self.assertContains(first, "Page 1 of 2")
         self.assertContains(first, 'href="?q=many&amp;sort=name&amp;page=2"')
-        second = self.home("q=many&sort=name&page=2")
+        second = self.grid("q=many&sort=name&page=2")
         self.assertEqual(self.names(second), ["Many 24"])
         self.assertContains(second, 'href="?q=many&amp;sort=name"')  # back to the first page, without page=1
-        self.assertEqual(self.names(self.home("q=many&sort=name&page=nope"))[0], "Many 00")
+        self.assertEqual(self.names(self.grid("q=many&sort=name&page=nope"))[0], "Many 00")
 
     def test_a_card_shows_user_tags_counts_and_the_owner_when_it_is_not_you(self):
         assign_perm("view_project", self.owner, self.other_project)
         Project.objects.filter(pk=self.other_project.pk).update(tags="quarry .dji-thermal-dataset", description="Pit")
         self.task("Everything", project=self.other_project)
-        html = self.home().content.decode()
+        html = self.grid().content.decode()
         self.assertIn('<span class="explorer-tag theme-border-secondary-07">quarry</span>', html)
         self.assertNotIn("dji-thermal-dataset", html)
         self.assertIn("&middot; testuser2", html)
