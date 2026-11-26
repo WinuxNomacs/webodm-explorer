@@ -79,6 +79,8 @@ own (e.g. starting "Live check"), delete only that afterwards, and say what was 
   the signed-in map and 3D pages of a task with camera shots: the map's window and Open Full Frame (arrows, Esc, the
   focus given back), the textured model's and the point cloud's spot near the best photo's middle (the offset is
   right), frame times and long tasks while the window loads, the Laser Pointer and Source Frames turning each other
-  off, View as Visitor showing it unavailable, and a phone (the window as a sheet). Creates nothing. On the point
+  off, View as Visitor showing it unavailable, and a phone (the window as a sheet). Step B: a "Live check photos" link
+  with Allow Source Photos used as a visitor (photos through the link, no Download until it allows downloads, a stray
+  path refused, a revoke while open), revoked at the end, also on failure; its output masks tokens. On the point
   cloud a click can pick a stray point floating in front of the ground (task 25cdbf17, 2026-11-25): its best photos
   then show the spot in the sky, which is right for that point.
