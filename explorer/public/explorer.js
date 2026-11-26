@@ -647,10 +647,10 @@
         return form;
     }
 
-    // A link's Allow Downloads, Require Sign-In or Allow Source Photos (name), changed at once; the box goes back if the
-    // change fails.
+    // A link's Allow Downloads, Require Sign-In, Allow Source Photos or Allow All Task Files (name), changed at once; the
+    // box goes back if the change fails.
     // ctx: {request, url (the link's API), forced (Require Sign-In fixed on by Explorer Settings), forcedTitle,
-    // disabled, done(message or "")}
+    // disabled, done(message or ""), changed() (after each change, done or not)}
     function linkToggle(link, name, caption, ctx) {
         var label = element("label", "explorer-link-downloads explorer-card-text");
         var toggle = element("input");
@@ -671,11 +671,47 @@
             }, function (e) {
                 toggle.checked = !wanted;
                 ctx.done(e.message);
-            }).then(function () { busy(toggle, false); });
+            }).then(function () {
+                busy(toggle, false);
+                if (ctx.changed) ctx.changed();
+            });
         });
         label.appendChild(toggle);
         label.appendChild(document.createTextNode(" " + caption));
         return label;
+    }
+
+    // A link's file options: Allow Downloads, Allow Source Photos and Allow All Task Files, which works only with Allow
+    // Downloads, so its box is greyed out (keeping its value) while downloads are off. ctx as linkToggle's, per link.
+    function linkFileToggles(link, text, ctx) {
+        var all = linkToggle(link, "all_files", text("all-files"), ctx);
+        var box = all.querySelector("input");
+        all.title = text("all-files-title") || "";
+        ctx.changed = function () { box.disabled = !!ctx.disabled || !link.downloads; };
+        ctx.changed();
+        return [linkToggle(link, "downloads", text("downloads"), ctx), linkToggle(link, "photos", text("photos"), ctx),
+            all];
+    }
+
+    // A create form's Allow All Task Files, usable only while its Allow Downloads is ticked
+    function formFileOptions(form) {
+        var downloads = form.elements.downloads, all = form.elements.all_files;
+        function sync() {
+            all.disabled = !downloads.checked;
+            if (all.disabled) all.checked = false;
+        }
+        downloads.addEventListener("change", sync);
+        sync();
+        return {
+            values: function () {
+                return {downloads: downloads.checked, photos: form.elements.photos.checked, all_files: all.checked};
+            },
+            reset: function () {
+                downloads.checked = false;
+                form.elements.photos.checked = false;
+                sync();
+            }
+        };
     }
 
     function expiryText(text, link) {
@@ -702,6 +738,7 @@
         var list = box.querySelector(".explorer-links-list");
         var form = box.querySelector(".explorer-link-form");
         var submit = form.querySelector("[type=submit]");
+        var fileOptions = formFileOptions(form);
         var errorBox = box.querySelector(".explorer-links-error");
         var csrf = form.querySelector("input[name=csrfmiddlewaretoken]").value;
 
@@ -731,8 +768,7 @@
             var heading = element("div", "explorer-link-heading");
             heading.appendChild(element("span", "explorer-card-title", link.label || text("untitled")));
             heading.appendChild(element("span", "explorer-card-text", expiryText(text, link)));
-            heading.appendChild(linkToggle(link, "downloads", text("downloads"), toggleCtx));
-            heading.appendChild(linkToggle(link, "photos", text("photos"), toggleCtx));
+            linkFileToggles(link, text, toggleCtx).forEach(function (toggle) { heading.appendChild(toggle); });
             heading.appendChild(linkToggle(link, "sign_in", text("sign-in"), toggleCtx));
             row.appendChild(heading);
 
@@ -805,13 +841,14 @@
             e.preventDefault();
             submit.disabled = true;
             var signIn = form.elements.sign_in;
-            request("POST", api, {label: form.elements.label.value, expires_days: form.elements.expires_days.value,
-                downloads: form.elements.downloads.checked, photos: form.elements.photos.checked,
-                sign_in: signIn ? signIn.checked : false})
+            var created = fileOptions.values();
+            created.label = form.elements.label.value;
+            created.expires_days = form.elements.expires_days.value;
+            created.sign_in = signIn ? signIn.checked : false;
+            request("POST", api, created)
                 .then(function (link) {
                     form.elements.label.value = "";
-                    form.elements.downloads.checked = false;
-                    form.elements.photos.checked = false;
+                    fileOptions.reset();
                     if (signIn && !signInForced) signIn.checked = false;
                     return load().then(function () {
                         var input = list.querySelector('[data-token="' + link.token + '"] .explorer-link-address');
@@ -919,8 +956,7 @@
                 }};
             cell(row, "column-access").appendChild(linkToggle(link, "sign_in", text("sign-in"), toggleCtx));
             var files = cell(row, "column-downloads");
-            files.appendChild(linkToggle(link, "downloads", text("downloads"), toggleCtx));
-            files.appendChild(linkToggle(link, "photos", text("photos"), toggleCtx));
+            linkFileToggles(link, text, toggleCtx).forEach(function (toggle) { files.appendChild(toggle); });
 
             var made = cell(row, "column-created", "explorer-card-text explorer-sharing-dates");
             made.appendChild(element("div", null, new Date(link.created).toLocaleDateString()));
@@ -1060,6 +1096,7 @@
             var picker = createForm.elements.project;
             var signIn = createForm.elements.sign_in;
             var submit = createForm.querySelector("[type=submit]");
+            var fileOptions = formFileOptions(createForm);
             var createError = createForm.querySelector(".explorer-sharing-create-error");
             function byId(id) {
                 return projects.filter(function (project) { return String(project.id) === String(id); })[0];
@@ -1083,12 +1120,13 @@
                 if (!project) return;
                 submit.disabled = true;
                 createError.hidden = true;
-                request("POST", project.links_api, {label: createForm.elements.label.value,
-                    expires_days: createForm.elements.expires_days.value, downloads: createForm.elements.downloads.checked,
-                    photos: createForm.elements.photos.checked, sign_in: signIn.checked}).then(function (link) {
+                var created = fileOptions.values();
+                created.label = createForm.elements.label.value;
+                created.expires_days = createForm.elements.expires_days.value;
+                created.sign_in = signIn.checked;
+                request("POST", project.links_api, created).then(function (link) {
                     createForm.elements.label.value = "";
-                    createForm.elements.downloads.checked = false;
-                    createForm.elements.photos.checked = false;
+                    fileOptions.reset();
                     if (!signIn.disabled) signIn.checked = false;
                     return load().then(function () {
                         // The new link shown even where the filters would leave it out

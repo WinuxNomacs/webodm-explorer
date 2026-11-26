@@ -3,8 +3,8 @@
 
 Links live in the plugin's global data store, which has no listing or locking:
 - `links:<project id>` holds the project's links, a JSON list of {token, label, created, expires, created_by,
-  downloads, sign_in, photos} (`downloads`, `sign_in` and `photos` are missing on links made before they existed,
-  which means off);
+  downloads, sign_in, photos, all_files} (`downloads`, `sign_in`, `photos` and `all_files` are missing on links made
+  before they existed, which means off);
 - `token:<token>` holds the project id, to find a link from its token;
 - `index:linked` holds the ids of the projects that have links (some may have only expired ones), for the Explorer
   home's Shared by Link filter and the Sharing Center. Links saved before it existed are found once, by reading every project's links;
@@ -156,7 +156,8 @@ def _valid_entry(entry):
         _parse_time(entry["expires"])
         return (isinstance(entry["token"], str) and isinstance(entry["label"], str)
                 and _parse_time(entry["created"]) is not None and isinstance(entry.get("downloads", False), bool)
-                and isinstance(entry.get("sign_in", False), bool) and isinstance(entry.get("photos", False), bool))
+                and isinstance(entry.get("sign_in", False), bool) and isinstance(entry.get("photos", False), bool)
+                and isinstance(entry.get("all_files", False), bool))
     except (KeyError, TypeError, ValueError):
         return False
 
@@ -180,6 +181,14 @@ def allows_downloads(link):
 def allows_photos(link):
     """The link's Allow Source Photos: Source Frames on its map and 3D pages, with the task's photos."""
     return link.get("photos") is True
+
+
+def allows_all_files(link):
+    """
+    The link's Allow All Task Files: the rest of WebODM's Download menu (All Assets, the report, the camera files),
+    only together with Allow Downloads (the stored option is kept while downloads are off).
+    """
+    return allows_downloads(link) and link.get("all_files") is True
 
 
 def requires_sign_in(link):
@@ -314,10 +323,10 @@ def expiry_from_now(expiry_days, now=None):
     return ((now or timezone.now()) + timedelta(days=expiry_days)).isoformat() if expiry_days else None
 
 
-def create_link(project_id, label, expiry_days, user, downloads=False, sign_in=False, photos=False):
+def create_link(project_id, label, expiry_days, user, downloads=False, sign_in=False, photos=False, all_files=False):
     """A new link for the project; expiry_days is one of EXPIRY_CHOICES."""
-    if not all(isinstance(flag, bool) for flag in (downloads, sign_in, photos)):
-        raise TypeError("downloads, sign_in, photos")
+    if not all(isinstance(flag, bool) for flag in (downloads, sign_in, photos, all_files)):
+        raise TypeError("downloads, sign_in, photos, all_files")
     now = timezone.now()
     link = {
         "token": secrets.token_urlsafe(32),
@@ -328,6 +337,7 @@ def create_link(project_id, label, expiry_days, user, downloads=False, sign_in=F
         "downloads": downloads,
         "sign_in": sign_in,
         "photos": photos,
+        "all_files": all_files,
     }
     with _locked():
         links = _read(project_id)
@@ -350,7 +360,7 @@ def revoke_link(project_id, token):
 
 
 # A link's on-or-off options
-FLAGS = ("downloads", "sign_in", "photos")
+FLAGS = ("downloads", "sign_in", "photos", "all_files")
 
 
 def set_downloads(project_id, token, downloads):
@@ -360,8 +370,8 @@ def set_downloads(project_id, token, downloads):
 
 def set_options(project_id, token, **changes):
     """
-    Changes the link's Allow Downloads (downloads), Require Sign-In (sign_in) and Allow Source Photos (photos), each a
-    bool, its label (text) and
+    Changes the link's Allow Downloads (downloads), Require Sign-In (sign_in), Allow Source Photos (photos) and Allow
+    All Task Files (all_files), each a bool, its label (text) and
     its expiry (expires_days, one of EXPIRY_CHOICES, from now: on an expired link, a renewal under the same URL). The
     updated link, or None if the project has no such link kept; an expired link takes only a label or a new expiry.
     """

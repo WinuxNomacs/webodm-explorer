@@ -49,7 +49,7 @@
              {% include link_texts_template %} data-none="{% trans "No links yet." %}"
              {% if sign_in_forced %}data-sign-in-forced{% endif %} data-project-name="{{ project.name }}">
             <h4>{% trans "Anyone with the Link" %} <a class="explorer-sharing-center-link" href="{{ public }}sharing/?project={{ project.id }}&amp;status=all">{% trans "All Links in the Sharing Center" %}</a></h4>
-            <p class="explorer-card-text">{% trans "Anyone with one of these links can open this project's maps and 3D views without signing in, until the link expires or is revoked. With Allow Downloads, they can also download the orthophoto, elevation models, point cloud and textured model. With Allow Source Photos, they can click a spot to see the task's photos that show it (with Allow Downloads too, download those photos). With Require Sign-In, the link asks for a WebODM login first (any account on this WebODM)." %}</p>
+            <p class="explorer-card-text">{% trans "Anyone with one of these links can open this project's maps and 3D views without signing in, until the link expires or is revoked. With Allow Downloads, they can also download the orthophoto, elevation models, point cloud and textured model. With Allow Source Photos, they can click a spot to see the task's photos that show it (with Allow Downloads too, download those photos). With Allow Downloads and Allow All Task Files, they can also download every other file of WebODM's Download menu, All Assets and the processing report included. With Require Sign-In, the link asks for a WebODM login first (any account on this WebODM)." %}</p>
             {% if sign_in_forced %}
             <p class="explorer-links-sign-in alert theme-border-secondary-07">{% trans "This project is private, and Explorer Settings allow only links that ask for a WebODM login: every link here requires sign-in, including the ones made before." %}</p>
             {% endif %}
@@ -77,6 +77,7 @@
                 </select>
                 <label class="explorer-link-downloads"><input type="checkbox" name="downloads"> {% trans "Allow Downloads" %}</label>
                 <label class="explorer-link-downloads" title="{% trans "Source Frames on the link's maps and 3D views: the task's photos that show a spot" %}"><input type="checkbox" name="photos"> {% trans "Allow Source Photos" %}</label>
+                <label class="explorer-link-downloads" title="{% trans "With Allow Downloads, every file of WebODM's Download menu: All Assets, the processing report, the camera positions and the other formats. All Assets includes each photo's position and capture time and the processing log." %}"><input type="checkbox" name="all_files"> {% trans "Allow All Task Files" %}</label>
                 <label class="explorer-link-downloads"{% if sign_in_forced %} title="{% trans "Explorer Settings make every link to this private project ask for a WebODM login." %}"{% endif %}><input type="checkbox" name="sign_in"{% if sign_in_forced %} checked disabled{% endif %}> {% trans "Require Sign-In" %}</label>
                 <button type="submit" class="btn btn-primary btn-sm"><i class="fa fa-link"></i> {% trans "Create Link" %}</button>
             </form>

@@ -5,9 +5,14 @@
 Released: **0.1.0** (2026-11-23, experimental; see "Done"): tagged, the GitHub release with the zip, the
 WebODM-Plugins entry as draft pull request #16 (the user marks it ready).
 
-Up next: **more task files through links** (phase 2 of the Sharing Center request, 2026-11-24; planned with the user
-2026-11-26, plan below): All Assets, the Quality Report, the camera files and WebODM's other formats, behind a new link
-option, Allow All Task Files.
+Up next: **fix: the Sharing Center's table is 17 px too wide** at 1280 px with WebODM's sidebar open: the Actions
+column (Copy, Revoke) is clipped and the page scrolls sideways (found 2026-11-26 while live-checking more task files;
+the same with `main`'s stylesheet).
+
+Then: **the road to 1.0.0** (below).
+
+Built: **more task files through links** (phase 2 of the Sharing Center request, 2026-11-24; planned with the user
+2026-11-26, plan below; see "Done").
 
 Built: **presentation tools** (the user's request 2026-11-25; plan below; see "Done").
 
@@ -20,7 +25,7 @@ steps: A. the task page; B. the home's List view and each user's remembered view
 Built: **the Sharing Center** (phase 1 of the user's request 2026-11-24: Explorer as WebODM's center for presenting
 and sharing models; plan below; see "Done").
 
-Then: **the road to 1.0.0** (the user, 2026-11-23: recorded as phases after 0.1.0; some are taken up before 1.0 and
+The road to 1.0.0 (the user, 2026-11-23: recorded as phases after 0.1.0; some are taken up before 1.0 and
 each is discussed when it comes up; plan below). In order: 1. field use of 0.1.0; 2. a versioned saved-data format and
 an upgrade rehearsal; 3. a check against new WebODM releases; 4. a browser and device pass; 5. the mesh parsing gap;
 6. sign-in links on the Linode setup; 7. link activity and administration; 8. accessibility and translations; 9. an
@@ -1188,6 +1193,28 @@ The user chose to fix all four groups:
    of the plugin's folder (they survive upgrades).
 
 ## Done
+
+- **More task files through links** (2026-11-26, branch `all-task-files`):
+  - **The option:** Allow All Task Files, `links.py` `all_files` in `FLAGS` and `allows_all_files` (true only with
+    Allow Downloads; the stored value is kept while downloads are off), off by default and on links made before it;
+    `api.py` `link_json` (as stored), POST and PATCH. `explorer.js` `linkFileToggles` (the box greyed out while the
+    link's Allow Downloads is off) and `formFileOptions` (both create forms); the texts in `link_texts.html`,
+    `project.html` and `sharing.html`.
+  - **Serving:** `api.ALL_FILES` beside `api.DOWNLOADABLE`; `TokenDownloads` sets `needs_all_files` for those, checked in
+    `TokenTaskMixin.get_and_check_task`; still WebODM's own `TaskDownloads` (D1, no widening).
+  - **The menus:** `pages.LINK_DOWNLOADS` lists WebODM's whole menu in its order, each marked extra or not;
+    `link_downloads(task, api, all_files)` marks All Assets to follow a separator, rendered by the shared
+    `download_items.html` in the cards, the cover, the task page and the viewer bar. `Viewer.all_files`: links with
+    the option, and signed-in users (WebODM's API, every file); `task_details(task, viewer)` gives the Processing
+    Report to both, through the viewer's API.
+  - **Menus' size:** menus are as wide as their longest item (`width: max-content`, still capped at the screen),
+    where before every item wrapped to the small button's width; the viewer bar's menus scroll inside past 70vh.
+  - Tests: `test_all_files.py` (15: the option, both flags needed, files outside the list, turning either off, the
+    allowlists against WebODM's `ASSETS_MAP`, the menus and report per viewer kind); Jest in `links.test.js` (3).
+    A mutation check (the option without Allow Downloads) failed the option's test; the view's own Allow Downloads
+    check still refused the files. Live: `.claude/skills/live-check/all-files.js`, 17/17 on task 358acbe0
+    (All Assets 1.4 GB starts streaming as a zip; only its first bytes read).
+  - Docs: the sharing, Sharing Center and project guides, and the README.
 
 - **Source Frames, step B** (2026-11-26, branch `source-frames-b`):
   - **The option:** links gain Allow Source Photos: `links.py` `photos` and `FLAGS`, off by default and on links made

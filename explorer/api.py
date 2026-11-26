@@ -42,12 +42,14 @@ def link_json(link):
         "downloads": links.allows_downloads(link),
         "sign_in": links.requires_sign_in(link),
         "photos": links.allows_photos(link),
+        # As stored: the Share panel keeps the box ticked (and disabled) while Allow Downloads is off
+        "all_files": link.get("all_files") is True,
         "expired": links.is_expired(link),
     }
 
 
 def flag_value(data, name):
-    """The request's `downloads`, `sign_in` or `photos` (a JSON boolean), False when absent; a 400 for anything else."""
+    """The request's `downloads`, `sign_in`, `photos` or `all_files` (a JSON boolean), False when absent; a 400 for anything else."""
     value = data.get(name, False)
     if not isinstance(value, bool):
         raise exceptions.ValidationError({name: _("Not a valid choice.")})
@@ -189,7 +191,7 @@ class ProjectLinks(ProjectLinksBase):
         if links.sign_in_forced(project) and not sign_in:
             raise exceptions.PermissionDenied(SIGN_IN_ONLY)
         link = links.create_link(project.id, label, expires, request.user, downloads, sign_in,
-                                 flag_value(data, "photos"))
+                                 flag_value(data, "photos"), flag_value(data, "all_files"))
         prepare_tiles(project)
         return Response(link_json(link), status=status.HTTP_201_CREATED)
 
@@ -287,6 +289,7 @@ class TokenTaskMixin:
     allowed = True
     needs_downloads = False
     needs_photos = False
+    needs_all_files = False
 
     def dispatch(self, request, *args, **kwargs):
         # WebODM's get() methods don't take the token
@@ -296,7 +299,8 @@ class TokenTaskMixin:
     def get_and_check_task(self, request, pk, annotate=None):
         project, link = links.resolve(self.share_token)
         if (project is None or not self.allowed or (self.needs_downloads and not links.allows_downloads(link))
-                or (self.needs_photos and not links.allows_photos(link))):
+                or (self.needs_photos and not links.allows_photos(link))
+                or (self.needs_all_files and not links.allows_all_files(link))):
             raise exceptions.NotFound()
         # Active as well: DRF's authentication already refuses inactive users; the same rule as the link pages
         user = request.user
@@ -368,13 +372,21 @@ class TokenAssets(TokenTaskMixin, TaskAssets):
 # (app/models/task.py ASSETS_MAP). Not all.zip, the report, camera positions or tiles zips.
 DOWNLOADABLE = ("orthophoto.tif", "dtm.tif", "dsm.tif", "georeferenced_model.laz", "textured_model.zip",
                 "textured_model.glb")
+# What a link with Allow All Task Files adds: the rest of WebODM's Download menu (AssetDownloads.js) and the point
+# cloud's other formats ODX may write, all names of WebODM's Task.ASSETS_MAP
+ALL_FILES = ("orthophoto.mbtiles", "orthophoto_tiles.zip", "cutline.gpkg", "dtm_tiles.zip", "dsm_tiles.zip",
+             "georeferenced_model.las", "georeferenced_model.ply", "georeferenced_model.csv", "3d_tiles_pointcloud.zip",
+             "3d_tiles_model.zip", "cameras.json", "shots.geojson", "ground_control_points.geojson", "report.pdf",
+             "splats.rad", "all.zip")
 
 
 class TokenDownloads(TokenTaskMixin, TaskDownloads):
     needs_downloads = True
 
     def dispatch(self, request, *args, **kwargs):
-        self.allowed = kwargs.get("asset") in DOWNLOADABLE
+        asset = kwargs.get("asset")
+        self.allowed = asset in DOWNLOADABLE or asset in ALL_FILES
+        self.needs_all_files = asset in ALL_FILES
         # WebODM names the saved file after ?filename= when given; a link someone passes on must not rename it
         # (a .tif saved as invoice.exe). The file keeps WebODM's own name.
         if "filename" in request.GET:

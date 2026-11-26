@@ -245,10 +245,18 @@ a.explorer-card-link:focus .explorer-card-title {
     right: 0;
 }
 
-/* A menu never wider than a phone's screen: long names wrap */
+/* A menu as wide as its longest item, never wider than a phone's screen: only then do long names wrap (without
+   max-content, its width follows the small button it hangs from, and every item wraps) */
 .explorer .dropdown-menu,
 .explorer-viewer-bar .dropdown-menu {
+    width: max-content;
     max-width: calc(100vw - 24px);
+}
+
+/* The map and 3D pages don't scroll: a long menu (a link's Download menu with every task file) scrolls inside */
+.explorer-viewer-bar .dropdown-menu {
+    max-height: 70vh;
+    overflow-y: auto;
 }
 
 .explorer .dropdown-menu > li > a,
@@ -864,6 +872,11 @@ path.explorer-footprint {
 }
 
 @media (max-width: 767px) {
+    /* The Files options side by side in a card keep apart */
+    .explorer-sharing-table td > .explorer-link-downloads {
+        margin-right: 12px;
+    }
+
     .explorer-sharing-table,
     .explorer-sharing-table > tbody,
     .explorer-sharing-table > tbody > tr,

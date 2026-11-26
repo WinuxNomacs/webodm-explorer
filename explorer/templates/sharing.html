@@ -27,7 +27,7 @@
         </div>
         {% endif %}
     </div>
-    <p class="explorer-card-text">{% trans "Every anyone-with-the-link link of the projects you can change, in one place. Anyone with a link can open its project's maps and 3D views without signing in, until the link expires or is revoked; with Allow Downloads, they can also download the outputs; with Allow Source Photos, they can see the task's photos that show a spot; with Require Sign-In, it asks for a WebODM login first (any account on this WebODM). Expired links are kept here for 90 days, to renew or delete." %}</p>
+    <p class="explorer-card-text">{% trans "Every anyone-with-the-link link of the projects you can change, in one place. Anyone with a link can open its project's maps and 3D views without signing in, until the link expires or is revoked; with Allow Downloads, they can also download the outputs; with Allow Source Photos, they can see the task's photos that show a spot; with Allow All Task Files as well as Allow Downloads, every file of WebODM's Download menu; with Require Sign-In, it asks for a WebODM login first (any account on this WebODM). Expired links are kept here for 90 days, to renew or delete." %}</p>
 
     {% if projects %}
     <form id="explorer-sharing-create" class="explorer-sharing-create explorer-share theme-border-secondary-07" hidden>
@@ -48,6 +48,7 @@
             </select>
             <label class="explorer-link-downloads"><input type="checkbox" name="downloads"> {% trans "Allow Downloads" %}</label>
             <label class="explorer-link-downloads" title="{% trans "Source Frames on the link's maps and 3D views: the task's photos that show a spot" %}"><input type="checkbox" name="photos"> {% trans "Allow Source Photos" %}</label>
+            <label class="explorer-link-downloads" title="{% trans "With Allow Downloads, every file of WebODM's Download menu: All Assets, the processing report, the camera positions and the other formats. All Assets includes each photo's position and capture time and the processing log." %}"><input type="checkbox" name="all_files"> {% trans "Allow All Task Files" %}</label>
             <label class="explorer-link-downloads"><input type="checkbox" name="sign_in"> {% trans "Require Sign-In" %}</label>
             <button type="submit" class="btn btn-primary btn-sm"><i class="fa fa-link"></i> {% trans "Create Link" %}</button>
         </div>

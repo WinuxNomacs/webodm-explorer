@@ -70,6 +70,12 @@ own (e.g. starting "Live check"), delete only that afterwards, and say what was 
   and on an existing link, the link page's Download menu at desktop and phone widths, one file downloaded as a
   visitor (deleted when the browser closes), 404s for a view-only link and once downloads are turned off, and
   `?filename=` ignored. Creates two "Live check" links and revokes both, also on failure.
+- `all-files.js` (repo, folder, user, password, optional project id, default 1, and task id prefix, default
+  358acbe0): Allow All Task Files: the create form's box greyed out until Allow Downloads, a link's box greyed out
+  (value kept) while downloads are off, the visitor's task page and map menus (All Assets last) and Processing
+  Report, `cameras.json` downloaded, All Assets read up to its first bytes only, the menus' size at desktop and phone
+  widths, the Sharing Center's Files cell, and a 404 once unticked. Creates one "Live check files" link and revokes
+  it, also on failure; tokens masked.
 - `present.js` (repo, folder, user, password, optional project id, default 2): the presentation tools on the
   signed-in map and 3D pages of a task with an orthophoto and a mesh: the laser drawn while the mouse still pans and
   orbits, a highlight drawn without moving the map and fading, Shift keeping one until Esc, Spotlight, the 3D page's

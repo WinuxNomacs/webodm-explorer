@@ -19,7 +19,7 @@ function render(responses, origin, forced) {
             <button type="button" data-explorer-copy data-copied="Copied">Copy</button>
             <div class="explorer-links" data-links-api="${API}"${origin ? ` data-origin="${origin}"` : ""} data-copy="Copy" data-copied="Copied" data-revoke="Revoke"
                  data-confirm-revoke="Revoke?" data-untitled="Untitled Link" data-never="Never expires"
-                 data-expires="Expires %(date)s" data-none="No links yet." data-downloads="Allow Downloads" data-photos="Allow Source Photos" data-sign-in="Require Sign-In"
+                 data-expires="Expires %(date)s" data-none="No links yet." data-downloads="Allow Downloads" data-photos="Allow Source Photos" data-all-files="Allow All Task Files" data-sign-in="Require Sign-In"
                  ${forced ? 'data-sign-in-forced data-forced-title="Every link asks for a login."' : ""}
                  data-embed-sign-in="Asks for a login.""
                  data-open="Open" data-open-title="Open the link as visitors see it"
@@ -29,7 +29,7 @@ function render(responses, origin, forced) {
                     <input type="hidden" name="csrfmiddlewaretoken" value="csrf-value">
                     <input name="label"><select name="expires_days"><option value="30" selected>30</option><option value="never">never</option></select>
                     <input type="checkbox" name="downloads">
-                    <input type="checkbox" name="photos">
+                    <input type="checkbox" name="photos"><input type="checkbox" name="all_files">
                     <input type="checkbox" name="sign_in"${forced ? " checked disabled" : ""}>
                     <button type="submit">Create Link</button>
                 </form>
@@ -92,7 +92,7 @@ test("creating a link posts the label and expiry with the CSRF token, then selec
     expect(url).toBe(API);
     expect(options.method).toBe("POST");
     expect(options.headers["X-CSRFToken"]).toBe("csrf-value");
-    expect(JSON.parse(options.body)).toEqual({label: "Client", expires_days: "never", downloads: true, photos: true,
+    expect(JSON.parse(options.body)).toEqual({label: "Client", expires_days: "never", downloads: true, photos: true, all_files: false,
         sign_in: false});
     expect(form.elements.label.value).toBe("");
     expect(form.elements.downloads.checked).toBe(false);
@@ -182,6 +182,66 @@ test("ticking Allow Source Photos on a link changes it at once", async () => {
     await settle();
     expect(JSON.parse(window.fetch.mock.calls[1][1].body)).toEqual({photos: true});
     expect(box.checked).toBe(true);
+});
+
+test("Allow All Task Files on a link is greyed out, keeping its value, while Allow Downloads is off", async () => {
+    const { list } = render([json(200, [{...LINK, downloads: false, all_files: true}]),
+        json(200, {...LINK, downloads: true, all_files: true}), json(200, {...LINK, downloads: true, all_files: false}),
+        json(200, {...LINK, downloads: false, all_files: false})]);
+    await settle();
+    const all = list.querySelector("input[name=all_files]");
+    const downloads = list.querySelector("input[name=downloads]");
+    expect(all.parentNode.textContent).toContain("Allow All Task Files");
+    expect(all.checked).toBe(true);
+    expect(all.disabled).toBe(true);
+    downloads.checked = true;
+    downloads.dispatchEvent(new Event("change"));
+    await settle();
+    expect(all.disabled).toBe(false);
+    all.checked = false;
+    all.dispatchEvent(new Event("change"));
+    await settle();
+    expect(JSON.parse(window.fetch.mock.calls[2][1].body)).toEqual({all_files: false});
+    expect(all.disabled).toBe(false);
+    downloads.checked = false;
+    downloads.dispatchEvent(new Event("change"));
+    await settle();
+    expect(all.disabled).toBe(true);
+});
+
+test("a refused Allow Downloads change leaves Allow All Task Files as it was", async () => {
+    const { list } = render([json(200, [{...LINK, downloads: false}]), json(503, {detail: "Busy."})]);
+    await settle();
+    const downloads = list.querySelector("input[name=downloads]");
+    downloads.checked = true;
+    downloads.dispatchEvent(new Event("change"));
+    await settle();
+    expect(downloads.checked).toBe(false);
+    expect(list.querySelector("input[name=all_files]").disabled).toBe(true);
+});
+
+test("the create form's Allow All Task Files is usable only with Allow Downloads ticked, and posted", async () => {
+    const { form } = render([json(200, []), json(201, LINK), json(200, [LINK])]);
+    await settle();
+    const all = form.elements.all_files;
+    expect(all.disabled).toBe(true);
+    form.elements.downloads.checked = true;
+    form.elements.downloads.dispatchEvent(new Event("change"));
+    expect(all.disabled).toBe(false);
+    all.checked = true;
+    form.elements.downloads.checked = false;
+    form.elements.downloads.dispatchEvent(new Event("change"));
+    expect(all.checked).toBe(false);
+    expect(all.disabled).toBe(true);
+    form.elements.downloads.checked = true;
+    form.elements.downloads.dispatchEvent(new Event("change"));
+    all.checked = true;
+    form.dispatchEvent(new Event("submit", {cancelable: true}));
+    await settle();
+    expect(JSON.parse(window.fetch.mock.calls[1][1].body)).toEqual(expect.objectContaining({downloads: true,
+        all_files: true}));
+    expect(all.checked).toBe(false);
+    expect(all.disabled).toBe(true);
 });
 
 test("a refused change puts the box back and says why", async () => {

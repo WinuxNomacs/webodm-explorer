@@ -1,0 +1,5 @@
+{# A Download menu's items (pages.link_downloads): All Assets after a separator, as in WebODM's menu #}
+{% for file in downloads %}
+{% if file.separator %}<li role="separator" class="divider"></li>{% endif %}
+<li><a href="{{ file.url }}" download><i class="{{ file.icon }} fa-fw"></i> {{ file.label }}</a></li>
+{% endfor %}
