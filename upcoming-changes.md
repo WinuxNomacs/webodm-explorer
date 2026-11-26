@@ -5,9 +5,9 @@
 Released: **0.1.0** (2026-11-23, experimental; see "Done"): tagged, the GitHub release with the zip, the
 WebODM-Plugins entry as draft pull request #16 (the user marks it ready).
 
-Up next: **more task files through links** (phase 2 of the Sharing Center request, 2026-11-24; plan below): the full
-assets zip, the report and the camera positions behind Allow Downloads. To be planned with the user first (the user,
-2026-11-24: after List view).
+Up next: **more task files through links** (phase 2 of the Sharing Center request, 2026-11-24; planned with the user
+2026-11-26, plan below): All Assets, the Quality Report, the camera files and WebODM's other formats, behind a new link
+option, Allow All Task Files.
 
 Built: **presentation tools** (the user's request 2026-11-25; plan below; see "Done").
 
@@ -849,9 +849,52 @@ on the next write to the project's links (`_write`).
   menu's drop-down; Jest for the page's logic; a live check at desktop and phone widths, and the guide page
   (`docs/guide/sharing-center.md`), the README and the Sharing guide updated.
 
-**Phase 2 (more task files):** add WebODM's `all.zip`, the report and the camera positions to `api.DOWNLOADABLE` and
-the link's Download menu, behind **Allow Downloads**; the exact asset names come from WebODM 4.0.1's `ASSETS_MAP`
-(`app/models/task.py`), checked when the phase is planned.
+**Phase 2 (more task files):** first sketched as WebODM's `all.zip`, the report and the camera positions behind
+**Allow Downloads**; planned 2026-11-26 below, with a link option of its own instead.
+
+### Plan: more task files through links (the user's answers, 2026-11-26)
+
+**What WebODM 4.0.1 has** (read 2026-11-26: `ASSETS_MAP` in `app/models/task.py`, the Download menu in
+`app/static/app/js/classes/AssetDownloads.js`, and the dev stack's task folders):
+
+- `all.zip` zips the task's whole `assets/` folder as a stream (`Task.get_asset_file_or_stream`, WebODM's `ZipStream`):
+  209 MB to 3.0 GB on the dev tasks. Besides the outputs it holds `images.json` (each photo's GPS position, UTC
+  capture time, camera make and model), the processing log (`task_output.txt`, `log.json`), `odm_report/` and the EPT
+  point cloud; no photos (they sit beside `assets/`, as do Explorer's `explorer-tiles/`).
+- `report.pdf` (10 MB on task 358acbe0) has maps of the camera positions; `shots.geojson` each photo's position and
+  orientation; `cameras.json` the lens calibration.
+- WebODM's menu also lists `orthophoto.mbtiles`, `orthophoto_tiles.zip`, `cutline.gpkg`, `dtm_tiles.zip`,
+  `dsm_tiles.zip`, `3d_tiles_pointcloud.zip`, `3d_tiles_model.zip`, `ground_control_points.geojson` and
+  `splats.rad`; `georeferenced_model.las`, `.ply` and `.csv` are in `ASSETS_MAP` where ODX made them.
+
+**The user's answers:**
+
+- **The option:** a new link option, **Allow All Task Files**, off by default (existing links have it off), so links
+  that already allow downloads serve nothing new until someone ticks it.
+- **The files:** All Assets, the Quality Report, Camera Shots and Camera Parameters, and WebODM's other formats.
+
+**Design (defaults chosen by Claude, open to the user's change):**
+
+- **Storage and API:** `all_files: true|false` on the link, in `links.FLAGS` (POST, PATCH, `link_json`), changed under
+  the same advisory lock. It works only with Allow Downloads: the extra files need both flags, and the checkbox is
+  disabled (and shown unticked in effect) while Allow Downloads is off; unticking Allow Downloads keeps the stored
+  value, so ticking it again brings the files back.
+- **Serving:** `api.DOWNLOADABLE` (the outputs, unchanged) and `api.ALL_FILES` (everything above); `TokenDownloads`
+  allows an `ALL_FILES` asset only when the link has both flags, 404 otherwise; still WebODM's own `TaskDownloads`
+  (D1, no widening), `?filename=` still dropped. Deferred zips stream through WebODM's own code path, as
+  `textured_model.zip` does: a 3 GB All Assets ties up one web worker for the download, as it does for signed-in
+  users.
+- **Where it shows:** the link's Download menus (task cards, the task page, the map and 3D pages) list the extra
+  files the task has, in WebODM's order and with its labels and icons, All Assets last after a separator; the link's
+  task page gets the **Processing Report** button. View as Visitor shows links as made by default, so no extra files.
+- **Setting it:** a fourth checkbox on both create forms (the Share panel, the Sharing Center's Create Link) and on
+  each link (Share panel rows, the Sharing Center's Files cell), with a title saying what it shares (the photos'
+  positions and capture times, the processing log). The Sharing Center's downloads filter is unchanged.
+- **Tests:** each extra asset 404 without the option, 404 with it but without Allow Downloads, served with both; an
+  existing link (no `all_files` key) serves outputs only; a path outside the list 404 with both flags; PATCH and
+  POST; the menus and the report button per viewer kind; Jest for the checkbox (disabled with Allow Downloads off);
+  a live check (create, download a small extra file as a visitor, untick, 404, revoke) at desktop and phone widths;
+  the Sharing guide, the Sharing Center guide and the README.
 
 ### Plan: Source Frames in Explorer's viewer (the request and the user's answers, 2026-11-25)
 
