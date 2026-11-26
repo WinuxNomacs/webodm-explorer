@@ -17,6 +17,10 @@ from guardian.shortcuts import assign_perm
 HOME = "/plugins/explorer/"
 
 
+PHONE = ("Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Apple"
+         "WebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1")
+
+
 class ListViewTests(HubTestMixin, BootTestCase):
     def folder(self, response):
         """The folder pane's project names, in order, and the selected one's."""
@@ -92,12 +96,10 @@ class ListViewTests(HubTestMixin, BootTestCase):
         self.assertEqual(self.client_for("testuser2").get(path).status_code, 404)
         self.assertEqual(Client().get(path).status_code, 302)
 
-    def test_the_home_opens_in_the_view_the_user_last_chose(self):
-        self.assertIn('class="explorer-grid"', self.home().content.decode())
-        self.home("view=list")
+    def test_a_computer_opens_in_list_until_the_user_picks_another_view(self):
         html = self.home().content.decode()
         self.assertIn("data-explorer-list", html)
-        # List is the default now: its own links leave the view out, Grid's names it
+        # List is the default: its own links leave the view out, Grid's names it
         self.assertIn('href="?view=grid"', html)
         self.assertIn('<input type="hidden" name="view" value="list" data-default="list">', html)
         self.home("view=map")
@@ -105,16 +107,37 @@ class ListViewTests(HubTestMixin, BootTestCase):
         self.home("view=grid")
         self.assertIn('class="explorer-grid"', self.home().content.decode())
         # Each user's own
-        self.home("view=list")
-        self.assertNotIn("data-explorer-list", self.home(username="testuser2").content.decode())
+        self.assertIn("data-explorer-list", self.home(username="testuser2").content.decode())
 
-    def test_a_view_store_that_fails_opens_the_grid(self):
+    def test_a_phone_always_opens_in_grid_and_its_choice_is_not_kept(self):
+        phone = self.client_for("testuser", HTTP_USER_AGENT=PHONE)
+        response = phone.get(HOME)
+        self.assertIn('class="explorer-grid"', response.content.decode())
+        self.assertIn("User-Agent", response["Vary"])
+        self.assertIn("Sec-CH-UA-Mobile", response["Vary"])
+        # A view named in the address shows, but isn't kept for the phone or the computer
+        self.assertIn("data-explorer-list", phone.get(HOME + "?view=list").content.decode())
+        self.assertIn('class="explorer-grid"', phone.get(HOME).content.decode())
+        phone.get(HOME + "?view=map")
+        self.assertIn("data-explorer-list", self.home().content.decode())
+        # The computer's choice doesn't follow the user to the phone
+        self.home("view=map")
+        self.assertIn('class="explorer-grid"', phone.get(HOME).content.decode())
+
+    def test_chromium_on_a_phone_is_known_by_its_client_hint(self):
+        hinted = self.client_for("testuser", HTTP_SEC_CH_UA_MOBILE="?1")
+        self.assertIn('class="explorer-grid"', hinted.get(HOME).content.decode())
+        computer = self.client_for("testuser", HTTP_SEC_CH_UA_MOBILE="?0",
+                                   HTTP_USER_AGENT="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15")
+        self.assertIn("data-explorer-list", computer.get(HOME).content.decode())
+
+    def test_a_view_store_that_fails_opens_list(self):
         with mock.patch.object(pages.UserDataStore, "get_string", side_effect=RuntimeError("store")), \
                 self.assertLogs("app.logger", "WARNING"):
-            self.assertIn('class="explorer-grid"', self.home().content.decode())
+            self.assertIn("data-explorer-list", self.home().content.decode())
         with mock.patch.object(pages.UserDataStore, "set_string", side_effect=RuntimeError("store")), \
                 self.assertLogs("app.logger", "WARNING"):
-            self.assertEqual(self.home("view=list").status_code, 200)
+            self.assertEqual(self.home("view=grid").status_code, 200)
 
     def test_the_address_keeps_the_project_only_in_list_view_and_the_page_only_in_grid(self):
         query = pages.HomeQuery(view="list", project="7", page="3")

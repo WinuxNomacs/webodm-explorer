@@ -141,14 +141,33 @@ def home_query(params, default_view="grid"):
                      default_view=default_view)
 
 
+# The home's view on a computer until the user picks another; a phone opens in Grid (the user, 2026-11-26)
+COMPUTER_VIEW = "list"
+PHONE_VIEW = "grid"
+
+
+def is_phone(request):
+    """
+    Whether the request comes from a phone: the client hint Chromium browsers send with every request
+    (Sec-CH-UA-Mobile: ?1), else "Mobi" in the user agent, the token MDN recommends for detecting a mobile browser
+    (tablets such as iPads leave it out and get the computer's view).
+    """
+    if request.headers.get("Sec-CH-UA-Mobile") == "?1":
+        return True
+    return "Mobi" in request.headers.get("User-Agent", "")
+
+
 def saved_view(user):
-    """The view the user last chose on the home (grid, list or map); grid when none, or one that doesn't read."""
+    """
+    The view the user last chose on the home (grid, list or map) on a computer; COMPUTER_VIEW when none, or one that
+    doesn't read.
+    """
     try:
-        value = UserDataStore(links.NAMESPACE, user).get_string(VIEW_KEY, "grid")
+        value = UserDataStore(links.NAMESPACE, user).get_string(VIEW_KEY, COMPUTER_VIEW)
     except Exception as e:  # noqa: BLE001 - a store that can't be read means the default, never a page error
         logger.warning(f"Explorer: could not read the home view of user {user.id}: {e}")
-        return "grid"
-    return value if value in VIEWS else "grid"
+        return COMPUTER_VIEW
+    return value if value in VIEWS else COMPUTER_VIEW
 
 
 def save_view(user, view):

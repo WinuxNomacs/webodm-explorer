@@ -26,7 +26,7 @@ links are public.
   for users who can share it. **List** shows them like a file browser: the projects by name on the left, the
   selected project's details, options and task rows (each opening its task page) on the right, switched in place,
   with Up and Down keys and Back to Projects on a phone. **Map** shows the projects where their tasks were flown, over
-  WebODM's basemap. The home opens in the view each user last chose.
+  WebODM's basemap. On a computer the home opens in List, or the view each user last chose; on a phone always in Grid.
 - **A project's Explorer page** has the owner, tags and task count, an **Overview Map** of the tasks' footprints
   (folded when there is one task; a footprint opens its task), and a card per completed task with outputs: its
   thumbnail, date, images, size and processing time, tags, and buttons for its **Map** (orthophoto, DSM, DTM, thermal),
