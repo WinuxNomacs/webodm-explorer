@@ -6,7 +6,11 @@ WebODM's admins see every project. Projects without outputs yet are listed too, 
 
 ## Finding a project
 
-- **Search Projects** matches names, descriptions and tags.
+- **Search Projects & Tasks** matches projects' names, descriptions and tags, and the names of their tasks, in any
+  case. It filters as you type, from the second letter, without reloading the page; emptying the box shows
+  everything again. A single letter filters only when you press Enter or choose the search button. A project found
+  through a task's name is listed with that task: its card names the matching tasks, List view shows only them (with
+  **Show All Tasks**), and Map view places the project around them.
 - **All**, **Mine** or **Shared with Me** narrows the list by owner.
 - **Sort** by **Recent Activity**, **Name** or **Created**.
 - **Has 3D** keeps projects with a point cloud, textured model or Gaussian splats; **Shared by Link** keeps those

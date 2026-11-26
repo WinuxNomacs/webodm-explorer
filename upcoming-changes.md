@@ -7,6 +7,8 @@ WebODM-Plugins entry as draft pull request #16 (the user marks it ready).
 
 Up next: **the road to 1.0.0** (below): each phase discussed with the user when it comes up.
 
+Built: **Search Projects & Tasks** (the user's request 2026-11-26; plan below; see "Done").
+
 Built: **fix: the Sharing Center's table too wide for the page** (see "Done").
 
 Built: **more task files through links** (phase 2 of the Sharing Center request, 2026-11-24; planned with the user
@@ -855,6 +857,23 @@ on the next write to the project's links (`_write`).
 **Phase 2 (more task files):** first sketched as WebODM's `all.zip`, the report and the camera positions behind
 **Allow Downloads**; planned 2026-11-26 below, with a link option of its own instead.
 
+### Plan: search projects and tasks (the request and the user's answers, 2026-11-26)
+
+- **The request:** "Change Search Projects to Search Projects & Tasks, make it filter the view in realtime as the user
+  types after the second letter for any matching project and task names. Empty means no filter and shows all
+  entries. Only filter the view for a single character if the user submits it or presses enter."
+- **What it builds on:** the home's search is a plain GET form (`pages.home_projects`, `q` on the project's name,
+  description and tags), paged 24 to a page in Grid, 500 in List and Map; so filtering as one types fetches the same
+  page for the new search and swaps the results in place, rather than hiding what is already on the page.
+- **The user's answers:** a task's name finds its project, shown with the matching tasks first: Grid cards name them,
+  List view's pane shows only them with **Show All Tasks**, Map view places the project around them. Project
+  descriptions and tags still match.
+- **Design (Claude's defaults):** 250 ms after the last keystroke; an older answer arriving late is dropped; the
+  address follows (replaceState), the view switch's links too; the box keeps the focus; a changed filter still
+  reloads the page; a failed search says so and the next keystroke tries again; deleting back to one letter leaves the
+  results as they are. Only completed tasks (those the views show) match. The Map view now always loads Leaflet, so a
+  search typed there can draw places.
+
 ### Plan: more task files through links (the user's answers, 2026-11-26)
 
 **What WebODM 4.0.1 has** (read 2026-11-26: `ASSETS_MAP` in `app/models/task.py`, the Download menu in
@@ -1191,6 +1210,17 @@ The user chose to fix all four groups:
    of the plugin's folder (they survive upgrades).
 
 ## Done
+
+- **Search Projects & Tasks** (2026-11-26, branch `live-search`): `pages.matching_tasks` and `home_projects` (task
+  names); `project_summaries` (`matches`, three named and how many more), `project_pane` (`matched`, `total`, `q`;
+  `list/<id>/?q=`), `home_map` (around the matching tasks); `projects.html` (the box, `data-explorer-results`, the
+  card's line, Leaflet always in Map view), `project_pane.html` (the note, **Show All Tasks**); `explorer.js`
+  `initLiveSearch` (in `initToolbar`, which leaves a filter's submit as it was) and `initListView` (the pane's `q`,
+  `data-pane-all`); `footprints.js` exposes `window.ExplorerFootprints` to start a swapped-in map. Tests:
+  `test_search.py` (10), `search.test.js` (10; a mutation check on the stale-answer guard and on the one-letter rule
+  failed a test each); `test_hub` now expects `footprints.js` in an empty Map view. Live:
+  `.claude/skills/live-check/search.js`, 12/12 on the user's projects, about 0.5 s from the second key to the swap
+  (the 250 ms pause included).
 
 - **Fix: the Sharing Center's table too wide for the page** (2026-11-26, branch `fix-sharing-width`; found while
   live-checking more task files, the same with `main`'s stylesheet). Its cells kept to one line and the table

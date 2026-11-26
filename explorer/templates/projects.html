@@ -11,10 +11,12 @@
     </div>
     {% if any_projects %}
     {# A plain GET form: the page's address holds the search, so a view can be bookmarked and works without scripts #}
-    <form class="explorer-toolbar" method="get" role="search" data-explorer-toolbar>
+    <form class="explorer-toolbar" method="get" role="search" data-explorer-toolbar
+          data-search-error="{% trans "The search could not be updated. Try again." %}">
         <div class="explorer-search input-group input-group-sm">
-            <input type="search" name="q" value="{{ query.q }}" class="form-control" maxlength="100"
-                   placeholder="{% trans "Search Projects" %}" aria-label="{% trans "Search Projects" %}">
+            <input type="search" name="q" value="{{ query.q }}" class="form-control" maxlength="100" autocomplete="off"
+                   placeholder="{% trans "Search Projects & Tasks" %}" aria-label="{% trans "Search Projects & Tasks" %}"
+                   title="{% trans "Names, descriptions and tags of projects, and names of tasks: filters as you type from the second letter" %}">
             <span class="input-group-btn">
                 <button type="submit" class="btn btn-default" title="{% trans "Search" %}" aria-label="{% trans "Search" %}"><i class="fa fa-search"></i></button>
             </span>
@@ -40,6 +42,8 @@
         </div>
     </form>
 
+    {# What the search shows: swapped in place as the user types (explorer.js initLiveSearch) #}
+    <div class="explorer-results" data-explorer-results aria-live="polite">
     {% if query.view == "map" %}
     {% if places.places %}
     <div class="explorer-home-map explorer-footprint-map theme-border-secondary-07" data-explorer-footprints="projects"
@@ -115,6 +119,7 @@
                     {% endif %}
                 </div>
                 {% if entry.project.description %}<div class="explorer-card-text explorer-description">{{ entry.project.description }}</div>{% endif %}
+                {% if entry.matches %}<div class="explorer-card-text explorer-matches"><i class="fa fa-search"></i> {% blocktrans count count=entry.matches|length|add:entry.more_matches %}Matching task:{% plural %}Matching tasks:{% endblocktrans %} {{ entry.matches|join:", " }}{% if entry.more_matches %} {% blocktrans count count=entry.more_matches %}and {{ count }} more{% plural %}and {{ count }} more{% endblocktrans %}{% endif %}</div>{% endif %}
                 {% if entry.tags %}<div class="explorer-tags">{% for tag in entry.tags %}<span class="explorer-tag theme-border-secondary-07">{{ tag }}</span>{% endfor %}</div>{% endif %}
                 {% if entry.outputs %}
                 <div class="explorer-counts">
@@ -141,14 +146,16 @@
     <p>{% trans "No projects match." %} <a href="?{{ clear_params }}">{% trans "Clear Filters" %}</a></p>
     {% endif %}
     {% endif %}
+    </div>
     {% else %}
     <p>{% trans "No projects yet. Projects you create, or that are shared with you, appear here." %}</p>
     {% endif %}
 </div>
-{% if query.view == "map" and places.places %}
+{# The Map view loads Leaflet even with nothing to place: a search typed there may bring places #}
+{% if query.view == "map" %}
 <script src="{{ public }}vendor/leaflet-1.9.4/dist/leaflet.js"></script>
 {% endif %}
 <script src="{{ public }}layers.js?v={{ v }}"></script>
-{% if query.view == "map" and places.places %}<script src="{{ public }}footprints.js?v={{ v }}"></script>{% endif %}
+{% if query.view == "map" %}<script src="{{ public }}footprints.js?v={{ v }}"></script>{% endif %}
 <script src="{{ public }}explorer.js?v={{ v }}"></script>
 {% endblock %}

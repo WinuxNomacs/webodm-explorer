@@ -1469,3 +1469,28 @@ path.explorer-footprint {
         flex-wrap: wrap;
     }
 }
+
+/* The home's live search (explorer.js initLiveSearch): the results dim only when an answer takes a moment */
+.explorer-results {
+    transition: opacity 0.15s ease 0s;
+}
+
+.explorer-results[aria-busy="true"] {
+    opacity: 0.6;
+    transition-delay: 0.2s;
+}
+
+/* A Grid card's tasks that the search matched, and List view's note above the tasks it narrowed */
+.explorer-matches,
+.explorer-pane-matched {
+    overflow-wrap: anywhere;
+}
+
+.explorer-matches .fa,
+.explorer-pane-matched .fa {
+    opacity: 0.7;
+}
+
+.explorer-search-error {
+    margin: 8px 0;
+}

@@ -23,11 +23,16 @@
     </div>
     <div class="explorer-card-text explorer-project-meta">
         {% if pane.owner %}<span><i class="fa fa-user"></i> {{ pane.owner.username }}</span>{% endif %}
-        <span>{% blocktrans count count=pane.cards|length %}{{ count }} task with outputs{% plural %}{{ count }} tasks with outputs{% endblocktrans %}</span>
+        <span>{% blocktrans count count=pane.total %}{{ count }} task with outputs{% plural %}{{ count }} tasks with outputs{% endblocktrans %}</span>
         {% if pane.outputs %}<span class="explorer-counts">{% for output in pane.outputs %}<span title="{{ output.label }}"><i class="{{ output.icon }}"></i> {{ output.count }}<span class="sr-only"> {{ output.label }}</span></span>{% endfor %}</span>{% endif %}
         {% if pane.tags %}<span class="explorer-tags">{% for tag in pane.tags %}<span class="explorer-tag theme-border-secondary-07">{{ tag }}</span>{% endfor %}</span>{% endif %}
     </div>
     {% if project.description %}<p class="explorer-pane-description">{{ project.description }}</p>{% endif %}
+    {% if pane.matched %}
+    <p class="explorer-card-text explorer-pane-matched"><i class="fa fa-search"></i>
+        {% blocktrans with shown=pane.matched.shown total=pane.matched.total q=pane.matched.q %}{{ shown }} of {{ total }} tasks match "{{ q }}".{% endblocktrans %}
+        <a href="{{ pane.path }}" data-pane-all="{{ project.id }}">{% trans "Show All Tasks" %}</a></p>
+    {% endif %}
     {% if pane.cards %}
     <ul class="explorer-task-rows">
         {% for card in pane.cards %}{% with task=card.task picture=card.picture %}
