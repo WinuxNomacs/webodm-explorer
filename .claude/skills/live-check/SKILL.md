@@ -79,7 +79,8 @@ own (e.g. starting "Live check"), delete only that afterwards, and say what was 
 - `search.js` (repo, folder, user, password, optional task word, default `homerun`, part of one task's name but not
   of its project's, and a word nothing matches): the home's Search Projects & Tasks, read-only: one letter asks
   nothing, two filter in place (timed from the keys to the swap), focus kept, emptying, one letter and Enter; List
-  view's narrowed pane and Show All Tasks; Map view redrawn or saying nothing matches; phone width. Puts back the
+  view's Search Results (a seventh argument, default `ro`, should be in several projects' task names), a project's
+  narrowed pane, Show All Tasks, Back to Search Results and the browser's Back; Map view redrawn or saying nothing matches; phone width. Puts back the
   user's saved home view at the end.
 - `present.js` (repo, folder, user, password, optional project id, default 2): the presentation tools on the
   signed-in map and 3D pages of a task with an orthophoto and a mesh: the laser drawn while the mouse still pans and

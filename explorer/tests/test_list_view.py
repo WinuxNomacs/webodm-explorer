@@ -65,7 +65,8 @@ class ListViewTests(HubTestMixin, BootTestCase):
 
     def test_the_search_and_filters_narrow_the_folder_pane(self):
         Project.objects.create(owner=self.owner, name="Bridge")
-        self.assertEqual(self.folder(self.home("view=list&q=bridge"))[0], ["Bridge"])
+        # A search lists its results first (test_search.py)
+        self.assertEqual(self.folder(self.home("view=list&q=bridge"))[0], ["Search Results", "Bridge"])
         response = self.home("view=list&q=nothing-like-it")
         self.assertContains(response, "No projects match.")
         # List view is now this user's default: Clear Filters keeps it without naming it

@@ -179,12 +179,24 @@
             });
         }
 
-        // The home's search narrows the pane's tasks to those it matches; Show All Tasks (all) loads them all
+        // The address's search and filters without its chosen project, for Search Results
+        function searchOnly() {
+            var kept = window.location.search.replace(/^\?/, "").split("&").filter(function (pair) {
+                return pair && pair.split("=")[0] !== "project";
+            });
+            return kept.length ? "?" + kept.join("&") : "";
+        }
+
+        // The home's search narrows the pane's tasks to those it matches; Show All Tasks (all) loads them all. The
+        // folder's Search Results entry (no project) loads the results for the search and filters.
         function load(item, all) {
             var mine = ++latest;
-            var q = all ? "" : queryValue(window.location.search, "q");
+            var id = item.getAttribute("data-project");
+            var q = queryValue(window.location.search, "q");
+            var url = id ? paneUrl + id + "/" + (q ? "?q=" + encodeURIComponent(q) + (all ? "&all=1" : "") : "")
+                : paneUrl + "results/" + searchOnly();
             content.setAttribute("aria-busy", "true");
-            return window.fetch(paneUrl + item.getAttribute("data-project") + "/" + (q ? "?q=" + encodeURIComponent(q) : ""), {credentials: "same-origin",
+            return window.fetch(url, {credentials: "same-origin",
                 headers: {"Accept": "text/html"}}).then(function (response) {
                 if (!response.ok) throw new Error(response.status);
                 return response.text();
@@ -233,13 +245,19 @@
             });
         });
 
+        // In the pane: Show All Tasks, Back to Search Results, and a project's heading in Search Results
         content.addEventListener("click", function (event) {
-            var all = event.target.closest && event.target.closest("[data-pane-all]");
-            if (!all || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-            var item = itemFor(all.getAttribute("data-pane-all"));
+            if (!event.target.closest || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+            var all = event.target.closest("[data-pane-all]");
+            var results = event.target.closest("[data-pane-results]");
+            var open = event.target.closest("[data-pane-open]");
+            var item = all ? itemFor(all.getAttribute("data-pane-all")) : results ? itemFor("")
+                : open ? itemFor(open.getAttribute("data-pane-open")) : null;
             if (!item) return;
             event.preventDefault();
-            load(item, true);
+            clearTimeout(keyTimer);
+            if (all) load(item, true);
+            else choose(item, "push");
         });
 
         if (back) {
@@ -375,7 +393,7 @@
         var timer = null, latest = 0, shown = box.value.trim();
 
         // The form's fields as its submit sends them (empty and default values left out, so back to the first page),
-        // with the search q; List view keeps its chosen project, which the server keeps while it is still listed
+        // with the search q; no chosen project, so List view opens on the new search's results
         function address(q) {
             var pairs = [];
             Array.prototype.forEach.call(form.querySelectorAll("[name]"), function (field) {
@@ -384,8 +402,6 @@
                 if (value === "" || value === field.getAttribute("data-default")) return;
                 pairs.push(encodeURIComponent(field.name) + "=" + encodeURIComponent(value));
             });
-            var project = queryValue(window.location.search, "project");
-            if (project) pairs.push("project=" + encodeURIComponent(project));
             return pairs.length ? "?" + pairs.join("&") : window.location.pathname;
         }
 

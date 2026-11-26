@@ -114,13 +114,13 @@ test("the search keeps the filters and leaves defaults out of the address", () =
     expect(window.fetch.mock.calls[0][0]).toBe("?q=al%20pha&scope=mine&3d=1");
 });
 
-test("List view keeps its chosen project in the search's address", () => {
+test("a new search in List view leaves the chosen project, to open on the search's results", () => {
     jest.useFakeTimers();
     const { form, box } = render([html(200, page("al", []))], "?view=list&project=7");
     form.elements.view.value = "list";
     type(box, "al");
     jest.advanceTimersByTime(DELAY);
-    expect(window.fetch.mock.calls[0][0]).toBe("?q=al&view=list&project=7");
+    expect(window.fetch.mock.calls[0][0]).toBe("?q=al&view=list");
 });
 
 test("a changed filter still loads the page as before", () => {
@@ -193,5 +193,60 @@ test("List view's pane asks for the search's tasks, and Show All Tasks for all o
     const click = new MouseEvent("click", {bubbles: true, cancelable: true, button: 0});
     all.dispatchEvent(click);
     expect(click.defaultPrevented).toBe(true);
-    expect(window.fetch.mock.calls[1][0]).toBe("/plugins/explorer/list/2/");
+    expect(window.fetch.mock.calls[1][0]).toBe("/plugins/explorer/list/2/?q=roof&all=1");
+});
+
+function renderResults(responses) {
+    window.fetch = jest.fn(() => responses.shift());
+    window.history.replaceState(null, "", "/plugins/explorer/?q=roof&view=list&scope=mine");
+    document.body.innerHTML = `
+        <div data-explorer-results>
+        <div class="explorer-list" data-explorer-list data-pane-url="/plugins/explorer/list/" data-error="Could not load.">
+            <nav class="explorer-folder"><ul>
+                <li><a class="explorer-folder-item explorer-folder-results active" href="?q=roof&view=list&scope=mine" data-project="">Search Results</a></li>
+                <li><a class="explorer-folder-item" href="?q=roof&view=list&scope=mine&project=2" data-project="2">Two</a>
+                    <ul class="explorer-folder-tasks"><li><a href="/plugins/explorer/project/2/task/t1/">Roof</a></li></ul></li>
+            </ul></nav>
+            <section class="explorer-pane"><div class="explorer-pane-content">
+                <div data-pane-project=""><a href="?view=list&q=roof&project=2" data-pane-open="2">Two</a></div>
+            </div></section>
+        </div></div>`;
+    init(document);
+}
+
+const click = (el) => {
+    const event = new MouseEvent("click", {bubbles: true, cancelable: true, button: 0});
+    el.dispatchEvent(event);
+    return event;
+};
+
+test("a project's heading in Search Results opens its pane, narrowed to the search, in place", async () => {
+    renderResults([html(200, `<div data-pane-project="2"><a href="?view=list&q=roof" data-pane-results>Back to Search Results</a></div>`)]);
+    const event = click(document.querySelector("[data-pane-open]"));
+    expect(event.defaultPrevented).toBe(true);
+    expect(window.fetch.mock.calls[0][0]).toBe("/plugins/explorer/list/2/?q=roof");
+    expect(window.location.search).toBe("?q=roof&view=list&scope=mine&project=2");
+    expect(document.querySelector("[data-project='2']").classList.contains("active")).toBe(true);
+    await settle();
+    await settle();
+    expect(document.querySelector("[data-pane-results]")).not.toBeNull();
+});
+
+test("Back to Search Results loads the results for the search and filters, without the project", async () => {
+    renderResults([html(200, `<div data-pane-project="2"><a href="?view=list&q=roof" data-pane-results>Back</a></div>`),
+        html(200, `<div data-pane-project="">Results</div>`)]);
+    click(document.querySelector("[data-pane-open]"));
+    await settle();
+    await settle();
+    click(document.querySelector("[data-pane-results]"));
+    expect(window.fetch.mock.calls[1][0]).toBe("/plugins/explorer/list/results/?q=roof&view=list&scope=mine");
+    expect(window.location.search).toBe("?q=roof&view=list&scope=mine");
+    expect(document.querySelector(".explorer-folder-results").classList.contains("active")).toBe(true);
+});
+
+test("a matching task under its project in the folder pane is a plain link to the task's page", () => {
+    renderResults([]);
+    const event = click(document.querySelector(".explorer-folder-tasks a"));
+    expect(event.defaultPrevented).toBe(false);
+    expect(window.fetch).not.toHaveBeenCalled();
 });

@@ -161,23 +161,69 @@ def save_view(user, view):
         logger.warning(f"Explorer: could not save the home view of user {user.id}: {e}")
 
 
-def home_list(user, query):
+def list_projects(user, query):
+    """The projects List view's folder pane lists for the query: by name, LIST_PROJECTS at most."""
+    return list(home_projects(user, query._replace(sort="name"))[:LIST_PROJECTS])
+
+
+def home_list(user, query, public):
     """
-    The home's List view: the folder pane's projects (those matching the query, by name, LIST_PROJECTS at most) as
-    project_summaries entries, and the selected one: the query's project when listed, else the first.
+    The home's List view: the folder pane's projects (list_projects) as project_summaries entries, and the selected
+    one: the query's project when listed, else the first. With a search, `results` (search_results), each entry's
+    `task_matches` (the tasks the search matched in it: name and task page, listed under it), and no project selected
+    unless the address names one: the right pane shows the results.
     """
-    projects = list(home_projects(user, query._replace(sort="name"))[:LIST_PROJECTS])
+    projects = list_projects(user, query)
     entries = project_summaries(user, projects, query.q)
     selected = next((entry for entry in entries if str(entry["project"].id) == query.project), None)
-    return {"entries": entries, "selected": selected or (entries[0] if entries else None),
+    results = search_results(user, query, public, projects) if query.q else None
+    if results:
+        found = {group["project"].id: group["cards"] for group in results["groups"]}
+        for entry in entries:
+            entry["task_matches"] = [{"name": card["task"].name or _("Unnamed Task"), "page": card["page"]}
+                                     for card in found.get(entry["project"].id, [])]
+    elif not selected and entries:
+        selected = entries[0]
+    return {"entries": entries, "selected": selected, "results": results,
             "capped": len(projects) == LIST_PROJECTS, "limit": LIST_PROJECTS}
 
 
-def project_pane(user, project, public, q=""):
+# List view's Search Results show at most this many tasks (the newest)
+RESULTS_TASKS = 100
+
+
+def search_results(user, query, public, projects=None):
+    """
+    List view's Search Results for a search: each listed project (list_projects, by name) with the tasks the search
+    matched in it, as the project pane's task rows (newest first, RESULTS_TASKS at most in all); a project the search
+    matched only by its name, description or tags has none. `tasks` counts the rows, `capped` says some were left out.
+    """
+    if projects is None:
+        projects = list_projects(user, query)
+    matching = matching_tasks(projects, query.q)
+    wanted = {task_id for ids in matching.values() for task_id in ids}
+    with_tasks = [project for project in projects if project.id in matching]
+
+    def path(task):
+        return f"{public}project/{task.project_id}/"
+    cards = [card for card in explorable_tasks(with_tasks, lambda task: link_outputs(task, path(task)), details=True,
+                                               page_for=lambda task: task_page_path(path(task), task))
+             if card["task"].id in wanted] if with_tasks else []
+    by_project = {}
+    for card in cards[:RESULTS_TASKS]:
+        by_project.setdefault(card["task"].project_id, []).append(card)
+    return {"q": query.q, "tasks": min(len(cards), RESULTS_TASKS), "capped": len(cards) > RESULTS_TASKS,
+            "limit": RESULTS_TASKS,
+            "groups": [{"project": project, "path": f"{public}project/{project.id}/",
+                        "cards": by_project.get(project.id, [])} for project in projects]}
+
+
+def project_pane(user, project, public, q="", narrow=True):
     """
     List view's right pane for a project the user can view: its details, its options (the project page, Share for
     users who can change it, View as Visitor, the Dashboard, WebODM's map) and its tasks as rows opening their pages.
-    With a search q that some of its tasks' names match, only those tasks, and `matched` says how many of how many.
+    With a search q that some of its tasks' names match, only those tasks (all of them when not narrow: Show All
+    Tasks), and `matched` says how many of how many; Back to Search Results either way.
     """
     path = f"{public}project/{project.id}/"
     cards = explorable_tasks([project], lambda task: link_outputs(task, path), details=True,
@@ -190,10 +236,12 @@ def project_pane(user, project, public, q=""):
     total = len(cards)
     matched = None
     matching = set(matching_tasks([project], q).get(project.id, [])) if q else set()
-    if matching:
+    if matching and narrow:
         cards = [card for card in cards if card["task"].id in matching]
         matched = {"shown": len(cards), "total": total, "q": q}
     return {"project": project, "path": path, "cards": cards, "total": total, "matched": matched,
+            # Back to Search Results, while a search is on
+            "results_href": "?" + urlencode([("view", "list"), ("q", q)]) if q else None,
             "tags": user_tags(project.tags),
             "owner": project.owner if project.owner_id != user.id else None, "can_share": can_share,
             "links": link_summaries(user, [project.id]).get(project.id) if can_share else None,

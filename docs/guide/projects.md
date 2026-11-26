@@ -9,8 +9,8 @@ WebODM's admins see every project. Projects without outputs yet are listed too, 
 - **Search Projects & Tasks** matches projects' names, descriptions and tags, and the names of their tasks, in any
   case. It filters as you type, from the second letter, without reloading the page; emptying the box shows
   everything again. A single letter filters only when you press Enter or choose the search button. A project found
-  through a task's name is listed with that task: its card names the matching tasks, List view shows only them (with
-  **Show All Tasks**), and Map view places the project around them.
+  through a task's name is listed with that task: its card names the matching tasks, and Map view places the project
+  around them. List view opens on **Search Results** (below).
 - **All**, **Mine** or **Shared with Me** narrows the list by owner.
 - **Sort** by **Recent Activity**, **Name** or **Created**.
 - **Has 3D** keeps projects with a point cloud, textured model or Gaussian splats; **Shared by Link** keeps those
@@ -40,6 +40,12 @@ The right side shows the project's name (with its active links), owner, task cou
 description, with **Open Project Page**, **Share** (for users who can change it), **View as Visitor**, and in "..."
 **Open in Dashboard** and **View All on Map**. Below them, a row for each task: its picture, name, date and facts,
 and a button per view. Choose the picture or name to open [the task's page](/guide/project#a-task-s-page).
+
+During a search, List view opens on **Search Results**: the matching tasks of every listed project, under each
+project's name, as task rows (the newest 100 at most). The project list starts with a **Search Results** entry, and
+shows each project's matching tasks under it (each opens its task's page). Choose a project, or its name in the
+results, to see its side with only its matching tasks, **Show All Tasks** and **Back to Search Results**. A project
+found by its own name, description or tags says so in the results.
 
 Up to 500 projects are listed; with more, search to find the others. On a phone the project list comes first;
 choosing a project shows its side, with **Back to Projects**.

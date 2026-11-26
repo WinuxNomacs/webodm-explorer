@@ -7,7 +7,8 @@ WebODM-Plugins entry as draft pull request #16 (the user marks it ready).
 
 Up next: **the road to 1.0.0** (below): each phase discussed with the user when it comes up.
 
-Built: **Search Projects & Tasks** (the user's request 2026-11-26; plan below; see "Done").
+Built: **Search Projects & Tasks** (the user's request 2026-11-26; plan below; see "Done"), then **List view's
+Search Results** (the user's follow-up the same day).
 
 Built: **fix: the Sharing Center's table too wide for the page** (see "Done").
 
@@ -873,6 +874,12 @@ on the next write to the project's links (`_write`).
   reloads the page; a failed search says so and the next keystroke tries again; deleting back to one letter leaves the
   results as they are. Only completed tasks (those the views show) match. The Map view now always loads Leaflet, so a
   search typed there can draw places.
+- **Follow-up (the user, 2026-11-26):** "Is it possible when searching for projects & tasks for the matching tasks in
+  projects that are not currently selected to be shown listed under their project? ... The view should change to an
+  explorable search view containing the matching tasks as well." The user chose a results pane: while a search is
+  on, List view opens on **Search Results** (every listed project's matching tasks under its heading, as task rows),
+  the folder pane starts with a Search Results entry and lists each project's matching tasks under it; choosing a
+  project shows its narrowed pane with **Back to Search Results**.
 
 ### Plan: more task files through links (the user's answers, 2026-11-26)
 
@@ -1210,6 +1217,16 @@ The user chose to fix all four groups:
    of the plugin's folder (they survive upgrades).
 
 ## Done
+
+- **List view's Search Results** (2026-11-26, branch `search-results`): `pages.search_results` (the listed projects
+  with their matching tasks' rows, the newest `RESULTS_TASKS` = 100 in all), `home_list` (no project selected during a
+  search unless the address names one; `task_matches` per entry), `project_pane` (`results_href`, `narrow`: Show All
+  Tasks keeps the way back), the route `list/results/` (the search and filters; 404 without a search);
+  `search_results.html`, `task_rows.html` (shared with the project pane), the folder's entry and task links in
+  `projects.html`; `explorer.js` `initListView` (the results entry, `data-pane-open`, `data-pane-results`, Show All
+  Tasks with `all=1`) and `initLiveSearch` (a new search drops the chosen project). Tests: `test_search.py` (14),
+  `search.test.js` (13); the live check caught Show All Tasks losing Back to Search Results, fixed before the merge;
+  15/15 on the user's projects ("ro": RoofSampleRGB in First Project, two tasks in Test Project).
 
 - **Search Projects & Tasks** (2026-11-26, branch `live-search`): `pages.matching_tasks` and `home_projects` (task
   names); `project_summaries` (`matches`, three named and how many more), `project_pane` (`matched`, `total`, `q`;
