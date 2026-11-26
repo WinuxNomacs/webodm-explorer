@@ -5,11 +5,9 @@
 Released: **0.1.0** (2026-11-23, experimental; see "Done"): tagged, the GitHub release with the zip, the
 WebODM-Plugins entry as draft pull request #16 (the user marks it ready).
 
-Up next: **fix: the Sharing Center's table is 17 px too wide** at 1280 px with WebODM's sidebar open: the Actions
-column (Copy, Revoke) is clipped and the page scrolls sideways (found 2026-11-26 while live-checking more task files;
-the same with `main`'s stylesheet).
+Up next: **the road to 1.0.0** (below): each phase discussed with the user when it comes up.
 
-Then: **the road to 1.0.0** (below).
+Built: **fix: the Sharing Center's table too wide for the page** (see "Done").
 
 Built: **more task files through links** (phase 2 of the Sharing Center request, 2026-11-24; planned with the user
 2026-11-26, plan below; see "Done").
@@ -1193,6 +1191,14 @@ The user chose to fix all four groups:
    of the plugin's folder (they survive upgrades).
 
 ## Done
+
+- **Fix: the Sharing Center's table too wide for the page** (2026-11-26, branch `fix-sharing-width`; found while
+  live-checking more task files, the same with `main`'s stylesheet). Its cells kept to one line and the table
+  needed about 1,020px beside WebODM's sidebar, but became cards only below 768px: the page scrolled sideways by 2px at
+  1280 (the Actions column clipped), 182px at 1100 and 258px at 1024. Now (`explorer.css`) from 1024px the cells wrap
+  between words (Files one option to a line, the expiry under its label, two buttons to a row; the Link column at
+  least 140px), and below 1024px the rows are cards. Measured from 390 to 1920px: no sideways scroll, no cell broken
+  inside a word.
 
 - **More task files through links** (2026-11-26, branch `all-task-files`):
   - **The option:** Allow All Task Files, `links.py` `all_files` in `FLAGS` and `allows_all_files` (true only with

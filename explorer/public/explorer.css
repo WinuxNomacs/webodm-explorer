@@ -871,7 +871,36 @@ path.explorer-footprint {
     margin-top: 12px;
 }
 
-@media (max-width: 767px) {
+/* The table needs about 760px: at a laptop's width beside WebODM's sidebar, its cells wrap between words (the options
+   one to a line, the expiry under its label, two buttons to a row) rather than widening the page */
+@media (min-width: 1024px) {
+    .explorer-sharing-table td > .explorer-link-downloads {
+        display: flex;
+        align-items: flex-start;
+        white-space: normal;
+        overflow-wrap: normal;
+    }
+
+    .explorer-sharing-table td > .explorer-link-downloads input {
+        margin-top: 3px;
+    }
+
+    .explorer-sharing-link {
+        min-width: 140px;
+    }
+
+    .explorer-sharing-buttons {
+        min-width: 120px;
+    }
+
+    .explorer-sharing-dates {
+        white-space: normal;
+        overflow-wrap: normal;
+    }
+}
+
+/* Narrower (a phone, a tablet, a small window beside the sidebar), the rows become cards */
+@media (max-width: 1023px) {
     /* The Files options side by side in a card keep apart */
     .explorer-sharing-table td > .explorer-link-downloads {
         margin-right: 12px;

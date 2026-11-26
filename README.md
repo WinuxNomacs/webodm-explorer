@@ -64,7 +64,7 @@ links are public.
   **Expired**), project, access and downloads, or searched by label, project or user, the filters kept in the page's
   address. **Create Link** makes a link for any of those projects; each link has **Open**, **Embed**, **Copy**,
   **Edit** and **Revoke**. Expired links stay listed for 90 days, with **Renew** (a new expiry, and the same address
-  works again) and **Delete**. On a phone the rows become cards.
+  works again) and **Delete**. On a phone or in a narrow window the rows become cards.
 - **Explorer's map and 3D pages** (for visitors and signed-in users alike) have **Previous** and **Next** to step
   through the project's tasks, keeping the view where the next task has it, a switch between the task's **Map** and
   its 3D views, **Reset View** (R) and **Fullscreen**
