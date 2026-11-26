@@ -18,7 +18,7 @@ function render(projectName) {
             <div class="explorer-links-list"></div>
             <form class="explorer-link-form"><input type="hidden" name="csrfmiddlewaretoken" value="c">
                 <input name="label"><select name="expires_days"><option value="30">30</option></select>
-                <input type="checkbox" name="downloads"><button type="submit">Create</button></form>
+                <input type="checkbox" name="downloads"><input type="checkbox" name="photos"><button type="submit">Create</button></form>
             <div class="explorer-links-error" hidden></div>
         </div>`;
     init(document);

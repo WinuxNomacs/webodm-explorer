@@ -52,9 +52,10 @@ links are public.
   ready, the link shows WebODM's own model. A link serves only what these views stream, unless it has
   **Allow Downloads** (ticked when creating it, or on the link later): its task cards and views then get a **Download** menu
   with the orthophoto, DSM, DTM, point cloud (LAZ) and textured model (zip and glTF), but not the report, camera
-  positions or All Assets. A link with **Require Sign-In** asks for a WebODM login first (any account on the WebODM,
+  positions or All Assets. With **Allow Source Photos**, its map and 3D pages have Source Frames: the task's photos,
+  re-encoded without their EXIF data (the original photo only with Allow Downloads too). A link with **Require Sign-In** asks for a WebODM login first (any account on the WebODM,
   without sharing the project with it), and has no preview in chat apps. Links are kept in plain text in WebODM's
-  database (so they can be copied again), and revoking one, or unticking Allow Downloads, takes effect at once.
+  database (so they can be copied again), and revoking one, or unticking Allow Downloads or Allow Source Photos, takes effect at once.
 - **The Sharing Center** (Explorer > Sharing Center) manages every link of the projects you can change in one place
   (WebODM's admins: every project's): a table with each link's project, label, **Require Sign-In**, **Allow
   Downloads**, when it was made and by whom, and its expiry, filtered by status (**Active**, **Expiring Soon**,
@@ -73,7 +74,7 @@ links are public.
   page's own colour). Size, colour, background, opacity and units are remembered in the browser.
 - **Source Frames** on your own map and 3D pages of a task (S): click a spot on the map, the textured model or the
   point cloud to see the task's photos that show it, best first, with the spot marked, their details, Download and a
-  full-screen viewer (zoom, pan, arrow keys, Esc). Not on links yet.
+  full-screen viewer (zoom, pan, arrow keys, Esc). On links that have **Allow Source Photos**.
 - **Presentation tools** on the map and 3D pages, for pointing at things while you talk about them: a **Laser
   Pointer** (L) with a fading trail, and **Area Highlight** (H) to draw a freehand loop, rectangle or ellipse that
   fades after a few seconds (Shift keeps it), optionally as a **Spotlight** that dims everything else. For visitors

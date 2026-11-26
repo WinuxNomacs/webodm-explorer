@@ -3,7 +3,8 @@
 
 Links live in the plugin's global data store, which has no listing or locking:
 - `links:<project id>` holds the project's links, a JSON list of {token, label, created, expires, created_by,
-  downloads, sign_in} (`downloads` and `sign_in` are missing on links made before they existed, which means off);
+  downloads, sign_in, photos} (`downloads`, `sign_in` and `photos` are missing on links made before they existed,
+  which means off);
 - `token:<token>` holds the project id, to find a link from its token;
 - `index:linked` holds the ids of the projects that have links (some may have only expired ones), for the Explorer
   home's Shared by Link filter and the Sharing Center. Links saved before it existed are found once, by reading every project's links;
@@ -155,7 +156,7 @@ def _valid_entry(entry):
         _parse_time(entry["expires"])
         return (isinstance(entry["token"], str) and isinstance(entry["label"], str)
                 and _parse_time(entry["created"]) is not None and isinstance(entry.get("downloads", False), bool)
-                and isinstance(entry.get("sign_in", False), bool))
+                and isinstance(entry.get("sign_in", False), bool) and isinstance(entry.get("photos", False), bool))
     except (KeyError, TypeError, ValueError):
         return False
 
@@ -174,6 +175,11 @@ def _read(project_id):
 
 def allows_downloads(link):
     return link.get("downloads") is True
+
+
+def allows_photos(link):
+    """The link's Allow Source Photos: Source Frames on its map and 3D pages, with the task's photos."""
+    return link.get("photos") is True
 
 
 def requires_sign_in(link):
@@ -308,10 +314,10 @@ def expiry_from_now(expiry_days, now=None):
     return ((now or timezone.now()) + timedelta(days=expiry_days)).isoformat() if expiry_days else None
 
 
-def create_link(project_id, label, expiry_days, user, downloads=False, sign_in=False):
+def create_link(project_id, label, expiry_days, user, downloads=False, sign_in=False, photos=False):
     """A new link for the project; expiry_days is one of EXPIRY_CHOICES."""
-    if not isinstance(downloads, bool) or not isinstance(sign_in, bool):
-        raise TypeError("downloads, sign_in")
+    if not all(isinstance(flag, bool) for flag in (downloads, sign_in, photos)):
+        raise TypeError("downloads, sign_in, photos")
     now = timezone.now()
     link = {
         "token": secrets.token_urlsafe(32),
@@ -321,6 +327,7 @@ def create_link(project_id, label, expiry_days, user, downloads=False, sign_in=F
         "created_by": user.id if user else None,
         "downloads": downloads,
         "sign_in": sign_in,
+        "photos": photos,
     }
     with _locked():
         links = _read(project_id)
@@ -342,6 +349,10 @@ def revoke_link(project_id, token):
     return True
 
 
+# A link's on-or-off options
+FLAGS = ("downloads", "sign_in", "photos")
+
+
 def set_downloads(project_id, token, downloads):
     """Allows or stops downloads through the link; the updated link, or None if the project has no such live link."""
     return set_options(project_id, token, downloads=downloads)
@@ -349,17 +360,18 @@ def set_downloads(project_id, token, downloads):
 
 def set_options(project_id, token, **changes):
     """
-    Changes the link's Allow Downloads (downloads) and Require Sign-In (sign_in), each a bool, its label (text) and
+    Changes the link's Allow Downloads (downloads), Require Sign-In (sign_in) and Allow Source Photos (photos), each a
+    bool, its label (text) and
     its expiry (expires_days, one of EXPIRY_CHOICES, from now: on an expired link, a renewal under the same URL). The
     updated link, or None if the project has no such link kept; an expired link takes only a label or a new expiry.
     """
-    if not changes or set(changes) - {"downloads", "sign_in", "label", "expires_days"}:
+    if not changes or set(changes) - {*FLAGS, "label", "expires_days"}:
         raise TypeError("changes")
-    if not all(isinstance(changes[name], bool) for name in ("downloads", "sign_in") if name in changes):
-        raise TypeError("downloads, sign_in")
+    if not all(isinstance(changes[name], bool) for name in FLAGS if name in changes):
+        raise TypeError(", ".join(FLAGS))
     if "label" in changes and not isinstance(changes["label"], str):
         raise TypeError("label")
-    update = {name: value for name, value in changes.items() if name in ("downloads", "sign_in")}
+    update = {name: value for name, value in changes.items() if name in FLAGS}
     if "label" in changes:
         update["label"] = clean_label(changes["label"])
     if "expires_days" in changes:

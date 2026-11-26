@@ -73,6 +73,7 @@ class Viewer(NamedTuple):
     preview: bool
     signed_in: bool = False
     sign_in_link: bool = False  # a link that asks for a WebODM login: no preview in chat apps
+    photos: bool = False  # a link's Allow Source Photos
 
 
 class HomeQuery(NamedTuple):
@@ -422,16 +423,22 @@ def asset_version(folder=PUBLIC):
 def source_frames(viewer, task, offset=True):
     """
     Source Frames on a task's map or 3D page (frames.py), or None: a task with camera shots, on the 3D page only with
-    WebODM's offset (a pick in the scene plus the offset is the point in the task's coordinates). The signed-in
-    user's own pages ask Explorer's API and show the photos through WebODM's; View as Visitor shows the button
-    unavailable ({"api": None}), as links don't have it yet (Source Frames step B).
+    WebODM's offset (a pick in the scene plus the offset is the point in the task's coordinates). {api, images,
+    download, link}: the signed-in user's own pages ask Explorer's API and show the photos through WebODM's, with
+    Download; a link that allows source photos asks its token views, with Download if it also allows downloads. View
+    as Visitor shows the button unavailable ({"api": None}): it shows a link as made by default, without photos.
     """
     if task is None or "shots.geojson" not in (task.available_assets or []) or not offset:
         return None
     if viewer.signed_in:
         return {"api": f"/api/plugins/{links.NAMESPACE}/projects/{viewer.project.id}/tasks/{task.id}/frames/",
-                "images": f"/api/projects/{viewer.project.id}/tasks/{task.id}/images/"}
-    return {"api": None} if viewer.preview else None
+                "images": f"/api/projects/{viewer.project.id}/tasks/{task.id}/images/", "download": True, "link": False}
+    if viewer.preview:
+        return {"api": None}
+    if viewer.photos:
+        return {"api": f"{viewer.api}{task.id}/frames/", "images": f"{viewer.api}{task.id}/images/",
+                "download": viewer.downloads, "link": True}
+    return None
 
 
 def frames_texts():

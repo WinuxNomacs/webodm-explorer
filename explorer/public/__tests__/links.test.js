@@ -19,7 +19,7 @@ function render(responses, origin, forced) {
             <button type="button" data-explorer-copy data-copied="Copied">Copy</button>
             <div class="explorer-links" data-links-api="${API}"${origin ? ` data-origin="${origin}"` : ""} data-copy="Copy" data-copied="Copied" data-revoke="Revoke"
                  data-confirm-revoke="Revoke?" data-untitled="Untitled Link" data-never="Never expires"
-                 data-expires="Expires %(date)s" data-none="No links yet." data-downloads="Allow Downloads" data-sign-in="Require Sign-In"
+                 data-expires="Expires %(date)s" data-none="No links yet." data-downloads="Allow Downloads" data-photos="Allow Source Photos" data-sign-in="Require Sign-In"
                  ${forced ? 'data-sign-in-forced data-forced-title="Every link asks for a login."' : ""}
                  data-embed-sign-in="Asks for a login.""
                  data-open="Open" data-open-title="Open the link as visitors see it"
@@ -29,6 +29,7 @@ function render(responses, origin, forced) {
                     <input type="hidden" name="csrfmiddlewaretoken" value="csrf-value">
                     <input name="label"><select name="expires_days"><option value="30" selected>30</option><option value="never">never</option></select>
                     <input type="checkbox" name="downloads">
+                    <input type="checkbox" name="photos">
                     <input type="checkbox" name="sign_in"${forced ? " checked disabled" : ""}>
                     <button type="submit">Create Link</button>
                 </form>
@@ -83,6 +84,7 @@ test("creating a link posts the label and expiry with the CSRF token, then selec
     form.elements.label.value = "Client";
     form.elements.expires_days.value = "never";
     form.elements.downloads.checked = true;
+    form.elements.photos.checked = true;
     form.dispatchEvent(new Event("submit", {cancelable: true}));
     expect(form.querySelector("[type=submit]").disabled).toBe(true);
     await settle();
@@ -90,9 +92,11 @@ test("creating a link posts the label and expiry with the CSRF token, then selec
     expect(url).toBe(API);
     expect(options.method).toBe("POST");
     expect(options.headers["X-CSRFToken"]).toBe("csrf-value");
-    expect(JSON.parse(options.body)).toEqual({label: "Client", expires_days: "never", downloads: true, sign_in: false});
+    expect(JSON.parse(options.body)).toEqual({label: "Client", expires_days: "never", downloads: true, photos: true,
+        sign_in: false});
     expect(form.elements.label.value).toBe("");
     expect(form.elements.downloads.checked).toBe(false);
+    expect(form.elements.photos.checked).toBe(false);
     expect(form.querySelector("[type=submit]").disabled).toBe(false);
     const input = list.querySelector(".explorer-link-address");
     expect(input.selectionEnd).toBe(input.value.length);
@@ -165,6 +169,19 @@ test("ticking Allow Downloads on a link changes it at once with the CSRF token",
     expect(JSON.parse(options.body)).toEqual({downloads: true});
     expect(box.checked).toBe(true);
     expect(box.disabled).toBe(false);
+});
+
+test("ticking Allow Source Photos on a link changes it at once", async () => {
+    const { list } = render([json(200, [LINK]), json(200, {...LINK, photos: true})]);
+    await settle();
+    const box = list.querySelector("input[name=photos]");
+    expect(box.parentNode.textContent).toContain("Allow Source Photos");
+    expect(box.checked).toBe(false);
+    box.checked = true;
+    box.dispatchEvent(new Event("change"));
+    await settle();
+    expect(JSON.parse(window.fetch.mock.calls[1][1].body)).toEqual({photos: true});
+    expect(box.checked).toBe(true);
 });
 
 test("a refused change puts the box back and says why", async () => {

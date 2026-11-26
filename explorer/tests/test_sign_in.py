@@ -180,12 +180,15 @@ class SignInLinkTests(LinkTestMixin, BootTestCase):
         token = self.sign_in_link()["token"]
         mounted = [m.view.view_class for m in plugin.Plugin.api_mount_points(None)
                    if m.url.startswith("s/")]
-        self.assertEqual(len(mounted), 10)  # every token route, both tile routes included
+        self.assertEqual(len(mounted), 13)  # every token route, both tile routes and Source Frames' three included
         for view_class in set(mounted):
             self.assertTrue(issubclass(view_class, api.TokenTaskMixin), view_class)
-            self.assertIs(view_class.get_and_check_task, api.TokenTaskMixin.get_and_check_task, view_class)
+            # The link's check; the photo views add only their photo-name check after it
+            self.assertIn(view_class.get_and_check_task,
+                          (api.TokenTaskMixin.get_and_check_task, api.TokenPhotoMixin.get_and_check_task), view_class)
             view = view_class()
             view.share_token = token
+            view.photo_name = None
             visitor = mock.Mock(user=AnonymousUser())
             with self.assertRaises(exceptions.NotFound):
                 view.get_and_check_task(visitor, self.full.id)
@@ -193,8 +196,8 @@ class SignInLinkTests(LinkTestMixin, BootTestCase):
             inactive.is_active = False
             with self.assertRaises(exceptions.NotFound):
                 view.get_and_check_task(mock.Mock(user=inactive), self.full.id)
-            if view_class.needs_downloads:
-                continue  # a link without Allow Downloads refuses everyone
+            if view_class.needs_downloads or view_class.needs_photos:
+                continue  # a link without Allow Downloads or Allow Source Photos refuses everyone
             self.assertEqual(view.get_and_check_task(mock.Mock(user=self.user("testuser2")), self.full.id), self.full)
 
     def test_a_session_of_a_user_deactivated_since_does_not_count_as_signed_in(self):
