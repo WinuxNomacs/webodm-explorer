@@ -57,18 +57,20 @@ class LandingPageTests(LinkTestMixin, BootTestCase):
     def page(self, query=""):
         return Client().get(self.path + query).content.decode()
 
-    def test_the_cover_shows_the_newest_task_with_its_views_and_the_projects_facts(self):
+    def test_the_page_has_the_projects_facts_then_the_overview_map_then_every_tasks_card(self):
         html = self.page()
-        cover = html[html.index('class="explorer-cover '):html.index("More Tasks")]
-        self.assertIn(f"tasks/{self.newest.id}/thumbnail?size=1024", cover)
-        self.assertIn(f'href="{self.path}map/{self.newest.id}/"', cover)
-        self.assertIn("2 tasks", cover)
-        self.assertIn("127 images", cover)
-        self.assertIn("Newest", cover)
-        # The other tasks below it, the cover's task not repeated
-        rest = html[html.index("More Tasks"):]
-        self.assertIn(f"{self.older.id}/thumbnail?size=512", rest)
-        self.assertNotIn(f"{self.newest.id}/thumbnail", rest)
+        header = html[html.index('class="explorer-link-title"'):html.index("explorer-overview")]
+        self.assertIn("User Test Project", header)
+        self.assertIn("2 tasks", header)
+        self.assertIn("127 images", header)
+        # Every task below the map, newest first, each once, as on the signed-in project page
+        cards = html[html.index("explorer-overview"):]
+        self.assertLess(cards.index(f"{self.newest.id}/thumbnail?size=512"), cards.index(f"{self.older.id}/thumbnail?size=512"))
+        self.assertEqual(html.count(f"{self.newest.id}/thumbnail?size=512"), 1)
+        self.assertIn(f'href="{self.path}map/{self.newest.id}/"', cards)
+        self.assertNotIn("explorer-cover", html)
+        self.assertNotIn("More Tasks", html)
+        self.assertNotIn("{#", html)  # no template comment shown as text
 
     def test_the_overview_map_shows_over_a_basemap_only(self):
         html = self.page()
@@ -78,18 +80,17 @@ class LandingPageTests(LinkTestMixin, BootTestCase):
         options.set_basemaps_on_links(False)
         self.assertNotIn("explorer-footprints", self.page())
 
-    def test_a_project_with_one_task_has_its_cover_and_no_more_tasks_or_map(self):
+    def test_a_project_with_one_task_has_its_card_and_no_map(self):
         self.older.delete()
         html = self.page()
-        self.assertIn("explorer-cover", html)
-        self.assertNotIn("More Tasks", html)
+        self.assertIn(f"{self.newest.id}/thumbnail?size=512", html)
         self.assertNotIn("explorer-footprints", html)
 
     def test_a_project_without_tasks_says_so(self):
         self.older.delete()
         self.newest.delete()
         html = self.page()
-        self.assertNotIn("explorer-cover", html)
+        self.assertNotIn("explorer-card", html)
         self.assertIn("Nothing to show here yet.", html)
 
     def test_link_previews_name_the_project_and_show_the_newest_picture_through_the_link(self):
@@ -115,7 +116,8 @@ class LandingPageTests(LinkTestMixin, BootTestCase):
 
     def test_view_as_visitor_shows_the_landing_page_without_previews(self):
         html = self.client_for("testuser").get(f"/plugins/explorer/project/{self.project.id}/preview/").content.decode()
-        self.assertIn("explorer-cover", html)
+        self.assertIn("explorer-overview", html)
+        self.assertIn(f"{self.older.id}/thumbnail?size=512", html)
         self.assertNotIn("og:title", html)
 
 
@@ -143,7 +145,7 @@ class EmbedTests(LinkTestMixin, BootTestCase):
     def test_the_whole_link_page_embeds_too(self):
         html = Client().get(f"{self.path}?embed=1").content.decode()
         self.assertIn("#navbar-top { display: none; }", html)
-        self.assertIn("explorer-cover", html)
+        self.assertIn(f"{self.full.id}/thumbnail", html)
 
     def test_the_views_an_embedded_link_page_opens_stay_embedded(self):
         def views(html):

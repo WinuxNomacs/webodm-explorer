@@ -52,9 +52,9 @@ mark a link that expires within 7 days. **All Links in the Sharing Center**, bes
 
 ### What a visitor sees
 
-A link opens a page with the project's name, description and facts beside its newest task's picture and views, then
-an **Overview Map** of the tasks (when the project has several and basemaps are on) and the other tasks, each with
-its **Map**, **Point Cloud**, **Textured Model** and **Gaussian Splats** as far as the task has them. A task's picture
+A link opens a page laid out as the project's own page: the project's name, facts and description, an **Overview
+Map** of the tasks (when the project has several and basemaps are on: each task's outline, and a marker that shows
+even when the tasks are far apart), then every task's card, newest first, each with its **Map**, **Point Cloud**, **Textured Model** and **Gaussian Splats** as far as the task has them. A task's picture
 or name opens [its page](/guide/project#a-task-s-page): its views, footprint and processing details. The views are
 those of [Map and 3D Viewers](/guide/viewers), without **Open in WebODM**. A link reaches only this project's views:
 no other projects, nothing of WebODM's own pages, no processing.

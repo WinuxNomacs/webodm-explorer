@@ -83,8 +83,9 @@ links are public.
   Pointer** (L) with a fading trail, and **Area Highlight** (H) to draw a freehand loop, rectangle or ellipse that
   fades after a few seconds (Shift keeps it), optionally as a **Spotlight** that dims everything else. For visitors
   and signed-in users alike; the marks show only on your own screen.
-- **A link's page** opens on a cover: the project's name, description and facts beside its newest task's picture
-  and views, then an **Overview Map** of the tasks (over a basemap) and the other tasks. Pasted into a chat app or a
+- **A link's page** is laid out as the project's own page: the project's name, facts and description, an
+  **Overview Map** of the tasks (over a basemap; each task's outline with a marker that shows at any zoom), then every
+  task's card. Pasted into a chat app or a
   social site, a link shows a preview with the project's name, description and that picture (search engines are
   still asked not to index it). **Embed**, on each link in the Share panel, gives iframe code for the whole page or
   one task's view, shown without WebODM's header and with **Open Full View**; revoking the link stops the embed, and

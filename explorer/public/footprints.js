@@ -65,14 +65,22 @@
         return all;
     }
 
-    function drawTasks(L, map, tasks) {
+    // Each task's outline, and a marker at its middle that stays visible at any zoom: tasks flown far apart leave the
+    // outlines too small to see when the map fits them all. The markers go in `markers`, added once the map has its
+    // view (added before, Leaflet's renderer has no bounds yet to clip the outlines against and throws).
+    function drawTasks(L, map, tasks, markers) {
         var all = L.latLngBounds([]);
         tasks.forEach(function (task) {
             var shape = L.geoJSON(task.geometry, {style: function () { return STYLE; }});
             shape.bindTooltip(label(task.name), {sticky: true});
             shape.on("click", function () { api.navigate(task.url); });
             shape.addTo(map);
-            all.extend(shape.getBounds());
+            var bounds = shape.getBounds();
+            if (!bounds.isValid()) return;
+            all.extend(bounds);
+            markers.push(L.circleMarker(bounds.getCenter(), {className: STYLE.className, radius: 7, weight: 3, fillOpacity: 0.6})
+                .bindTooltip(label(task.name))
+                .on("click", function () { api.navigate(task.url); }));
         });
         return all;
     }
@@ -82,9 +90,11 @@
         var items = readJson("explorer-footprints");
         var map = L.map(element, {maxZoom: 22, scrollWheelZoom: kind === "projects"});
         addBasemap(L, map, readJson("explorer-basemaps"));
-        var all = kind === "projects" ? drawProjects(L, map, items, element) : drawTasks(L, map, items);
+        var markers = [];
+        var all = kind === "projects" ? drawProjects(L, map, items, element) : drawTasks(L, map, items, markers);
         if (all.isValid()) map.fitBounds(all, {padding: [24, 24], maxZoom: 19});
         else map.setView([0, 0], 1);
+        markers.forEach(function (marker) { marker.addTo(map); });
         return map;
     }
 

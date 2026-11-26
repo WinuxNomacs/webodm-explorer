@@ -707,14 +707,6 @@ path.explorer-footprint {
     white-space: pre-line;
 }
 
-.explorer-cover-task {
-    margin-top: 12px;
-}
-
-.explorer-more-tasks {
-    margin: 20px 0 0;
-}
-
 /* The Share panel's Embed, under its link */
 .explorer-embed {
     margin-top: 8px;

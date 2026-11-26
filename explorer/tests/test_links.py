@@ -223,7 +223,7 @@ class LinkPagesTests(LinkTestMixin, BootTestCase):
         self.assertContains(response, f'href="{self.base}3d/{task.id}/?t=cloud"')
         self.assertContains(response, f'href="{self.base}3d/{task.id}/?t=mesh"')
         self.assertContains(response, f'href="{self.base}3d/{task.id}/?t=splats"')
-        self.assertContains(response, f'src="/api/plugins/explorer/s/{self.token}/tasks/{task.id}/thumbnail?size=1024"')  # the cover
+        self.assertContains(response, f'src="/api/plugins/explorer/s/{self.token}/tasks/{task.id}/thumbnail?size=512"')  # its card
         # Nothing of WebODM's own pages or API
         self.assertNotContains(response, "/api/projects/")
         self.assertNotContains(response, 'href="/map/')

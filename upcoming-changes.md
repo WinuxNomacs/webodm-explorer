@@ -9,7 +9,7 @@ Up next: **the road to 1.0.0** (below): each phase discussed with the user when 
 
 Built: **Search Projects & Tasks** (the user's request 2026-11-26; plan below; see "Done"), then **List view's
 Search Results** (the user's follow-up the same day), then **List by default, Grid on phones** (the same day; see
-"Done").
+"Done"), then **the link page laid out as the project page** (the same day; see "Done").
 
 Built: **fix: the Sharing Center's table too wide for the page** (see "Done").
 
@@ -1218,6 +1218,20 @@ The user chose to fix all four groups:
    of the plugin's folder (they survive upgrades).
 
 ## Done
+
+- **The link page laid out as the project page** (2026-11-26, branch `link-page-layout`). The user's report: "The
+  visitor project preview page looks very disjointed with one project above the map and another below it. They should
+  both be below the map with their areas highlighted on the map in a view similar to that of Explorer's builtin
+  project page for the logged in user." `link.html` drops the cover (the showcase's newest task above the map, phase
+  4 of the project hub) and "More Tasks": the project's name, facts and description, the Overview Map, then every
+  task's card; link previews still show the newest task's picture (`plugin.list_page`). Tasks flown far apart (the
+  user's Test Project, about 75 km) left their outlines too small to see when the map fitted them all:
+  `footprints.js` `drawTasks` adds a marker at each task's middle, on the link, preview and signed-in project pages,
+  added once the map has its view (added before, Leaflet 1.9.4 threw clipping the outlines: `_clipPoints` reading
+  the renderer's missing bounds, seen live, not with `main`'s script). Tests: `test_showcase.py` (the order, no
+  template comment shown as text: a two-line `{# #}` showed on the page until the live check), `test_links.py`,
+  `test_task_page.py`, `footprints.test.js` (the marker, opening the task, added after the view: a mutation putting it
+  first failed the test). Live: project 2's View as Visitor and project page, desktop and phone.
 
 - **List by default, Grid on phones** (2026-11-26, branch `default-list`). The request: "Make List view the default
   view, but make Grid the default on mobile/phone platforms." The user's answer on how it meets the remembered view:
