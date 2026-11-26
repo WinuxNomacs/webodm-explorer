@@ -180,7 +180,8 @@ class HomeTests(HubTestMixin, BootTestCase):
         self.assertEqual(self.json_script(response, "explorer-footprints"), [])
         self.assertContains(response, "No projects match, or none of them has outputs with a location.")
         self.assertContains(response, 'name="view" value="map"')
-        self.assertNotContains(response, "footprints.js")
+        # Loaded even with nothing to place: a search typed in the Map view may bring places (live search)
+        self.assertContains(response, "footprints.js")
         self.assertContains(response, 'href="?q=zzz"')  # the Grid switch keeps the search
 
     def test_project_names_are_escaped_on_the_cards_and_in_the_map_data(self):

@@ -109,22 +109,28 @@ class Plugin(PluginBase):
                 context.update(folder=folder, pane_template=self.template_path("project_pane.html"),
                                cards_template=self.template_path("cards.html"),
                                downloads_template=self.template_path("download_items.html"),
-                               pane=pages.project_pane(request.user, selected["project"], public) if selected else None,
+                               pane=(pages.project_pane(request.user, selected["project"], public, query.q)
+                                     if selected else None),
                                # Back to Projects on a phone: the folder pane, without a selection
                                back_params=query.params(project=""))
             else:
                 page = pages.home_page(request.user, query)
-                context.update(page=page, projects=pages.project_summaries(request.user, list(page.object_list)),
+                context.update(page=page, projects=pages.project_summaries(request.user, list(page.object_list),
+                                                                           query.q),
                                previous_params=query.params(page=str(page.number - 1)) if page.has_previous() else None,
                                next_params=query.params(page=str(page.number + 1)) if page.has_next() else None)
             return render(request, self.template_path("projects.html"), context)
 
         @signed_in_page
         def list_pane(request, project_pk):
-            """List view's right pane alone, for the page's script to swap in when another project is chosen."""
+            """
+            List view's right pane alone, for the page's script to swap in when another project is chosen; ?q= is the
+            home's search, which narrows its tasks to those it matches.
+            """
             project = viewable_project(request, project_pk)
+            q = pages.home_query(request.GET).q
             return render(request, self.template_path("project_pane.html"), {
-                "public": public, "pane": pages.project_pane(request.user, project, public),
+                "public": public, "pane": pages.project_pane(request.user, project, public, q),
                 "cards_template": self.template_path("cards.html"),
                 "downloads_template": self.template_path("download_items.html")})
 

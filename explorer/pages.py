@@ -167,16 +167,17 @@ def home_list(user, query):
     project_summaries entries, and the selected one: the query's project when listed, else the first.
     """
     projects = list(home_projects(user, query._replace(sort="name"))[:LIST_PROJECTS])
-    entries = project_summaries(user, projects)
+    entries = project_summaries(user, projects, query.q)
     selected = next((entry for entry in entries if str(entry["project"].id) == query.project), None)
     return {"entries": entries, "selected": selected or (entries[0] if entries else None),
             "capped": len(projects) == LIST_PROJECTS, "limit": LIST_PROJECTS}
 
 
-def project_pane(user, project, public):
+def project_pane(user, project, public, q=""):
     """
     List view's right pane for a project the user can view: its details, its options (the project page, Share for
     users who can change it, View as Visitor, the Dashboard, WebODM's map) and its tasks as rows opening their pages.
+    With a search q that some of its tasks' names match, only those tasks, and `matched` says how many of how many.
     """
     path = f"{public}project/{project.id}/"
     cards = explorable_tasks([project], lambda task: link_outputs(task, path), details=True,
@@ -186,7 +187,14 @@ def project_pane(user, project, public):
     for card in cards:
         for kind in output_types(card["task"]):
             counts[kind] += 1
-    return {"project": project, "path": path, "cards": cards, "tags": user_tags(project.tags),
+    total = len(cards)
+    matched = None
+    matching = set(matching_tasks([project], q).get(project.id, [])) if q else set()
+    if matching:
+        cards = [card for card in cards if card["task"].id in matching]
+        matched = {"shown": len(cards), "total": total, "q": q}
+    return {"project": project, "path": path, "cards": cards, "total": total, "matched": matched,
+            "tags": user_tags(project.tags),
             "owner": project.owner if project.owner_id != user.id else None, "can_share": can_share,
             "links": link_summaries(user, [project.id]).get(project.id) if can_share else None,
             "outputs": [{"type": kind, "label": _(label), "icon": icon, "count": counts[kind]}
@@ -195,6 +203,21 @@ def project_pane(user, project, public):
 
 def explorable_task_set():
     return Task.objects.filter(status=status_codes.COMPLETED).exclude(pending_action=pending_actions.REMOVE)
+
+
+def matching_tasks(projects, q):
+    """
+    {project id: [task id, ...]} of the projects' completed tasks whose names contain q (any case), newest first; {}
+    without q. The home's search matches them as well as the project's own name, description and tags.
+    """
+    if not q:
+        return {}
+    result = {}
+    tasks = (explorable_task_set().filter(project__in=projects, name__icontains=q).order_by("-created_at")
+             .values_list("project_id", "id"))
+    for project_id, task_id in tasks:
+        result.setdefault(project_id, []).append(task_id)
+    return result
 
 
 def home_projects(user, query):
@@ -209,7 +232,9 @@ def home_projects(user, query):
         projects = projects.exclude(owner=user)
     if query.q:
         projects = projects.filter(Q(name__icontains=query.q) | Q(description__icontains=query.q)
-                                   | Q(tags__icontains=query.q))
+                                   | Q(tags__icontains=query.q)
+                                   | Q(id__in=explorable_task_set().filter(name__icontains=query.q)
+                                       .values("project_id")))
     if query.has_3d:
         projects = projects.filter(id__in=explorable_task_set().filter(available_assets__overlap=list(ASSETS_3D))
                                    .values("project_id"))
@@ -261,19 +286,31 @@ def link_summaries(user, project_ids):
     return result
 
 
-def project_summaries(user, projects):
+# A Grid card names at most this many of the tasks a search matched
+MATCHES_SHOWN = 3
+
+
+def project_summaries(user, projects, q=""):
     """
     The home's cards for a page of projects: each project's picture (the newest task with one), its counts per
-    output type, its user tags, its owner when it isn't the user, and its links in brief for users who can share it.
+    output type, its user tags, its owner when it isn't the user, its links in brief for users who can share it, and
+    with a search q, the names of the tasks it matched (`matches`, MATCHES_SHOWN at most, and how many more).
     """
     summary = {project.id: {"project": project, "count": 0, "thumbnail": None, "picture": None,
+                            "matches": [], "more_matches": 0,
                             "types": {kind: 0 for kind, _label, _icon in OUTPUT_TYPES},
                             "tags": user_tags(project.tags), "owner": project.owner if project.owner_id != user.id else None,
                             "links": None}
                for project in projects}
+    matching = matching_tasks(projects, q)
     for card in explorable_tasks(projects):
         task, picture = card["task"], card["picture"]
         entry = summary[task.project_id]
+        if task.id in matching.get(task.project_id, ()):
+            if len(entry["matches"]) < MATCHES_SHOWN:
+                entry["matches"].append(task.name or _("Unnamed Task"))
+            else:
+                entry["more_matches"] += 1
         entry["count"] += 1
         for kind in output_types(task):
             entry["types"][kind] += 1
@@ -306,12 +343,18 @@ def bounds(polygons):
 
 
 def home_map(user, query, public):
-    """The home's Map view: each matching project (MAP_PROJECTS at most) around its tasks' footprints."""
+    """
+    The home's Map view: each matching project (MAP_PROJECTS at most) around its tasks' footprints; with a search that
+    some of a project's task names match, around those tasks only.
+    """
     projects = list(home_projects(user, query)[:MAP_PROJECTS])
     tasks = (explorable_task_set().filter(project__in=projects)
              .only("id", "project_id", "orthophoto_extent", "dsm_extent", "dtm_extent"))
+    matching = matching_tasks(projects, query.q)
     polygons = {}
     for task in tasks:
+        if task.project_id in matching and task.id not in matching[task.project_id]:
+            continue
         shape = footprint(task)
         if shape:
             polygons.setdefault(task.project_id, []).append(shape)

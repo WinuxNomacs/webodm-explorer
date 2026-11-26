@@ -110,7 +110,9 @@
     var api = {init: init, start: start, navigate: function (url) { window.location.href = url; }};
     if (node) {
         module.exports = api;
-    } else if (window.L) {
-        init(document, window.L);
+    } else {
+        // The home's search swaps its Map view in place, then starts the new map (explorer.js)
+        window.ExplorerFootprints = api;
+        if (window.L) init(document, window.L);
     }
 })();

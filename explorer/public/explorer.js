@@ -179,10 +179,12 @@
             });
         }
 
-        function load(item) {
+        // The home's search narrows the pane's tasks to those it matches; Show All Tasks (all) loads them all
+        function load(item, all) {
             var mine = ++latest;
+            var q = all ? "" : queryValue(window.location.search, "q");
             content.setAttribute("aria-busy", "true");
-            return window.fetch(paneUrl + item.getAttribute("data-project") + "/", {credentials: "same-origin",
+            return window.fetch(paneUrl + item.getAttribute("data-project") + "/" + (q ? "?q=" + encodeURIComponent(q) : ""), {credentials: "same-origin",
                 headers: {"Accept": "text/html"}}).then(function (response) {
                 if (!response.ok) throw new Error(response.status);
                 return response.text();
@@ -229,6 +231,15 @@
                 clearTimeout(keyTimer);
                 keyTimer = setTimeout(function () { choose(next, "replace"); }, KEY_DELAY);
             });
+        });
+
+        content.addEventListener("click", function (event) {
+            var all = event.target.closest && event.target.closest("[data-pane-all]");
+            if (!all || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+            var item = itemFor(all.getAttribute("data-pane-all"));
+            if (!item) return;
+            event.preventDefault();
+            load(item, true);
         });
 
         if (back) {
@@ -350,12 +361,97 @@
         }
     }
 
+    // The home's search filters as the user types: from the second letter, or when emptied (everything again), the
+    // same page is fetched for the new search after a short pause and its results swapped in place, with the address
+    // updated. One letter waits for Enter or the search button. An older answer arriving late is dropped. Returns
+    // whether a submit is the search's (Enter, the search button) and handled here; a changed filter still loads the
+    // page.
+    var SEARCH_DELAY = 250;  // ms after the last keystroke
+    function initLiveSearch(root, form) {
+        var results = root.querySelector("[data-explorer-results]");
+        var box = form.elements.q;
+        var button = form.querySelector("[type=submit]");
+        if (!results || !box || !window.fetch || !window.DOMParser) return function () { return false; };
+        var timer = null, latest = 0, shown = box.value.trim();
+
+        // The form's fields as its submit sends them (empty and default values left out, so back to the first page),
+        // with the search q; List view keeps its chosen project, which the server keeps while it is still listed
+        function address(q) {
+            var pairs = [];
+            Array.prototype.forEach.call(form.querySelectorAll("[name]"), function (field) {
+                if (field.type === "checkbox" && !field.checked) return;
+                var value = field.name === "q" ? q : field.value;
+                if (value === "" || value === field.getAttribute("data-default")) return;
+                pairs.push(encodeURIComponent(field.name) + "=" + encodeURIComponent(value));
+            });
+            var project = queryValue(window.location.search, "project");
+            if (project) pairs.push("project=" + encodeURIComponent(project));
+            return pairs.length ? "?" + pairs.join("&") : window.location.pathname;
+        }
+
+        function failed() {
+            results.removeAttribute("aria-busy");
+            shown = null;  // the next keystroke or Enter tries again
+            var note = results.querySelector(".explorer-search-error");
+            if (!note) {
+                note = element("p", "explorer-card-text explorer-search-error", form.getAttribute("data-search-error"));
+                results.insertBefore(note, results.firstChild);
+            }
+        }
+
+        function search(q) {
+            clearTimeout(timer);
+            if (q === shown) return;
+            shown = q;
+            var mine = ++latest, url = address(q);
+            results.setAttribute("aria-busy", "true");
+            window.fetch(url, {credentials: "same-origin", headers: {"Accept": "text/html"}}).then(function (response) {
+                if (!response.ok) throw new Error(response.status);
+                return response.text();
+            }).then(function (html) {
+                if (mine !== latest) return;
+                var page = new window.DOMParser().parseFromString(html, "text/html");
+                var fresh = page.querySelector("[data-explorer-results]");
+                if (!fresh) throw new Error("no results");
+                results.innerHTML = fresh.innerHTML;
+                results.removeAttribute("aria-busy");
+                // Grid, List and Map carry the search too
+                var views = page.querySelector(".explorer-view-switch"), ours = form.querySelector(".explorer-view-switch");
+                if (views && ours) ours.innerHTML = views.innerHTML;
+                if (window.history && window.history.replaceState) window.history.replaceState(window.history.state, "", url);
+                watchThumbnails(results);
+                initListView(results);
+                if (window.ExplorerFootprints && window.L) window.ExplorerFootprints.init(results, window.L);
+            }).catch(function () {
+                if (mine === latest) failed();
+            });
+        }
+
+        box.addEventListener("input", function () {
+            var q = box.value.trim();
+            clearTimeout(timer);
+            if (q.length === 1) return;
+            timer = setTimeout(function () { search(q); }, SEARCH_DELAY);
+        });
+        return function (event) {
+            // Enter in the box submits through the form's default button, the search button; a changed filter has none
+            if (!button || event.submitter !== button) return false;
+            search(box.value.trim());
+            return true;
+        };
+    }
+
     // The home's toolbar is a plain GET form; a changed scope, sort or filter applies at once. Empty and default values
     // stay out of the address, as the page's own links leave them out.
     function initToolbar(root) {
         var form = root.querySelector("[data-explorer-toolbar]");
         if (!form) return;
-        form.addEventListener("submit", function () {
+        var liveSearch = initLiveSearch(root, form);
+        form.addEventListener("submit", function (event) {
+            if (liveSearch(event)) {
+                event.preventDefault();
+                return;
+            }
             var named = form.querySelectorAll("[name]");
             for (var i = 0; i < named.length; i++) {
                 var field = named[i];

@@ -76,6 +76,11 @@ own (e.g. starting "Live check"), delete only that afterwards, and say what was 
   Report, `cameras.json` downloaded, All Assets read up to its first bytes only, the menus' size at desktop and phone
   widths, the Sharing Center's Files cell, and a 404 once unticked. Creates one "Live check files" link and revokes
   it, also on failure; tokens masked.
+- `search.js` (repo, folder, user, password, optional task word, default `homerun`, part of one task's name but not
+  of its project's, and a word nothing matches): the home's Search Projects & Tasks, read-only: one letter asks
+  nothing, two filter in place (timed from the keys to the swap), focus kept, emptying, one letter and Enter; List
+  view's narrowed pane and Show All Tasks; Map view redrawn or saying nothing matches; phone width. Puts back the
+  user's saved home view at the end.
 - `present.js` (repo, folder, user, password, optional project id, default 2): the presentation tools on the
   signed-in map and 3D pages of a task with an orthophoto and a mesh: the laser drawn while the mouse still pans and
   orbits, a highlight drawn without moving the map and fading, Shift keeping one until Esc, Spotlight, the 3D page's
