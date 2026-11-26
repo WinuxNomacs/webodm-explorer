@@ -7,7 +7,7 @@ link of the projects you can change, in one place. WebODM's admins see every pro
 Each row shows the link's project (choose it to open the project's page with its Share panel), its label and
 address, **Require Sign-In**, and under **Files** **Allow Downloads**, **Allow Source Photos** and **Allow All Task
 Files** (to turn on or off, as in the Share panel), when it was made
-and by whom, and when it expires, marked **Expires Soon** within 7 days. On a phone the rows become cards.
+and by whom, and when it expires, marked **Expires Soon** within 7 days. On a phone, a tablet or a narrow window the rows become cards.
 
 ## Finding a link
 
