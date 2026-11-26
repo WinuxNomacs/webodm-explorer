@@ -343,16 +343,16 @@ class Plugin(PluginBase):
                                            if viewer.downloads
                                            else None,
                                            page_for=lambda task: pages.task_page_path(viewer.path, task, embed))
-            # The landing page's cover: the newest task with outputs, its picture and buttons; the Overview Map only
-            # over a basemap (outlines alone say little)
-            cover = cards[0] if cards else None
+            # As the signed-in project page: the Overview Map above every task's card, only over a basemap (outlines
+            # alone say little); link previews show the newest task's picture
+            newest = cards[0] if cards else None
             basemaps = options.link_basemaps()
             footprints = pages.link_footprints(cards) if basemaps and len(cards) > 1 else []
             return link_headers(render(request, self.template_path("link.html"), viewer_context(
-                viewer, title=viewer.project.name, cards=cards[1:] if cover else [], cover=cover,
+                viewer, title=viewer.project.name, cards=cards,
                 facts=pages.cover_facts(cards), footprints=footprints, basemaps=basemaps, embed=embed,
-                meta=preview_meta(request, viewer, viewer.project.name, cover and cover["task"],
-                                  cover and cover["picture"]))))
+                meta=preview_meta(request, viewer, viewer.project.name, newest and newest["task"],
+                                  newest and newest["picture"]))))
 
         def map_page(request, viewer, pk):
             task = pages.explorable_task(viewer.project, pk) if viewer else None

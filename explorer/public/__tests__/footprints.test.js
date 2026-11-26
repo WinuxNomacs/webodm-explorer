@@ -88,16 +88,22 @@ test("the remembered basemap is kept, and none means none", () => {
     expect(fake.leafletMap.setView).toHaveBeenCalledWith([0, 0], 1);  // nothing to fit
 });
 
-test("the overview map draws each task's footprint, opening the task on a click", () => {
+test("the overview map draws each task's footprint and a marker that shows at any zoom, both opening the task", () => {
     page('<div data-explorer-footprints="tasks"></div>',
         [{name: "First", url: "/plugins/explorer/project/1/map/T/", geometry: square(7, 46)}]);
     const {L, leafletMap, added} = fakeLeaflet();
     const navigate = jest.spyOn(footprints, "navigate").mockImplementation(() => {});
+    let layersAtFit = -1;
+    leafletMap.fitBounds.mockImplementation(() => { layersAtFit = added.length; });
     footprints.init(document, L);
-    expect(added).toHaveLength(1);
-    expect(added[0].tooltip.textContent).toBe("First");
-    added[0].handlers.click();
-    expect(navigate).toHaveBeenCalledWith("/plugins/explorer/project/1/map/T/");
+    expect(added.map((layer) => layer.kind)).toEqual(["geojson", "marker"]);
+    added.forEach((layer) => {
+        expect(layer.tooltip.textContent).toBe("First");
+        layer.handlers.click();
+    });
+    expect(navigate.mock.calls).toEqual([["/plugins/explorer/project/1/map/T/"], ["/plugins/explorer/project/1/map/T/"]]);
+    // The marker only once the map has its view: Leaflet throws clipping the outlines when one comes first
+    expect(added.findIndex((layer) => layer.kind === "marker")).toBeGreaterThanOrEqual(layersAtFit);
     navigate.mockRestore();
     expect(leafletMap.fitBounds.mock.calls[0][0].corners[0]).toEqual([46, 7]);
     expect(L.map.mock.calls[0][1].scrollWheelZoom).toBe(false);  // the page scrolls past it

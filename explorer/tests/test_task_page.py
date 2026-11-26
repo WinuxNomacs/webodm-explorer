@@ -125,7 +125,7 @@ class TaskPageTests(LinkTestMixin, BootTestCase):
         second.created_at = self.task_.created_at.replace(year=2020)
         second.save()
         page = Client().get(f"/plugins/explorer/s/{token}/").content.decode()
-        self.assertIn(f'class="explorer-cover-picture" href="{self.linked(token)}"', page)  # the newest task
+        self.assertIn(f'class="explorer-thumbnail-link" href="{self.linked(token)}"', page)  # the newest task
         self.assertIn(f'href="{self.linked(token, second)}"', page)
         embedded = Client().get(f"/plugins/explorer/s/{token}/?embed=1").content.decode()
         self.assertIn(f'href="{self.linked(token, second)}?embed=1"', embedded)

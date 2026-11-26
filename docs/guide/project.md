@@ -2,8 +2,9 @@
 
 A project's Explorer page shows its owner, tags and task count, then:
 
-- an **Overview Map** of the tasks' footprints over a basemap; choose a footprint to open its task's page. With one task,
-  the map is folded; unfold it to see it.
+- an **Overview Map** of the tasks' footprints over a basemap, each with a marker that shows at any zoom (tasks
+  flown far apart leave their outlines too small to see); choose a footprint or a marker to open its task's page.
+  With one task, the map is folded; unfold it to see it.
 - a card for each completed task with outputs, newest first.
 
 Tasks still processing, failed or cancelled are left out until they complete.
