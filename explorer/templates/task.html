@@ -42,9 +42,7 @@
                         <i class="fa fa-download"></i> {% trans "Download" %} <span class="caret"></span>
                     </button>
                     <ul class="dropdown-menu">
-                        {% for file in downloads %}
-                        <li><a href="{{ file.url }}" download><i class="{{ file.icon }} fa-fw"></i> {{ file.label }}</a></li>
-                        {% endfor %}
+                        {% include downloads_template %}
                     </ul>
                 </div>
                 {% endif %}

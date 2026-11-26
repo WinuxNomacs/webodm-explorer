@@ -35,9 +35,10 @@ and **Processing Details**: the date, images, processing time, size on disk, the
 the task was processed with (or WebODM's defaults). **Previous** and **Next** step through the project's tasks, and
 the project's name leads back to its page.
 
-Through a link and with **View as Visitor**, the page is the same without the processing node (an internal name),
-the report and **Open in WebODM**, with **Download** only on links that allow downloads, and with the footprint only
-when **Basemaps on Links** is on.
+Through a link and with **View as Visitor**, the page is the same without the processing node (an internal name)
+and **Open in WebODM**, with **Download** only on links that allow downloads, the report only on links that also
+allow all task files, and the footprint only when **Basemaps on Links** is on. Your own Download menus list every
+file of WebODM's Download menu the task has.
 
 ## The page's menus
 

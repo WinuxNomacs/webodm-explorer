@@ -29,15 +29,31 @@ logger = logging.getLogger("app.logger")
 # The layers WebODM's map page shows. Its URL cannot pick one (MapView's selectedMapType is never set from the
 # request), so they share one button that names them.
 MAP_LAYERS = (("orthophoto.tif", "Orthophoto"), ("dsm.tif", "DSM"), ("dtm.tif", "DTM"))
-# A link's Download menu: the files api.DOWNLOADABLE allows, with the labels and icons of WebODM's own Download menu
-# (AssetDownloads.js), in its order.
+# A link's Download menu: the files api.DOWNLOADABLE allows, then (extra: True) those api.ALL_FILES adds for a link
+# with Allow All Task Files, with the labels and icons of WebODM's own Download menu (AssetDownloads.js), in its order.
 LINK_DOWNLOADS = (
-    ("orthophoto.tif", "Orthophoto", "far fa-image"),
-    ("dtm.tif", "Terrain Model", "fa fa-chart-area"),
-    ("dsm.tif", "Surface Model", "fa fa-chart-area"),
-    ("georeferenced_model.laz", "Point Cloud", "fa fa-pointcloud"),
-    ("textured_model.zip", "Textured Model", "fab fa-connectdevelop"),
-    ("textured_model.glb", "Textured Model (glTF)", "fab fa-connectdevelop"),
+    ("orthophoto.tif", "Orthophoto", "far fa-image", False),
+    ("orthophoto.mbtiles", "Orthophoto (MBTiles)", "far fa-image", True),
+    ("orthophoto_tiles.zip", "Orthophoto (Tiles)", "fa fa-table", True),
+    ("cutline.gpkg", "Orthophoto Cutline", "fa fa-image", True),
+    ("dtm.tif", "Terrain Model", "fa fa-chart-area", False),
+    ("dtm_tiles.zip", "Terrain Model (Tiles)", "fa fa-table", True),
+    ("dsm.tif", "Surface Model", "fa fa-chart-area", False),
+    ("dsm_tiles.zip", "Surface Model (Tiles)", "fa fa-table", True),
+    ("georeferenced_model.laz", "Point Cloud", "fa fa-pointcloud", False),
+    ("georeferenced_model.las", "Point Cloud (LAS)", "fa fa-pointcloud", True),
+    ("georeferenced_model.ply", "Point Cloud (PLY)", "fa fa-pointcloud", True),
+    ("georeferenced_model.csv", "Point Cloud (CSV)", "fa fa-pointcloud", True),
+    ("3d_tiles_pointcloud.zip", "Point Cloud (3D Tiles)", "fa fa-cube", True),
+    ("textured_model.zip", "Textured Model", "fab fa-connectdevelop", False),
+    ("3d_tiles_model.zip", "Textured Model (3D Tiles)", "fab fa-connectdevelop", True),
+    ("textured_model.glb", "Textured Model (glTF)", "fab fa-connectdevelop", False),
+    ("cameras.json", "Camera Parameters", "fa fa-camera", True),
+    ("shots.geojson", "Camera Shots", "fa fa-camera", True),
+    ("ground_control_points.geojson", "Ground Control Points", "far fa-dot-circle", True),
+    ("report.pdf", "Quality Report", "far fa-file-pdf", True),
+    ("splats.rad", "Splats", "fa fa-splat", True),
+    ("all.zip", "All Assets", "far fa-file-archive", True),  # after a separator, as in WebODM's menu
 )
 
 
@@ -74,6 +90,7 @@ class Viewer(NamedTuple):
     signed_in: bool = False
     sign_in_link: bool = False  # a link that asks for a WebODM login: no preview in chat apps
     photos: bool = False  # a link's Allow Source Photos
+    all_files: bool = False  # every file of WebODM's Download menu: a link's Allow All Task Files, or signed-in users
 
 
 class HomeQuery(NamedTuple):
@@ -498,11 +515,12 @@ def option_value(value):
     return str(value)
 
 
-def task_details(task, signed_in):
+def task_details(task, viewer):
     """
     A task page's processing details: images, size on disk, processing time (each "" when unknown), the options it
-    was processed with ([(name, value)]; [] for WebODM's defaults), and for signed-in users only, the processing
-    node's name (an internal name, so not through links) and WebODM's processing report.
+    was processed with ([(name, value)]; [] for WebODM's defaults), for signed-in users only the processing node's
+    name (an internal name, so not through links), and WebODM's processing report for viewers with every file
+    (signed-in users, links with Allow All Task Files), through the viewer's API.
     """
     options = []
     for option in task.options if isinstance(task.options, list) else []:
@@ -510,19 +528,23 @@ def task_details(task, signed_in):
             options.append((str(option["name"]), option_value(option.get("value", ""))))
     details = {"images": task.images_count or 0, "size": disk_size(task.size),
                "processing_time": duration(task.processing_time), "options": options, "node": None, "report": None}
-    if signed_in:
+    if viewer.signed_in:
         node = task.processing_node
         details["node"] = str(node) if node else None
-        if "report.pdf" in (task.available_assets or []):
-            details["report"] = f"/api/projects/{task.project_id}/tasks/{task.id}/download/report.pdf"
+    if viewer.all_files and "report.pdf" in (task.available_assets or []):
+        details["report"] = f"{viewer.api}{task.id}/download/report.pdf"
     return details
 
 
-def link_downloads(task, api_path):
-    """A link page card's Download menu: label, icon and URL of each file the task has; api_path ends in a slash."""
+def link_downloads(task, api_path, all_files=False):
+    """
+    A Download menu: label, icon and URL of each file the task has, the outputs, and with all_files the rest of
+    WebODM's menu (All Assets marked to follow a separator); api_path ends in a slash.
+    """
     assets = task.available_assets or []
-    return [{"label": _(label), "icon": icon, "url": f"{api_path}{task.id}/download/{asset}"}
-            for asset, label, icon in LINK_DOWNLOADS if asset in assets]
+    return [{"label": _(label), "icon": icon, "url": f"{api_path}{task.id}/download/{asset}",
+             "separator": asset == "all.zip"}
+            for asset, label, icon, extra in LINK_DOWNLOADS if asset in assets and (all_files or not extra)]
 
 
 def explorable_task(project, task_pk):

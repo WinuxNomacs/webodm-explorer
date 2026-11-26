@@ -108,6 +108,7 @@ class Plugin(PluginBase):
                     entry["params"] = query.params(project=str(entry["project"].id))
                 context.update(folder=folder, pane_template=self.template_path("project_pane.html"),
                                cards_template=self.template_path("cards.html"),
+                               downloads_template=self.template_path("download_items.html"),
                                pane=pages.project_pane(request.user, selected["project"], public) if selected else None,
                                # Back to Projects on a phone: the folder pane, without a selection
                                back_params=query.params(project=""))
@@ -124,7 +125,8 @@ class Plugin(PluginBase):
             project = viewable_project(request, project_pk)
             return render(request, self.template_path("project_pane.html"), {
                 "public": public, "pane": pages.project_pane(request.user, project, public),
-                "cards_template": self.template_path("cards.html")})
+                "cards_template": self.template_path("cards.html"),
+                "downloads_template": self.template_path("download_items.html")})
 
         @signed_in_page
         def settings_page(request):
@@ -175,7 +177,7 @@ class Plugin(PluginBase):
             viewer = own_viewer(request, project_pk)
             project = viewer.project
             cards = pages.explorable_tasks([project], lambda task: pages.link_outputs(task, viewer.path),
-                                           lambda task: pages.link_downloads(task, viewer.api), details=True,
+                                           lambda task: pages.link_downloads(task, viewer.api, True), details=True,
                                            page_for=lambda task: pages.task_page_path(viewer.path, task))
             can_share = request.user.has_perm("app.change_project", project)
             return render(request, self.template_path("project.html"), {
@@ -189,6 +191,7 @@ class Plugin(PluginBase):
                 "footprints": pages.task_footprints(cards),
                 "basemaps": options.signed_in_basemaps(),
                 "cards_template": self.template_path("cards.html"),
+                "downloads_template": self.template_path("download_items.html"),
                 "link_texts_template": self.template_path("link_texts.html"),
                 "thumbnails": viewer.api,
                 "can_share": can_share,
@@ -219,7 +222,8 @@ class Plugin(PluginBase):
             api_path = f"/api/plugins/{links.NAMESPACE}/s/{token}/tasks/"
             return pages.Viewer(project=project, path=f"{public}s/{token}/", api=api_path, tiles_api=api_path,
                                 downloads=links.allows_downloads(link), preview=False,
-                                sign_in_link=links.needs_sign_in(project, link), photos=links.allows_photos(link))
+                                sign_in_link=links.needs_sign_in(project, link), photos=links.allows_photos(link),
+                                all_files=links.allows_all_files(link))
 
         def through_link(request, token, show):
             """
@@ -255,7 +259,7 @@ class Plugin(PluginBase):
             return pages.Viewer(project=project, path=f"{public}project/{project.id}/",
                                 api=f"/api/projects/{project.id}/tasks/",
                                 tiles_api=f"/api/plugins/{links.NAMESPACE}/projects/{project.id}/tasks/",
-                                downloads=True, preview=False, signed_in=True)
+                                downloads=True, preview=False, signed_in=True, all_files=True)
 
         def viewer_context(viewer, task=None, **extra):
             context = {"public": public, "v": pages.asset_version(), "project": viewer.project, "link_path": viewer.path, "api": viewer.api,
@@ -263,6 +267,7 @@ class Plugin(PluginBase):
                        "signed_in": viewer.signed_in, "task": task,
                        "back": f"{public}project/{viewer.project.id}/",
                        "cards_template": self.template_path("cards.html"),
+                       "downloads_template": self.template_path("download_items.html"),
                        "preview_template": self.template_path("preview_bar.html"),
                        "viewer_tools_template": self.template_path("viewer_tools.html"),
                        "present_template": self.template_path("present_tools.html"),
@@ -275,7 +280,8 @@ class Plugin(PluginBase):
                 context["views_3d"] = [{"type": kind, "label": label, "icon": icon,
                                         "url": f"{viewer.path}3d/{task.id}/?t={kind}"}
                                        for kind, label, icon in pages.viewer_types(task)]
-                context["downloads"] = pages.link_downloads(task, viewer.api) if viewer.downloads else []
+                context["downloads"] = (pages.link_downloads(task, viewer.api, viewer.all_files) if viewer.downloads
+                                        else [])
                 if viewer.signed_in:
                     context["webodm"] = pages.task_outputs(task)
             return context
@@ -303,7 +309,8 @@ class Plugin(PluginBase):
             embed = embedded(request, viewer)
             cards = pages.explorable_tasks([viewer.project],
                                            lambda task: pages.link_outputs(task, viewer.path, embed),
-                                           (lambda task: pages.link_downloads(task, viewer.api)) if viewer.downloads
+                                           (lambda task: pages.link_downloads(task, viewer.api, viewer.all_files))
+                                           if viewer.downloads
                                            else None,
                                            page_for=lambda task: pages.task_page_path(viewer.path, task, embed))
             # The landing page's cover: the newest task with outputs, its picture and buttons; the Overview Map only
@@ -376,7 +383,7 @@ class Plugin(PluginBase):
                 viewer, title=title, task=task, embed=embed,
                 base_template="app/plugins/templates/base.html" if viewer.signed_in else "app/public/base.html",
                 outputs=outputs, picture=pages.thumbnail(task), tags=pages.user_tags(task.tags),
-                details=pages.task_details(task, viewer.signed_in), footprints=footprints, basemaps=basemaps,
+                details=pages.task_details(task, viewer), footprints=footprints, basemaps=basemaps,
                 project_path=viewer.path + ("?embed=1" if embed else ""),
                 meta=preview_meta(request, viewer, f"{title} - {viewer.project.name}", task, pages.thumbnail(task)),
                 neighbours=pages.neighbours(viewer.project, task, viewer.path, "task")))

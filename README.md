@@ -31,7 +31,8 @@ links are public.
   **Point Cloud**, **Textured Model** and **Gaussian Splats**. The thumbnail and name open **the task's page**: its
   views, Download, Open in WebODM, **Processing Report**, a **Footprint** map, **Processing Details** (images, time,
   size, node and processing options) and **Previous** / **Next**; through a link and View as Visitor, the same without
-  the node, the report and WebODM's pages, and with Download only on links that allow it. These open in Explorer's own viewer, with a
+  the node and WebODM's pages, with Download only on links that allow it and the report only on links with Allow All
+  Task Files. These open in Explorer's own viewer, with a
   **Download** menu and **Open in WebODM** (WebODM's map and 3D pages, for their measurement tools); each card's
   "..." menu has the same. The page's "..." menu has **Open in Dashboard** and **View All on Map**. Where WebODM
   can't make a thumbnail (a thermal orthophoto, or a task with elevation models only), the card draws one from the
@@ -51,14 +52,15 @@ links are public.
   priority, one at a time, kept in the task's own folder in WebODM's media, so they survive upgrades); until they are
   ready, the link shows WebODM's own model. A link serves only what these views stream, unless it has
   **Allow Downloads** (ticked when creating it, or on the link later): its task cards and views then get a **Download** menu
-  with the orthophoto, DSM, DTM, point cloud (LAZ) and textured model (zip and glTF), but not the report, camera
-  positions or All Assets. With **Allow Source Photos**, its map and 3D pages have Source Frames: the task's photos,
+  with the orthophoto, DSM, DTM, point cloud (LAZ) and textured model (zip and glTF); with **Allow All Task Files**
+  too, the rest of WebODM's Download menu: the Quality Report, camera shots and parameters, the other formats and
+  All Assets (which includes each photo's position and capture time and the processing log). With **Allow Source Photos**, its map and 3D pages have Source Frames: the task's photos,
   re-encoded without their EXIF data (the original photo only with Allow Downloads too). A link with **Require Sign-In** asks for a WebODM login first (any account on the WebODM,
   without sharing the project with it), and has no preview in chat apps. Links are kept in plain text in WebODM's
-  database (so they can be copied again), and revoking one, or unticking Allow Downloads or Allow Source Photos, takes effect at once.
+  database (so they can be copied again), and revoking one, or unticking Allow Downloads, Allow All Task Files or Allow Source Photos, takes effect at once.
 - **The Sharing Center** (Explorer > Sharing Center) manages every link of the projects you can change in one place
-  (WebODM's admins: every project's): a table with each link's project, label, **Require Sign-In**, **Allow
-  Downloads**, when it was made and by whom, and its expiry, filtered by status (**Active**, **Expiring Soon**,
+  (WebODM's admins: every project's): a table with each link's project, label, **Require Sign-In**, its file options (**Allow
+  Downloads**, **Allow Source Photos**, **Allow All Task Files**), when it was made and by whom, and its expiry, filtered by status (**Active**, **Expiring Soon**,
   **Expired**), project, access and downloads, or searched by label, project or user, the filters kept in the page's
   address. **Create Link** makes a link for any of those projects; each link has **Open**, **Embed**, **Copy**,
   **Edit** and **Revoke**. Expired links stay listed for 90 days, with **Renew** (a new expiry, and the same address
