@@ -84,6 +84,27 @@ everyone who sees the map, link visitors too, and offers only what the task's da
 Through a link, at most three volumes are measured at once per link; another visitor is told to try again in a
 moment. When an admin disables WebODM's Measure plugin, Volume isn't offered.
 
+### Measuring in 3D
+
+The 3D page has the same **Measure** tool (M) on the textured model and the point cloud, with points picked on the
+model itself: on the textured model the exact spot of its surface, on the point cloud the nearest real point within a
+few pixels (a click on a gap says there is nothing there). Measuring isn't offered on Gaussian splats, whose surface
+isn't exact enough.
+
+- **Distance**: two points. The panel shows the length between them, its **Horizontal** part, the **Height
+  Difference** (the second point less the first) and the **Slope** in degrees and percent, for example a roof's pitch.
+- **Area**: the corners of a shape; double-click, **Finish** or Enter closes it. The **Horizontal Area** is the area
+  seen from above, as on the map; the **Sloped Area** is the area on the plane through the points, for example a roof
+  face; and its **Perimeter**.
+- **Point**: the picked point's **Elevation**, from the model.
+- **Angle**: three points; the angle at the second.
+- The panel's **m** / **ft** button switches the units (the point cloud's legend follows it).
+
+The 3D models are in the task's projected grid (UTM), whose lengths differ from those on the ground by up to about
+0.1%. Horizontal lengths and areas are corrected by the grid's scale factor at the model, so they match the map's;
+heights need no correction. The values are as good as the model: a textured model is smoothed where the photos saw
+little, and the point cloud has gaps and stray points.
+
 ## Source Frames
 
 On your own map and 3D pages of a task (signed in), and on a link's when it has

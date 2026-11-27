@@ -15,6 +15,7 @@ import { TilesRenderer } from "3d-tiles-renderer/three";
 import { GLTFExtensionsPlugin, TilesFadePlugin } from "3d-tiles-renderer/three/plugins";
 import { createBackdrop } from "./backdrop.js";
 import { EptCloud, FETCH_TIMEOUT_MS, HttpError, withRetry } from "./ept.js";
+import { startMeasure } from "./measure3d.js";
 
 // A paged splat file's bounds fill in as its first pages arrive
 const BOUNDS_WAIT_MS = 10000;
@@ -249,6 +250,11 @@ function createScene(container, options) {
         hits.sort((a, b) => a.distance - b.distance);
         return hits[0].point;
     }
+
+    // The Measure tool's drawing (measure3d.js): over the model wherever the camera is, never picked
+    const overlay = new THREE.Group();
+    overlay.renderOrder = 998;
+    scene.add(overlay);
 
     // Source Frames' spot (frames.js): a ring of one size on screen, drawn over the model wherever the camera is;
     // colours are CSS colours (the theme's). null removes it.
@@ -617,7 +623,8 @@ function createScene(container, options) {
     }
 
     return { show, resize, stats, place, reset, setCloudStyle, cloudRange, pick, setMarker, watchContext,
-        setBackground: backdrop.set, offset: offset ? offset.clone() : null };
+        setBackground: backdrop.set, offset: offset ? offset.clone() : null, overlay,
+        shown: () => current, size: () => [renderer.domElement.clientWidth, renderer.domElement.clientHeight] };
 }
 
 // "x y" (the page's data-offset) as [x, y, 0], or null
@@ -650,5 +657,8 @@ if (page && window.ExplorerViewer) {
         console.error(e);
         window.ExplorerViewer.fail();
     }
-    if (scene) window.ExplorerViewer.start(scene);
+    if (scene) {
+        window.ExplorerViewer.start(scene);
+        startMeasure(page, scene);
+    }
 }

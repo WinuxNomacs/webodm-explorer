@@ -276,3 +276,48 @@ class MeasurePageTests(MeasureTestMixin, BootTestCase):
 
     def test_webodms_measure_plugin_is_enabled_in_a_default_install(self):
         self.assertTrue(measure.measure_active())
+
+
+class Measure3dTests(MeasureTestMixin, BootTestCase):
+    def offset(self, x, y):
+        os.makedirs(self.dem.assets_path("odm_georeferencing"), exist_ok=True)
+        with open(self.dem.assets_path("odm_georeferencing", "coords.txt"), "w") as f:
+            f.write(f"WGS84 UTM 16N\n{x} {y}\n")
+
+    def page(self, kind="mesh"):
+        return self.client_for("testuser").get(
+            f"/plugins/explorer/project/{self.project.id}/3d/{self.dem.id}/?t={kind}").content.decode()
+
+    def test_the_grid_scale_is_utms_at_the_models_origin(self):
+        # UTM's scale is 0.9996 on its central meridian (easting 500 km), more away from it
+        self.assertAlmostEqual(measure.grid_scale(self.dem, "500000 4600000"), 0.9996, places=9)
+        away = measure.grid_scale(self.dem, "350000 4600000")
+        self.assertGreater(away, 0.9996)
+        self.assertLess(away, 0.99990)
+        self.assertEqual(measure.grid_scale(self.dem, None), 1.0)
+        self.dem.epsg = None
+        self.assertEqual(measure.grid_scale(self.dem, "500000 4600000"), 1.0)
+
+    def test_the_3d_page_measures_on_the_model_with_the_grid_scale(self):
+        self.offset(500000, 4600000)
+        html = self.page()
+        start = html.index('data-tool="measure"')
+        tool = html[html.rindex("<button", 0, start):html.index(">", start)]
+        self.assertIn('data-grid-scale="0.999600000"', tool)
+        self.assertNotIn("data-volume-start", tool)
+        self.assertIn('id="explorer-measure-texts"', html)
+        self.assertIn("measure.js", html)
+        self.assertIn("viewer/measure3d.js", html)
+        self.assertNotIn("geographiclib", html)  # the 3D page measures in the grid
+
+    def test_no_measuring_without_webodms_offset_or_on_splats_alone(self):
+        self.assertNotIn('data-tool="measure"', self.page())
+        self.offset(500000, 4600000)
+        self.dem.available_assets = ["splats.rad"]
+        self.dem.save()
+        self.assertNotIn('data-tool="measure"', self.page("splats"))
+
+    def test_a_links_3d_page_measures_too(self):
+        self.offset(500000, 4600000)
+        html = Client().get(f"/plugins/explorer/s/{self.link['token']}/3d/{self.dem.id}/?t=cloud").content.decode()
+        self.assertIn('data-tool="measure"', html)

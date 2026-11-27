@@ -588,6 +588,16 @@ def measure_tools(viewer, task):
             "link": not (viewer.signed_in or viewer.preview)}
 
 
+def measure_scene(task, types, offset):
+    """
+    The 3D page's Measure tool (public/viewer/measure3d.js), or None: on the textured model and the point cloud, with
+    WebODM's offset known (the scene's coordinates are then the task's). {scene, scale: the grid's scale factor}.
+    """
+    if not offset or not any(kind in ("mesh", "cloud") for kind, _label, _icon in types):
+        return None
+    return {"scene": True, "scale": f"{measure.grid_scale(task, offset):.9f}"}
+
+
 def measure_texts():
     """What the Measure tool says (public/measure.js), translated."""
     return {
@@ -606,6 +616,18 @@ def measure_texts():
         "ground": _("Ground Elevation (DTM)"), "heightAboveGround": _("Height Above Ground"),
         "noValue": _("No value here"), "elevationFailed": _("The elevation could not be read."),
         "undo": _("Undo"), "finish": _("Finish"), "clear": _("Clear"), "close": _("Close"),
+        # The 3D page's
+        "distance": _("Distance"), "angle": _("Angle"),
+        "hintDistance": _("Click two points on the model."),
+        "hintArea3d": _("Click the area's corners on the model; double-click, Finish or Enter to end."),
+        "hintPoint3d": _("Click the model to read its elevation there."),
+        "hintAngle": _("Click three points on the model: the angle is at the second."),
+        "hintDone3d": _("Click the model to start a new measurement."),
+        "horizontal": _("Horizontal"), "heightDifference": _("Height Difference"), "slope": _("Slope"),
+        "horizontalArea": _("Horizontal Area"), "slopedArea": _("Sloped Area"),
+        "nothing": _("Nothing there: click on the model."),
+        "noSplats": _("Measuring works on the textured model and the point cloud, not on Gaussian splats."),
+        "units": _("Switch units"),
     }
 
 
