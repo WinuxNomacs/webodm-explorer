@@ -17,6 +17,7 @@ from app.api.imageuploads import ImageDownload, Thumbnail
 from app.api.tasks import TaskAssets, TaskDownloads, TaskSafeTexturedModel, TaskThumbnail
 from app.api.tiler import Bounds, Metadata, TileJson, Tiles
 from app.models import Project, Task
+from coreplugins.measure.api import TaskVolume, TaskVolumeResult
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.http import FileResponse
 from django.utils.translation import gettext as _
@@ -26,7 +27,7 @@ from rest_framework.permissions import AllowAny, BasePermission, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from . import frames, links, options, pages, tiles
+from . import frames, links, measure, options, pages, tiles
 
 logger = logging.getLogger("app.logger")
 LINK_PATH = "/plugins/{}/s/{}/"
@@ -458,6 +459,89 @@ class Frames(APIView):
         if task is None:
             raise exceptions.NotFound()
         return frames_response(task, request.data)
+
+
+def elevation_response(task, query):
+    point = measure.parse_point(query)
+    if point is None:
+        return Response({"error": "Expected lng and lat"}, status=status.HTTP_400_BAD_REQUEST)
+    return Response(measure.elevations(task, *point))
+
+
+class TokenElevation(TokenTaskMixin, APIView):
+    """GET ?lng=&lat=: the DSM's and the DTM's elevation under a point, through a link."""
+    permission_classes = (AllowAny,)
+    queryset = Task.objects.all().select_related("project")
+
+    def get(self, request, pk=None):
+        return elevation_response(self.get_and_check_task(request, pk), request.query_params)
+
+
+class Elevation(APIView):
+    """The same for a signed-in user who can view the project (the task in it, completed)."""
+    permission_classes = (NotCrossSite, IsAuthenticated)
+
+    def get(self, request, project_pk=None, pk=None):
+        project = Project.objects.filter(pk=project_pk, deleting=False).first()
+        if project is None or not request.user.has_perm("app.view_project", project):
+            raise exceptions.NotFound()
+        task = pages.explorable_task(project, pk)
+        if task is None:
+            raise exceptions.NotFound()
+        return elevation_response(task, request.query_params)
+
+
+class TokenVolume(TokenTaskMixin, TaskVolume):
+    """
+    POST: WebODM's own volume (its Measure plugin's view and calc_volume, in WebODM's worker) through a link, with the
+    link's token check in place of WebODM's permission check, and at most measure.VOLUME_JOBS_PER_LINK jobs of the
+    link's visitors at once. Not there when WebODM's Measure plugin is disabled.
+    """
+    permission_classes = (AllowAny,)
+
+    def post(self, request, pk=None):
+        if not measure.measure_active():
+            raise exceptions.NotFound()
+        self.get_and_check_task(request, pk)
+        try:
+            slot = measure.claim_slot(self.share_token)
+        except measure.CapUnavailable:
+            return Response({"error": _("Volume can't be measured right now: try again later.")},
+                            status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        if slot is None:
+            return Response({"error": _("Too many volumes are being measured through this link: try again in a moment.")},
+                            status=status.HTTP_429_TOO_MANY_REQUESTS)
+        try:
+            response = super().post(request, pk)
+        except Exception:
+            measure.release_slot(self.share_token, key=slot)
+            raise
+        job = response.data.get("celery_task_id") if isinstance(response.data, dict) else None
+        if job:
+            measure.hold_slot(slot, job)
+        else:
+            measure.release_slot(self.share_token, key=slot)
+        return response
+
+
+class TokenVolumeResult(TokenTaskMixin, TaskVolumeResult):
+    """GET: a volume job's result, through the link that started it; a finished job frees its place."""
+    permission_classes = (AllowAny,)
+    queryset = Task.objects.all().select_related("project")
+
+    def initial(self, request, *args, **kwargs):
+        super().initial(request, *args, **kwargs)
+        # WebODM's result view checks nothing (anyone with the job's id): the link must still be valid
+        if not measure.measure_active():
+            raise exceptions.NotFound()
+        self.get_and_check_task(request, kwargs.get("pk"))
+
+    def get(self, request, pk=None, celery_task_id=None):
+        response = super().get(request, pk=pk, celery_task_id=celery_task_id)
+        data = response.data if isinstance(response.data, dict) else {}
+        if data.get("error") != "Task not ready":
+            measure.release_slot(self.share_token, job_id=celery_task_id)
+        return response
 
 
 class MeshTilesView(APIView):

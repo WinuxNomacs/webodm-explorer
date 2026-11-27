@@ -50,6 +50,40 @@ the [presentation tools](#presentation-tools) on and off, **S** [Source Frames](
 
 Point size, colour, background, opacity, basemap and units are remembered in the browser.
 
+## Measuring
+
+The map has a **Measure** tool (M, the ruler button) for lengths, areas, volumes and elevations. It is there for
+everyone who sees the map, link visitors too, and offers only what the task's data allows.
+
+- **Length**: click the map to add points along a path; double-click, **Finish** or Enter ends it. The panel shows the
+  path's length as you draw.
+- **Area**: click the corners; double-click, **Finish** or Enter closes the shape. The panel shows its area and
+  perimeter, and its **Volume** when the task has a DSM.
+- **Point**: click a spot to read the **Surface Elevation (DSM)**, the **Ground Elevation (DTM)** and, when the task has
+  both, the **Height Above Ground** between them.
+- **Undo** (Backspace) takes the last point back, **Clear** starts over, and the next click after a finished shape
+  starts a new one. **Esc**, the panel's × or the button again turns the tool off. Turning on another tool (the
+  presentation tools, Source Frames) turns it off, and the reverse.
+- Values read in the units of the legend's switch: metres, square metres (hectares past 10,000), cubic metres; or feet,
+  square feet (acres past one), cubic yards.
+
+**How it measures**
+
+- Lengths and areas are measured on the WGS84 ellipsoid with GeographicLib (Karney's method, the one PROJ uses), so
+  they are exact for the points you clicked. WebODM's own map ruler measures on a sphere: the same shape can read up to
+  about 0.6% differently there, depending on where it is and which way it runs.
+- **Volume** is WebODM's own: its Measure plugin computes it from the DSM in WebODM's worker, as WebODM's map does, and
+  gives the same number for the same shape. **Volume Base** picks how the ground under the shape is estimated from
+  its edge: **Triangulate** (the default), **Plane**, **Average**, **Highest** or **Lowest**. A large shape over a fine
+  DSM can take a while; after two minutes the panel says to try again later.
+- The DSM is the surface, roofs and treetops included; the DTM is the bare ground, which ODM fills in under buildings
+  and trees, so a height above ground there is an estimate.
+- Every value is only as good as the task itself: its georeferencing (ground control points help) and its DEM's
+  cell size.
+
+Through a link, at most three volumes are measured at once per link; another visitor is told to try again in a
+moment. When an admin disables WebODM's Measure plugin, Volume isn't offered.
+
 ## Source Frames
 
 On your own map and 3D pages of a task (signed in), and on a link's when it has
@@ -65,8 +99,8 @@ one updates it.
 - **Open Full Frame** shows the photo full screen. Zoom with the wheel, a pinch, the buttons or a double-click; drag
   to pan; step through the photos with the arrow keys; **Esc** closes it and returns to the window, on the photo you
   ended on.
-- **Esc**, the window's × or the button again turns Source Frames off. Turning on the Laser Pointer or Area Highlight
-  turns it off too, and the other way round.
+- **Esc**, the window's × or the button again turns Source Frames off. Turning on the Laser Pointer, Area Highlight
+  or Measure turns it off too, and the other way round.
 - On a phone the window is a panel along the bottom of the view.
 
 How it finds the photos: from each photo's position, direction and lens (the task's camera shots) and the spot's

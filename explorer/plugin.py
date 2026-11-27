@@ -369,7 +369,9 @@ class Plugin(PluginBase):
                 # A signed-in user's own map has WebODM's basemaps, as WebODM's map does; Basemaps on Links rules
                 # the link's maps and View as Visitor, which shows them as a link does
                 basemaps=options.signed_in_basemaps() if viewer.signed_in else options.link_basemaps(),
-                frames=pages.source_frames(viewer, task), frames_texts=pages.frames_texts())))
+                frames=pages.source_frames(viewer, task), frames_texts=pages.frames_texts(),
+                measure=pages.measure_tools(viewer, task), measure_texts=pages.measure_texts(),
+                measure_template=self.template_path("measure_tools.html"))))
 
         def page_3d(request, viewer, pk):
             task = pages.explorable_task(viewer.project, pk) if viewer else None
@@ -489,6 +491,7 @@ class Plugin(PluginBase):
             MountPoint(r"projects/(?P<project_pk>[0-9]+)/links-allowed/$", api.ProjectLinksAllowed.as_view()),
             MountPoint(rf"projects/(?P<project_pk>[0-9]+)/links/{TOKEN}/$", api.ProjectLink.as_view()),
             MountPoint(rf"projects/(?P<project_pk>[0-9]+)/tasks/{TASK}/frames/$", api.Frames.as_view()),
+            MountPoint(rf"projects/(?P<project_pk>[0-9]+)/tasks/{TASK}/elevation/$", api.Elevation.as_view()),
             # Preview: the mesh tiles for signed-in users who can view the project (everything else is WebODM's API)
             MountPoint(rf"projects/(?P<project_pk>[0-9]+)/tasks/{TASK}/tiles/(?P<build>[0-9a-f]{{16}})/"
                        r"(?P<path>[A-Za-z0-9_\-/.]+)$", api.PreviewMeshTiles.as_view()),
@@ -500,6 +503,10 @@ class Plugin(PluginBase):
             MountPoint(rf"{tile}@(?P<scale>[\d]+)x\.?(?P<ext>png|jpg|webp)?$", api.TokenTiles.as_view()),
             MountPoint(rf"{base}thumbnail$", api.TokenThumbnail.as_view()),
             MountPoint(rf"{base}frames/$", api.TokenFrames.as_view()),
+            MountPoint(rf"{base}elevation/$", api.TokenElevation.as_view()),
+            # WebODM's Measure plugin's volume views (coreplugins/measure/plugin.py's paths), below the link's token
+            MountPoint(rf"{base}volume$", api.TokenVolume.as_view()),
+            MountPoint(rf"{base}volume/get/(?P<celery_task_id>[A-Za-z0-9-]+)$", api.TokenVolumeResult.as_view()),
             MountPoint(rf"{base}images/thumbnail/(?P<image_filename>.+)$", api.TokenPhotoThumbnail.as_view()),
             MountPoint(rf"{base}images/download/(?P<image_filename>.+)$", api.TokenPhotoDownload.as_view()),
             MountPoint(rf"{base}textured_model/$", api.TokenTexturedModel.as_view()),
