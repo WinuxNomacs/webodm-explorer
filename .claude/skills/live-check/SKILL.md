@@ -96,3 +96,12 @@ own (e.g. starting "Live check"), delete only that afterwards, and say what was 
   path refused, a revoke while open), revoked at the end, also on failure; its output masks tokens. On the point
   cloud a click can pick a stray point floating in front of the ground (task 25cdbf17, 2026-11-25): its best photos
   then show the spot in the sky, which is right for that point.
+- `measure.js` (repo, screenshot folder, user, password, project id, task id with a DSM, then a folder holding
+  `@turf/area` and `@turf/length` at 5.1.5, WebODM's versions: `npm install --ignore-scripts @turf/area@5.1.5
+  @turf/length@5.1.5` in a scratch folder): the map page's Measure tool against WebODM's own ruler. Draws a polygon
+  in WebODM's map, reads its popup and its Export to GeoJSON (in the page, nothing saved), then the same polygon in
+  Explorer: Explorer's area is GeographicLib's, WebODM's is Turf's (the sphere's error between them is printed), and
+  on WebODM's exact polygon Explorer's volume equals WebODM's popup's. Then one "Live check" link (revoked at the end,
+  also on failure): a visitor's area, volume and elevation, the link's volume equal to WebODM's API's on the same
+  points, no long tasks while drawing, and phone width. WebODM's popup reads leaflet-measure's own copy of the
+  points, a few millimetres from the polygon it exports (2026-11-27: 0.2% on 150 m2), so it is compared loosely.

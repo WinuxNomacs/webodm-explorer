@@ -180,7 +180,8 @@ class SignInLinkTests(LinkTestMixin, BootTestCase):
         token = self.sign_in_link()["token"]
         mounted = [m.view.view_class for m in plugin.Plugin.api_mount_points(None)
                    if m.url.startswith("s/")]
-        self.assertEqual(len(mounted), 13)  # every token route, both tile routes and Source Frames' three included
+        # Every token route: both tile routes, Source Frames' three, and the Measure tool's elevation and volume three
+        self.assertEqual(len(mounted), 16)
         for view_class in set(mounted):
             self.assertTrue(issubclass(view_class, api.TokenTaskMixin), view_class)
             # The link's check; the photo views add only their photo-name check after it

@@ -79,6 +79,10 @@ links are public.
 - **Source Frames** on your own map and 3D pages of a task (S): click a spot on the map, the textured model or the
   point cloud to see the task's photos that show it, best first, with the spot marked, their details, Download and a
   full-screen viewer (zoom, pan, arrow keys, Esc). On links that have **Allow Source Photos**.
+- **Measure** on the map (M), for visitors and signed-in users alike: **Length**, **Area** with its perimeter and
+  **Volume**, and a **Point**'s DSM and DTM elevations with the height above ground between them. Lengths and areas
+  are exact geodesics on WGS84 (GeographicLib); volume is WebODM's own, from its Measure plugin. Only what the task's
+  data allows is offered.
 - **Presentation tools** on the map and 3D pages, for pointing at things while you talk about them: a **Laser
   Pointer** (L) with a fading trail, and **Area Highlight** (H) to draw a freehand loop, rectangle or ellipse that
   fades after a few seconds (Shift keeps it), optionally as a **Spotlight** that dims everything else. For visitors

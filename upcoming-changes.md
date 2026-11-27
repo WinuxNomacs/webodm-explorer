@@ -7,8 +7,8 @@ WebODM-Plugins entry as draft pull request #16 (the user marks it ready).
 
 Up next: **the road to 1.0.0** (below): each phase discussed with the user when it comes up.
 
-Then: **release 0.2.0**, then **measurement tools** (the user's request 2026-11-27; plan below, to be planned in
-detail with the user when it comes up).
+Now: **measurement tools**, step B (3D, after research; step A, the map page, built: see "Done"): the user's
+request 2026-11-27, plan below. Then **release 0.3.0** (v0.2.0 tagged locally, not published).
 
 Built: **Search Projects & Tasks** (the user's request 2026-11-26; plan below; see "Done"), then **List view's
 Search Results** (the user's follow-up the same day), then **List by default, Grid on phones** (the same day; see
@@ -1089,33 +1089,60 @@ on the next write to the project's links (`_write`).
 - **Docs:** a Presentation Tools section in the viewer guide pages, and the README's feature list (interface
   screenshots only, no model or location).
 
-### Plan: measurement tools (the request and the user's answers, 2026-11-27; not built)
+### Plan: measurement tools (the request and the user's answers, 2026-11-27)
 
 The request: simple but accurate tools in Explorer's viewer for length, height, volume and area, each offered only
-when the open view's data supports it. The user: WebODM's measurements go through a rigorous accuracy vetting, so
-Explorer uses them rather than its own measuring stick, and adds few dependencies.
+when the open view's data supports it. Built before the next release (the user, 2026-11-27: "too important"; v0.2.0
+tagged locally on 88fb759 and not published; the next release is 0.3.0).
 
 What WebODM has (checked 2026-11-27 in v4.0.1): the Measure core plugin (`coreplugins/measure`, enabled by default,
-an admin can disable it) draws with leaflet-measure-ex 3.0.7, whose lengths and areas are `@turf/length` and
-`@turf/area`; its volume is `calc_volume` on `dsm.tif` (rasterio, numpy, scipy) behind `POST
-/api/plugins/measure/task/<id>/volume` and its result view, run in the worker. WebODM has no point-elevation API (its
-tiler has TileJson, Bounds, Metadata, Tiles, Export). Its 3D view measures with Potree's tool, tied to Potree.
+an admin can disable it) draws with leaflet-measure-ex 3.0.7, whose lengths and areas are Turf 5.1.5 (`@turf/length`,
+`@turf/area`); its volume is `calc_volume` on `dsm.tif` (rasterio, numpy, scipy, in the DSM's projected CRS) behind
+`POST /api/plugins/measure/task/<id>/volume` and `.../volume/get/<celery id>`, run in the worker. WebODM has no
+point-elevation API (its tiler has TileJson, Bounds, Metadata, Tiles, Export). Its 3D view measures with Potree's tool.
 
-Proposed, to confirm when planned:
-- **Map: length and area** with `@turf/length` and `@turf/area` vendored at the versions WebODM's Measure uses (to vet
-  first), so the same points give WebODM's numbers; Explorer only draws.
-- **Map: volume** through WebODM's Measure: its API for signed-in users; for links, subclasses of `TaskVolume` and
-  `TaskVolumeResult` overriding only `get_and_check_task` (decided: the user allowed it, 2026-11-27, as a default
-  plugin from WebODM's maintainers; recorded in `CLAUDE.md`). Hidden when Measure is disabled. Open: a cap on the
-  worker jobs a link's visitors can queue.
-- **Map: elevation at a point and height above ground** (DSM, and DSM minus DTM): WebODM has nothing to reuse, so a
-  small view reading the cell with rasterio's `sample()`. Open: whether to build it, or leave heights to 3D.
-- **3D: distance, height and area** between picked points: no WebODM code to reuse (Potree's is tied to its viewer);
-  later, checked against Potree's numbers on the same points.
-- Tools follow the data: length and area on any layer; elevation, height difference and volume with a DSM; height
-  above ground with both; none on splats.
-- Proof: unit tests against known geodesic lengths and areas and a synthetic DSM; a live check measuring the same
-  line, polygon and stockpile in WebODM's map and in Explorer, numbers equal.
+Measured 2026-11-27 (scratch script, Turf 5.1.5 against GeographicLib 2.2.0 on WGS84): Turf works on a sphere, so
+WebODM's map lengths are off by up to 0.56% (a 100 m north-south line at the equator reads 100.561 m) and areas by up
+to 0.67% (a 200 m square at the equator), varying with latitude and direction; Turf 7 changed the area radius
+(6378137 to 6371008.8). Volume is not affected (projected metres).
+
+Decided (the user, 2026-11-27):
+- **Lengths and areas with GeographicLib** (`geographiclib-geodesic` 2.2.0: Karney's exact WGS84 geodesics, the method
+  PROJ uses; MIT, no dependencies, one 32 KB file; npm releases 2.0.0 2022-04-29, 2.1.0 2024-08-18, 2.2.0
+  2025-08-22; one maintainer, its author; repo pushed 2026-07-14, 0 open issues, not archived). Vendored by
+  `dev/vendor.sh`. The docs say why Explorer can differ from WebODM's map ruler.
+- **Volume is WebODM's**, through its Measure plugin (an exception the user allowed, recorded in `CLAUDE.md`):
+  signed-in users call its API; a link's visitors call subclasses of `TaskVolume` and `TaskVolumeResult` under the
+  link's address (the Linode setup serves only `/api/plugins/explorer/s/...`), with the token check, **capped per
+  link** (a few jobs at a time). Hidden when Measure is disabled. WebODM's five base methods (Triangulate by default,
+  Plane, Average, Highest, Lowest), as its popup offers them.
+- **Elevation at a point and height above ground**: the DSM's and the DTM's cell under the point, read with rasterio
+  (`sample()`, in each raster's own CRS), and DSM minus DTM; Explorer's own small view (WebODM has none).
+- **3D measuring is a second step (B)**, after researching the best options available for a three.js viewer (not
+  Potree's tool).
+
+Step A, the map page (`link_map.html`: links, View as Visitor, signed-in users):
+- A **Measure** tool in the viewer bar with **Length**, **Area** and **Point**; points by click or tap, **Undo** (and
+  Backspace), **Finish** (and double-click or Enter), Esc to cancel; results in a panel over the map, in the units the
+  legend's switch chose (m, m2, m3 or ft, ft2/acres, yd3). Length: the path's geodesic length; Area: area and perimeter,
+  and the volume when the task has a DSM and volume is available; Point: the DSM and DTM elevations and height above
+  ground when there are both.
+- Tools follow the data: Length and Area on any layer; Point with a DSM or a DTM; volume with a DSM and Measure on.
+- Failure list (unattended parts: the volume job and the cap):
+  - WebODM's worker down or slow: the job never finishes; the page stops polling after a deadline (2 minutes) and says
+    so; the cap's slot expires on its own (a timeout on the slot), so a dead job never holds the link's slots.
+  - The job fails (no DSM, bad polygon, a raster error): WebODM's result answers `{"error": ...}` (or a 500): shown as
+    a message, the drawing kept.
+  - The link is revoked while a job runs: the result view's token check answers 404; the page says the link is no
+    longer valid.
+  - Measure disabled while a page is open: the volume view answers 404; shown as "Volume is not available".
+  - Too many jobs on one link: 429 with a message; the visitor can try again.
+  - A missing or unreadable DEM for a point: that value is left out (null), never an error page; outside the raster or
+    on nodata: null.
+  - The cache (Redis) down: the cap fails closed for links (no volume, a message), WebODM's own API is unaffected.
+- Proof: Jest against GeographicLib's published test data and known shapes; Django tests on a synthetic DSM and DTM
+  (elevations, the token and cap paths, each failure above injected); a live check measuring the same line, polygon and
+  stockpile in WebODM's map and Explorer's (lengths and areas within the measured sphere error, volumes equal).
 
 ### Plan: the road to 1.0.0 (the review and the user's answer, 2026-11-23)
 
@@ -1249,6 +1276,30 @@ The user chose to fix all four groups:
    of the plugin's folder (they survive upgrades).
 
 ## Done
+
+- **Measurement tools, step A: the map page** (2026-11-27, branch `measure-map`; plan above). A **Measure** tool (M)
+  on the map page for links, View as Visitor and signed-in users (`measure_tools.html`, `public/measure.js`):
+  **Length**, **Area** (area, perimeter, volume with WebODM's five base methods) and **Point** (DSM, DTM, height above
+  ground), offered by the task's data (`pages.measure_tools`). Lengths and areas: GeographicLib 2.2.0, vendored by
+  `dev/vendor.sh`. Volume: WebODM's Measure plugin's API for signed-in users and View as Visitor; for links
+  `api.TokenVolume` and `api.TokenVolumeResult` (subclasses of its `TaskVolume` and `TaskVolumeResult` with the token
+  check; the result view runs the check in DRF's `initial`, since WebODM's checks nothing), capped at three jobs per
+  link by `measure.py` (atomic `cache.add` places that expire after 120 s, freed when a result is read; Redis down
+  fails closed with a 503). Elevations: `measure.elevations` (rasterio `sample()` in each raster's CRS; outside, nodata
+  or an unreadable file is null), `api.Elevation` and `api.TokenElevation`. Tests: `test_measure.py` (20: elevations
+  on a synthetic DSM and DTM, WebODM's `calc_volume` and the link's views end to end on a 10 m block, the cap, a stuck
+  job's place expiring, a failed start giving its place back, Redis down, a revoked link, Measure disabled; mutations
+  removing the result view's token check and the release on a failed start failed them), `test_sign_in.py` (the three
+  new token routes refuse visitors who aren't signed in), `measure.test.js` (20: GeographicLib's published test data,
+  units, polling, its deadline and failures, the tool on a fake map; mutations removing the deadline and the
+  double-click de-duplication failed them). Live (`.claude/skills/live-check/measure.js`, 15 checks, task 358acbe0):
+  on WebODM's exact exported polygon Explorer's volume equals WebODM's popup's (176.67 m3) and its area is
+  GeographicLib's, 0.069% below WebODM's Turf there; the link's volume equals WebODM's API's to the cubic centimetre;
+  no long tasks while drawing; phone width (the check caught hidden controls still shown and a faint close button,
+  fixed). Found on the way: WebODM's `calc_volume` reads 0 when a corner falls exactly on a DSM cell's corner (its base
+  samples the empty cell beyond its mask), and its popup's area comes from leaflet-measure's copy of the points, a few
+  millimetres from the polygon it exports (0.2% on 150 m2). No task on the dev stack has a DTM: height above ground is
+  checked on the synthetic DTM only.
 
 - **The link page laid out as the project page** (2026-11-26, branch `link-page-layout`). The user's report: "The
   visitor project preview page looks very disjointed with one project above the map and another below it. They should

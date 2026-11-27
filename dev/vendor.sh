@@ -13,6 +13,7 @@ SPARK=2.4.0
 LEAFLET=1.9.4
 LAZPERF=0.0.7
 TILES=0.5.4
+GEOLIB=2.2.0
 # Only for their licence texts: three.js ships both minified in examples/jsm/libs without one
 KTXPARSE=2.0.0
 ZSTDDEC=0.3.4
@@ -22,7 +23,7 @@ work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
 (cd "$work" && npm pack --silent "three@$THREE" "@sparkjsdev/spark@$SPARK" "leaflet@$LEAFLET" "laz-perf@$LAZPERF" \
-    "3d-tiles-renderer@$TILES" "ktx-parse@$KTXPARSE" "zstddec@$ZSTDDEC" >/dev/null)
+    "3d-tiles-renderer@$TILES" "geographiclib-geodesic@$GEOLIB" "ktx-parse@$KTXPARSE" "zstddec@$ZSTDDEC" >/dev/null)
 for tgz in "$work"/*.tgz; do
     dir="${tgz%.tgz}"
     mkdir -p "$dir"
@@ -84,6 +85,10 @@ copy "$work/sparkjsdev-spark-$SPARK/package" "$vendor/spark-$SPARK" LICENSE dist
 # Leaflet: the script, its stylesheet and the images the stylesheet uses.
 copy "$work/leaflet-$LEAFLET/package" "$vendor/leaflet-$LEAFLET" LICENSE dist/leaflet.js dist/leaflet.css
 cp -R "$work/leaflet-$LEAFLET/package/dist/images" "$vendor/leaflet-$LEAFLET/dist/images"
+
+# GeographicLib's geodesics (Karney): the Measure tool's lengths and areas on WGS84 (public/measure.js); one script that
+# defines window.geodesic (and module.exports for the Jest tests).
+copy "$work/geographiclib-geodesic-$GEOLIB/package" "$vendor/geographiclib-geodesic-$GEOLIB" LICENSE.txt geographiclib-geodesic.min.js
 
 # laz-perf: the build for workers (a classic script defining createLazPerf) and its wasm, for the point cloud
 # worker (explorer/public/ept-worker.js). The npm package carries no licence file, so a notice is written.

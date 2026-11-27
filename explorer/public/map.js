@@ -115,7 +115,11 @@
             if (scale) scale.remove();
             scale = L.control.scale({metric: !imperial(), imperial: imperial(), position: "bottomright"}).addTo(map);
         }
-        var key = legend(mapElement, drawScale);
+        // A unit switch on the legend changes the scale bar and what the Measure tool reads in (measure.js)
+        var key = legend(mapElement, function () {
+            drawScale();
+            page.dispatchEvent(new window.CustomEvent("explorer-units"));
+        });
         drawScale();
         var opacitySlider = page.querySelector("[data-opacity]");
         function opacity() {

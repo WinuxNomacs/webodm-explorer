@@ -1,0 +1,10 @@
+{% load i18n %}{# The map page's Measure tool (public/measure.js): Length, Area and Point; volume through WebODM's Measure plugin, elevations from the DSM and DTM #}
+{% if measure %}
+<div class="btn-group" role="group" aria-label="{% trans "Measure" %}">
+    <button type="button" class="btn btn-default btn-sm" data-tool="measure" aria-pressed="false"
+            {% if measure.elevation %}data-elevation="{{ measure.elevation }}"{% endif %}{% if measure.dsm %} data-dsm{% endif %}{% if measure.dtm %} data-dtm{% endif %}
+            {% if measure.volume %}data-volume-start="{{ measure.volume.start }}" data-volume-result="{{ measure.volume.result }}"{% endif %}{% if measure.link %} data-link{% endif %}
+            title="{% trans "Measure (M): length, area, volume and elevations" %}" aria-label="{% trans "Measure" %}"><i class="fa fa-ruler"></i></button>
+</div>
+{% csrf_token %}{{ measure_texts|json_script:"explorer-measure-texts" }}
+{% endif %}

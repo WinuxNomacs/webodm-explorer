@@ -22,7 +22,7 @@ from django.utils.translation import gettext as _
 from guardian.shortcuts import get_objects_for_user
 from nodeodm import status_codes
 
-from . import links
+from . import links, measure
 
 logger = logging.getLogger("app.logger")
 
@@ -566,6 +566,47 @@ def source_frames(viewer, task, offset=True):
         return {"api": f"{viewer.api}{task.id}/frames/", "images": f"{viewer.api}{task.id}/images/",
                 "download": viewer.downloads, "link": True}
     return None
+
+
+def measure_tools(viewer, task):
+    """
+    The map page's Measure tool (public/measure.js): {elevation, dsm, dtm, volume: {start, result} or None, link}.
+    Signed-in users and View as Visitor read elevations through Explorer's view for signed-in users and measure volume
+    through WebODM's Measure plugin's own API; a link's visitors through the link's token views (measure.py caps their
+    volume jobs). Volume needs a DSM and WebODM's Measure plugin enabled.
+    """
+    kinds = measure.elevation_assets(task)
+    if viewer.signed_in or viewer.preview:
+        elevation = f"/api/plugins/{links.NAMESPACE}/projects/{viewer.project.id}/tasks/{task.id}/elevation/"
+        volume = {"start": f"/api/plugins/{measure.MEASURE_PLUGIN}/task/{task.id}/volume",
+                  "result": f"/api/plugins/{measure.MEASURE_PLUGIN}/task/{task.id}/volume/get/"}
+    else:
+        elevation = f"{viewer.api}{task.id}/elevation/"
+        volume = {"start": f"{viewer.api}{task.id}/volume", "result": f"{viewer.api}{task.id}/volume/get/"}
+    return {"elevation": elevation if kinds else None, "dsm": "dsm" in kinds, "dtm": "dtm" in kinds,
+            "volume": volume if "dsm" in kinds and measure.measure_active() else None,
+            "link": not (viewer.signed_in or viewer.preview)}
+
+
+def measure_texts():
+    """What the Measure tool says (public/measure.js), translated."""
+    return {
+        "measure": _("Measure"), "length": _("Length"), "area": _("Area"), "point": _("Point"),
+        "hintLength": _("Click the map to add points; double-click or Finish to end."),
+        "hintArea": _("Click the map to add the area's corners; double-click or Finish to end."),
+        "hintPoint": _("Click the map to read the elevation there."),
+        "hintDone": _("Click the map to start a new measurement."),
+        "lengthLabel": _("Length"), "areaLabel": _("Area"), "perimeter": _("Perimeter"), "volume": _("Volume"),
+        "computing": _("Computing..."), "base": _("Volume Base"),
+        "methods": {"triangulate": _("Triangulate"), "plane": _("Plane"), "average": _("Average"),
+                    "highest": _("Highest"), "lowest": _("Lowest")},
+        "volumeFailed": _("The volume could not be measured."),
+        "volumeTimeout": _("The volume is taking too long: try again later."),
+        "elevation": _("Elevation"), "reading": _("Reading..."), "surface": _("Surface Elevation (DSM)"),
+        "ground": _("Ground Elevation (DTM)"), "heightAboveGround": _("Height Above Ground"),
+        "noValue": _("No value here"), "elevationFailed": _("The elevation could not be read."),
+        "undo": _("Undo"), "finish": _("Finish"), "clear": _("Clear"), "close": _("Close"),
+    }
 
 
 def frames_texts():
