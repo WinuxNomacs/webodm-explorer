@@ -39,6 +39,9 @@ const FINE_PIXELS = 2;
 const FINEST_TIMEOUT_MS = 30000;
 const FINEST_SETTLE_FRAMES = 3;
 const FINEST_MEMORY = 128 * 1024 * 1024;
+// The full-detail picks' textures: none (a pick needs the geometry only, and transcoding a tile's textures took most of
+// its time, 100 to 400 ms a tile on a model with large ones, 2026-11-27). GLTFLoader hands KTX2 images to parse().
+const NO_TEXTURES = { isKTX2Loader: true, parse: (buffer, onLoad) => onLoad(new THREE.Texture()), dispose() {} };
 const DOUBLE_TAP_MS = 300;
 const DOUBLE_TAP_PIXELS = 24;
 
@@ -299,7 +302,8 @@ function createScene(container, options) {
         if (!finest || finest.url !== tilesUrl) {
             if (finest) finest.renderer.dispose();
             const r = new TilesRenderer(tilesUrl);
-            r.registerPlugin(new GLTFExtensionsPlugin({ dracoLoader, ktxLoader: ktx2Loader, meshoptDecoder: MeshoptDecoder }));
+            r.registerPlugin(new GLTFExtensionsPlugin({ dracoLoader, ktxLoader: NO_TEXTURES, meshoptDecoder: MeshoptDecoder,
+                autoDispose: false }));
             r.registerPlugin({ name: "EXPLORER_FETCH", fetchData: tilesFetch });
             r.errorTarget = 0.01;
             // Only the finest tiles in its view: not their coarser ancestors, nor the siblings a drawn view loads to
@@ -443,7 +447,9 @@ function createScene(container, options) {
             MeshoptDecoder.useWorkers(2);
         }
         const opened = new TilesRenderer(url);
-        opened.registerPlugin(new GLTFExtensionsPlugin({ dracoLoader, ktxLoader: ktx2Loader, meshoptDecoder: MeshoptDecoder }));
+        // autoDispose off: disposing a renderer would otherwise dispose the page's shared Draco and KTX2 loaders
+        opened.registerPlugin(new GLTFExtensionsPlugin({ dracoLoader, ktxLoader: ktx2Loader, meshoptDecoder: MeshoptDecoder,
+            autoDispose: false }));
         opened.registerPlugin(new TilesFadePlugin());
         opened.registerPlugin({ name: "EXPLORER_FETCH", fetchData: tilesFetch });
         opened.errorTarget = TILES_ERROR_TARGET;

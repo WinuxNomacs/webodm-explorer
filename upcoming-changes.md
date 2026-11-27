@@ -1292,6 +1292,17 @@ The user chose to fix all four groups:
 
 ## Done
 
+- **Slow full-detail picks on heavy meshes** (the user, 2026-11-27: find out why first; branch `slow-tiles`). Project
+  2's task 25cdbf17 took 5.9 s a click (median, 16-28 s at most): its finest tiles carry large textures (111 tiles with
+  a 1024 or 2048 px one, against 4 on project 1), and transcoding them was most of each tile's 100-400 ms. A pick needs
+  the geometry only and its renderer never draws, so it now skips textures (`NO_TEXTURES`, a stand-in KTX2 loader
+  giving an empty texture). Measured on a quiet machine (headless, Metal GPU, low close views): 25cdbf17 median 252 ms
+  (max 403 ms), 819e6ca7 214 ms (the old code didn't finish 28 picks in 7 minutes), project 1 257 ms; the live
+  check's close-up picks at most 340 ms (were 1,578 ms). No waiting UI needed beyond the loading message. Also found:
+  the tiles plugin's `autoDispose` (on by default) disposed the page's shared Draco and KTX2 loaders with a renderer
+  (the view's on a failed open, the picks' on a new build); off for both. Not done: capping the view's downloads
+  during a pick (it helped when the view was streaming, but measurements were cut short by a machine-wide load spike
+  and the picks are fast without it).
 - **Bug: a close view measured nothing on the textured model** (the user's report, 2026-11-27, branch
   `fix-finest-pick`): clicking a window from close by said "Nothing there". 3DTilesRendererJS 0.5.4 gives all its
   renderers one shared tile cache and shared queues, so the full-detail picks' hidden renderer shared the view's: from
