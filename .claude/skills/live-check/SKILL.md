@@ -112,7 +112,8 @@ own (e.g. starting "Live check"), delete only that afterwards, and say what was 
   splats refused with a message, no long tasks while picking, the panel's fit (no mode name cut short), phone width.
   Full detail: the same spots picked as the view shows them and at full detail (how far apart, cold and warm times),
   the cloud's picks against the DSM, and a fresh context with the full-detail tiles (`/LOD-0/`) refused, which must
-  say the detail could not be loaded and measure nothing (its console fills with the refused requests on purpose:
+  say the detail could not be loaded and measure nothing; then close up (12 wheel steps in), where every spot on the
+  view's surface must have a full-detail point within 25 cm (a close view once picked nothing) (its console fills with the refused requests on purpose:
   only its uncaught errors count).
   Baseline (2026-11-27, task 358acbe0, grid scale 0.9997): 39.64 m shown, 39.6411 m by pyproj, 39.6291 m in the grid
   alone.

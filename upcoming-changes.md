@@ -1292,6 +1292,16 @@ The user chose to fix all four groups:
 
 ## Done
 
+- **Bug: a close view measured nothing on the textured model** (the user's report, 2026-11-27, branch
+  `fix-finest-pick`): clicking a window from close by said "Nothing there". 3DTilesRendererJS 0.5.4 gives all its
+  renderers one shared tile cache and shared queues, so the full-detail picks' hidden renderer shared the view's: from
+  close up the view's tiles filled it, every finest tile was refused and the ray met nothing (and its 64 MB limit had
+  become the view's too). It now has its own cache (128 MB) and queues, loads only the finest tiles in its view (no
+  ancestors or siblings: 11 tiles a pick instead of 75 to 150), and tiles refused for room wait or fail the pick, never
+  read as nothing there. Measured (headless, Metal GPU): project 1 close up, 63 of 63 spots found (none before), median
+  136 ms; from the default view cold picks 50-180 ms (were 200-840 ms). Project 2's heavier model (each finest tile
+  100-400 ms to parse, against 1-20 ms on project 1): 17 of 17 found, median 5.9 s, at most 16 s, with the loading
+  message showing. `measure-3d.js` has a close-up check (18 checks).
 - **Measuring at full detail** (2026-11-27, branch `measure-finest`). The user's rule, recorded in `CLAUDE.md`: a
   measurement downloads the data it needs to be accurate; a long download is discussed with the user when one comes
   up. The map already measured on the full data (the points as clicked, the full DSM and DTM and WebODM's volume on

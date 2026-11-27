@@ -140,6 +140,29 @@ for (let i = 0; i < 7; i++) for (let j = 0; j < 7; j++) SPOTS.push([0.3 + 0.07 *
         check("mesh: full-detail tiles refused say so, with no value from coarser tiles", /could not be loaded/.test(refused) && !/Elevation/.test(value),
             `${refused} (${refusedTiles} tile requests refused)`);
         await fresh.close();
+        // Close up (the user's report, 2026-11-27: a close view picked nothing, the view's tiles filling the cache the
+        // full-detail picks shared): wherever the view's own surface is, a full-detail point is found near it
+        await page.mouse.move(c.x + c.w / 2, c.y + c.h / 2);
+        for (let i = 0; i < 12; i++) { await page.mouse.wheel(0, -300); await page.waitForTimeout(80); }
+        await page.waitForTimeout(8000);
+        const close = await page.evaluate(async () => {
+            const scene = window.ExplorerViewer.scene, r = document.querySelector(".explorer-scene canvas").getBoundingClientRect();
+            const rows = [];
+            for (let j = 1; j < 5; j++) for (let i = 1; i < 6; i++) {
+                const x = r.left + r.width * i / 6, y = r.top + r.height * j / 5;
+                const coarse = await scene.pick(x, y);
+                if (!coarse) continue;
+                const t0 = performance.now();
+                let fine = null, error = null;
+                try { fine = await scene.pickFinest(x, y); } catch (e) { error = e.message; }
+                rows.push({ d: fine ? +coarse.distanceTo(fine).toFixed(3) : null, ms: Math.round(performance.now() - t0), error });
+            }
+            return { camera: scene.place(), rows };
+        });
+        check("mesh close up: every spot on the view's surface has a full-detail point near it",
+            close.rows.length >= 10 && close.rows.every((r) => r.d !== null && r.d < 0.25),
+            `${close.rows.length} spots, ${JSON.stringify(close.rows.filter((r) => r.d === null || r.d >= 0.25).slice(0, 3))}, ` +
+            `slowest ${Math.max(...close.rows.map((r) => r.ms))} ms, camera ${JSON.stringify(close.camera.camera)}`);
 
         // 2. The point cloud
         c = await open3d(page, `${BASE}/plugins/explorer/project/${project}/3d/${task}/?t=cloud`);
