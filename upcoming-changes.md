@@ -7,6 +7,9 @@ WebODM-Plugins entry as draft pull request #16 (the user marks it ready).
 
 Up next: **the road to 1.0.0** (below): each phase discussed with the user when it comes up.
 
+Then: **release 0.2.0**, then **measurement tools** (the user's request 2026-11-27; plan below, to be planned in
+detail with the user when it comes up).
+
 Built: **Search Projects & Tasks** (the user's request 2026-11-26; plan below; see "Done"), then **List view's
 Search Results** (the user's follow-up the same day), then **List by default, Grid on phones** (the same day; see
 "Done"), then **the link page laid out as the project page** (the same day; see "Done").
@@ -1085,6 +1088,34 @@ on the next write to the project's links (`_write`).
     still pans and orbits; frame times while the Laser Pointer moves and a highlight fades, against the baseline.
 - **Docs:** a Presentation Tools section in the viewer guide pages, and the README's feature list (interface
   screenshots only, no model or location).
+
+### Plan: measurement tools (the request and the user's answers, 2026-11-27; not built)
+
+The request: simple but accurate tools in Explorer's viewer for length, height, volume and area, each offered only
+when the open view's data supports it. The user: WebODM's measurements go through a rigorous accuracy vetting, so
+Explorer uses them rather than its own measuring stick, and adds few dependencies.
+
+What WebODM has (checked 2026-11-27 in v4.0.1): the Measure core plugin (`coreplugins/measure`, enabled by default,
+an admin can disable it) draws with leaflet-measure-ex 3.0.7, whose lengths and areas are `@turf/length` and
+`@turf/area`; its volume is `calc_volume` on `dsm.tif` (rasterio, numpy, scipy) behind `POST
+/api/plugins/measure/task/<id>/volume` and its result view, run in the worker. WebODM has no point-elevation API (its
+tiler has TileJson, Bounds, Metadata, Tiles, Export). Its 3D view measures with Potree's tool, tied to Potree.
+
+Proposed, to confirm when planned:
+- **Map: length and area** with `@turf/length` and `@turf/area` vendored at the versions WebODM's Measure uses (to vet
+  first), so the same points give WebODM's numbers; Explorer only draws.
+- **Map: volume** through WebODM's Measure: its API for signed-in users; for links, subclasses of `TaskVolume` and
+  `TaskVolumeResult` overriding only `get_and_check_task` (decided: the user allowed it, 2026-11-27, as a default
+  plugin from WebODM's maintainers; recorded in `CLAUDE.md`). Hidden when Measure is disabled. Open: a cap on the
+  worker jobs a link's visitors can queue.
+- **Map: elevation at a point and height above ground** (DSM, and DSM minus DTM): WebODM has nothing to reuse, so a
+  small view reading the cell with rasterio's `sample()`. Open: whether to build it, or leave heights to 3D.
+- **3D: distance, height and area** between picked points: no WebODM code to reuse (Potree's is tied to its viewer);
+  later, checked against Potree's numbers on the same points.
+- Tools follow the data: length and area on any layer; elevation, height difference and volume with a DSM; height
+  above ground with both; none on splats.
+- Proof: unit tests against known geodesic lengths and areas and a synthetic DSM; a live check measuring the same
+  line, polygon and stockpile in WebODM's map and in Explorer, numbers equal.
 
 ### Plan: the road to 1.0.0 (the review and the user's answer, 2026-11-23)
 

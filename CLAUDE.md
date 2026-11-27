@@ -22,8 +22,12 @@ public: nothing private, nothing true only on one machine. Keep it short; edit i
     views (`app/api/tiler.py`, `app/api/tasks.py`), and for Allow Source Photos its photo `Thumbnail` and `ImageDownload`
     (`app/api/imageuploads.py`, only the task's photos), and override only `get_and_check_task` with the link's token
     check (`upcoming-changes.md`, decision D1). A second: the basemaps under Explorer's maps (the link map, the home's Map view, the project page's Overview
-    Map) come from `app.models.Basemap.get_cached_basemaps()` (the user, 2026-11-21 and 2026-11-22). Tests import those classes, so a WebODM release that changes them fails the tests. No other
-    WebODM internals without the user's approval.
+    Map) come from `app.models.Basemap.get_cached_basemaps()` (the user, 2026-11-21 and 2026-11-22). A third: measurements
+    use WebODM's built-in Measure plugin (`coreplugins/measure`, maintained with WebODM): its volume API for signed-in
+    users, and for links subclasses of its `TaskVolume` and `TaskVolumeResult` overriding only `get_and_check_task`
+    (the user, 2026-11-27: allowed because it is a default plugin from WebODM's maintainers). Tests import those
+    classes, so a WebODM release that changes them fails the tests. No other WebODM internals, and no other plugin's
+    code, without the user's approval: ask when another default plugin's code would make sense.
   - **No changes to WebODM itself; avoid pull requests to it.** A feature that needs a hook WebODM lacks is
     reported to the user first, with the ways to do without it; a pull request to WebODM is made only after the
     user approves that specific change.
