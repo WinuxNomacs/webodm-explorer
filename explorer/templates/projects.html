@@ -35,8 +35,8 @@
             <label class="explorer-filter"><input type="checkbox" name="3d" value="1"{% if query.has_3d %} checked{% endif %}> {% trans "Has 3D" %}</label>
             <label class="explorer-filter"><input type="checkbox" name="linked" value="1"{% if query.linked %} checked{% endif %}> {% trans "Shared by Link" %}</label>
             <div class="btn-group btn-group-sm explorer-view-switch" role="group" aria-label="{% trans "View" %}">
-                <a class="btn btn-default{% if query.view == "grid" %} active{% endif %}" href="?{{ grid_params }}"{% if query.view == "grid" %} aria-current="page"{% endif %}><i class="fa fa-th-large"></i> {% trans "Grid" %}</a>
                 <a class="btn btn-default{% if query.view == "list" %} active{% endif %}" href="?{{ list_params }}"{% if query.view == "list" %} aria-current="page"{% endif %}><i class="fa fa-list"></i> {% trans "List" %}</a>
+                <a class="btn btn-default{% if query.view == "grid" %} active{% endif %}" href="?{{ grid_params }}"{% if query.view == "grid" %} aria-current="page"{% endif %}><i class="fa fa-th-large"></i> {% trans "Grid" %}</a>
                 <a class="btn btn-default{% if query.view == "map" %} active{% endif %}" href="?{{ map_params }}"{% if query.view == "map" %} aria-current="page"{% endif %}><i class="fa fa-map"></i> {% trans "Map" %}</a>
             </div>
         </div>

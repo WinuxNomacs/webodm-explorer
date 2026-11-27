@@ -20,7 +20,7 @@ WebODM's admins see every project. Projects without outputs yet are listed too, 
 The page's address keeps the search, filters, sort and page (24 projects to a page), so a view can be bookmarked or
 sent to a colleague.
 
-**Grid**, **List** and **Map** switch between the views below. On a computer the home opens in **List** at first;
+**List**, **Grid** and **Map** switch between the views below. On a computer the home opens in **List** at first;
 Explorer then remembers the view you last chose and opens in it next time. On a phone it always opens in **Grid**, and
 a view chosen there is for that visit only, so it doesn't change your computer's.
 
