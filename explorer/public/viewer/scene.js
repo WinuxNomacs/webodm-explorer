@@ -38,6 +38,7 @@ const PICK_PIXELS = 6;
 const FINE_PIXELS = 2;
 const FINEST_TIMEOUT_MS = 30000;
 const FINEST_SETTLE_FRAMES = 3;
+const FINEST_MEMORY = 128 * 1024 * 1024;
 const DOUBLE_TAP_MS = 300;
 const DOUBLE_TAP_PIXELS = 24;
 
@@ -301,8 +302,23 @@ function createScene(container, options) {
             r.registerPlugin(new GLTFExtensionsPlugin({ dracoLoader, ktxLoader: ktx2Loader, meshoptDecoder: MeshoptDecoder }));
             r.registerPlugin({ name: "EXPLORER_FETCH", fetchData: tilesFetch });
             r.errorTarget = 0.01;
-            r.lruCache.maxBytesSize = 64 * 1024 * 1024;
-            r.lruCache.minBytesSize = 32 * 1024 * 1024;
+            // Only the finest tiles in its view: not their coarser ancestors, nor the siblings a drawn view loads to
+            // swap a parent for its children at once (75 to 150 tiles a pick otherwise, seconds on a heavy model)
+            r.loadSiblings = false;
+            r.loadAncestors = false;
+            // 3DTilesRendererJS 0.5.4 gives all its renderers one shared cache and shared queues by default: this one gets
+            // its own (their classes aren't exported: the shared ones'), or the view's tiles fill the cache and every
+            // finest tile is refused, and the view's loading keeps its tiles waiting to be parsed (a close view picked
+            // nothing, 2026-11-27); the cache's limits would be the view's too
+            const cache = new r.lruCache.constructor();
+            cache.unloadPriorityCallback = r.lruCache.unloadPriorityCallback;
+            cache.maxBytesSize = FINEST_MEMORY;
+            cache.minBytesSize = FINEST_MEMORY / 4;
+            r.lruCache = cache;
+            const own = (shared, settings) => Object.assign(new shared.constructor(), settings, { priorityCallback: shared.priorityCallback });
+            r.downloadQueue = own(r.downloadQueue, { maxJobsPerOrigin: r.downloadQueue.maxJobsPerOrigin });
+            r.parseQueue = own(r.parseQueue, { maxJobs: r.parseQueue.maxJobs });
+            r.processNodeQueue = own(r.processNodeQueue, { maxJobs: r.processNodeQueue.maxJobs });
             r.group.rotation.x = -Math.PI / 2; // as the shown tiles (loadTiles)
             const holder = new THREE.Scene();
             holder.add(r.group);
@@ -325,10 +341,13 @@ function createScene(container, options) {
         while (settled < FINEST_SETTLE_FRAMES) {
             r.update();
             const s = r.stats;
-            const busy = s.downloading + s.parsing + (s.queued || 0) > 0 || !r.root;
+            // Tiles refused while the cache is full wait for older ones to be unloaded
+            const busy = s.downloading + s.parsing + (s.queued || 0) + s.refused > 0 || !r.root;
             if (busy && !told && onLoading) { told = true; onLoading(); }
             settled = busy ? 0 : settled + 1;
-            if (performance.now() - started > FINEST_TIMEOUT_MS) throw new Error("the finest tiles took too long");
+            if (performance.now() - started > FINEST_TIMEOUT_MS) {
+                throw new Error(s.refused ? "too many of the finest tiles along the ray" : "the finest tiles took too long");
+            }
             await new Promise((resolve) => setTimeout(resolve, 16));
         }
         if (r.stats.failed > failedBefore) throw new Error("some of the finest tiles could not load");
