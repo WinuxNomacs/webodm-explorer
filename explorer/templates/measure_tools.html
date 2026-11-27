@@ -1,5 +1,11 @@
-{% load i18n %}{# The map page's Measure tool (public/measure.js): Length, Area and Point; volume through WebODM's Measure plugin, elevations from the DSM and DTM #}
-{% if measure %}
+{% load i18n %}{# The Measure tool (public/measure.js): on the map, Length, Area and Point (volume through WebODM's Measure plugin, elevations from the DSM and DTM); on the 3D page, Distance, Area, Point and Angle on the model (public/viewer/measure3d.js) #}
+{% if measure.scene %}
+<div class="btn-group" role="group" aria-label="{% trans "Measure" %}">
+    <button type="button" class="btn btn-default btn-sm" data-tool="measure" aria-pressed="false" data-grid-scale="{{ measure.scale }}"
+            title="{% trans "Measure (M): distance, area, elevation and angle on the model" %}" aria-label="{% trans "Measure" %}"><i class="fa fa-ruler"></i></button>
+</div>
+{{ measure_texts|json_script:"explorer-measure-texts" }}
+{% elif measure %}
 <div class="btn-group" role="group" aria-label="{% trans "Measure" %}">
     <button type="button" class="btn btn-default btn-sm" data-tool="measure" aria-pressed="false"
             {% if measure.elevation %}data-elevation="{{ measure.elevation }}"{% endif %}{% if measure.dsm %} data-dsm{% endif %}{% if measure.dtm %} data-dtm{% endif %}

@@ -68,6 +68,25 @@ def elevations(task, lng, lat):
     return {kind: read_elevation(task.assets_path(*folder, f"{kind}.tif"), lng, lat) for kind in elevation_assets(task)}
 
 
+def grid_scale(task, offset):
+    """
+    The task's projected grid's scale factor at WebODM's offset (the 3D models' origin, near their middle), from
+    pyproj: the 3D page divides horizontal lengths by it, so they are lengths on the ground, as the map's geodesics
+    (UTM's is 0.9996 on its central meridian, about 1.001 at a zone's edge). 1.0 when unknown (no CRS or offset).
+    Across one task it varies by far less than a millimetre per kilometre.
+    """
+    if not task.epsg or not offset:
+        return 1.0
+    try:
+        from pyproj import CRS, Proj, Transformer
+        x, y = (float(v) for v in offset.split()[:2])
+        lng, lat = Transformer.from_crs(f"EPSG:{task.epsg}", "EPSG:4326", always_xy=True).transform(x, y)
+        scale = float(Proj(CRS.from_epsg(task.epsg)).get_factors(lng, lat).meridional_scale)
+    except Exception:  # noqa: BLE001 - an unknown CRS: lengths in the grid, uncorrected
+        return 1.0
+    return scale if math.isfinite(scale) and 0.9 < scale < 1.1 else 1.0
+
+
 def parse_point(query):
     """(lng, lat) from a request's query (?lng=&lat=), or None."""
     try:

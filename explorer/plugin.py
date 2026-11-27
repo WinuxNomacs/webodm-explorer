@@ -393,7 +393,9 @@ class Plugin(PluginBase):
                 neighbours=pages.neighbours(viewer.project, task, viewer.path, initial),
                 types=[{"type": kind, "label": label, "icon": icon} for kind, label, icon in types],
                 initial=initial, mesh_build=mesh_build, preparing=preparing, offset=offset,
-                frames=pages.source_frames(viewer, task, offset is not None), frames_texts=pages.frames_texts())))
+                frames=pages.source_frames(viewer, task, offset is not None), frames_texts=pages.frames_texts(),
+                measure=pages.measure_scene(task, types, offset), measure_texts=pages.measure_texts(),
+                measure_template=self.template_path("measure_tools.html"))))
 
         def task_view(request, viewer, pk):
             """

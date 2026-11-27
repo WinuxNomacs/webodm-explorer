@@ -5,10 +5,10 @@
 Released: **0.1.0** (2026-11-23, experimental; see "Done"): tagged, the GitHub release with the zip, the
 WebODM-Plugins entry as draft pull request #16 (the user marks it ready).
 
-Up next: **the road to 1.0.0** (below): each phase discussed with the user when it comes up.
+Up next: **release 0.3.0** (v0.2.0 tagged locally, not published). Built: **measurement tools**, steps A (the map
+page) and B (the 3D page): the user's request 2026-11-27, plan below, see "Done".
 
-Now: **measurement tools**, step B (3D, after research; step A, the map page, built: see "Done"): the user's
-request 2026-11-27, plan below. Then **release 0.3.0** (v0.2.0 tagged locally, not published).
+Then: **the road to 1.0.0** (below): each phase discussed with the user when it comes up.
 
 Built: **Search Projects & Tasks** (the user's request 2026-11-26; plan below; see "Done"), then **List view's
 Search Results** (the user's follow-up the same day), then **List by default, Grid on phones** (the same day; see
@@ -1121,6 +1121,21 @@ Decided (the user, 2026-11-27):
 - **3D measuring is a second step (B)**, after researching the best options available for a three.js viewer (not
   Potree's tool).
 
+Step B, the 3D page (researched and decided 2026-11-27):
+- Research (npm and web, 2026-11-27): no measuring library plugs into an existing three.js scene with its own picking.
+  Giro3D 2.0.8 (MIT, active) measures in its own Instance, with OpenLayers and proj4 as peers; That Open's
+  `@thatopen/components-front` 3.6.1 (MIT) needs its BIM stack (web-ifc, fragments, potree-core); xeokit 2.6.114 is its
+  own engine (AGPL-3.0); `potree-viewer` 0.1.2 is early (three 0.160); `@tonybfox/threejs-tools` 1.0.8 has no licence
+  field. So Explorer's own, on the viewer's existing picking (`scene.pick`: the exact triangle on the mesh and its
+  tiles, a real point of the cloud within a few pixels). Picks measured on task 89d7617e (Metal GPU): median 0.7 ms,
+  at most 2.9 ms on the mesh tiles and the cloud; the GLB fallback (while tiles build) not measured.
+- Accuracy: the scene is the task's projected grid (UTM), up to 0.04% short to 0.1% long against the ground;
+  horizontal parts are divided by the grid's scale factor at the model's centre (pyproj's `get_factors`, from the
+  server), so 3D horizontal lengths match the map's WGS84 geodesics; heights need no correction. Splats: no measuring.
+- Tools (the user, 2026-11-27): **Distance** (3D length, horizontal and vertical parts, slope in degrees and percent),
+  **Area** (horizontal, and the true area on the plane through the points), **Point** (the picked point's elevation,
+  from the model), **Angle** (at the middle of three points). The map page's panel and units.
+
 Step A, the map page (`link_map.html`: links, View as Visitor, signed-in users):
 - A **Measure** tool in the viewer bar with **Length**, **Area** and **Point**; points by click or tap, **Undo** (and
   Backspace), **Finish** (and double-click or Enter), Esc to cancel; results in a panel over the map, in the units the
@@ -1276,6 +1291,24 @@ The user chose to fix all four groups:
    of the plugin's folder (they survive upgrades).
 
 ## Done
+
+- **Measurement tools, step B: the 3D page** (2026-11-27, branch `measure-3d`; plan above). The same **Measure** tool
+  (M) on the textured model and the point cloud: **Distance** (3D, horizontal, height difference, slope), **Area**
+  (horizontal, sloped on the plane through the points by Newell's normal, perimeter), **Point** (the picked
+  elevation) and **Angle**; splats refused with a message. `measure.js` became a shared core (`create`: panel, modes,
+  keys, tool switching, a unit switch for the 3D page) with a surface per view: the map's (`mapSurface`, as step A)
+  and the scene's (`viewer/measure3d.js`: picks on click within 6 px, the drawing in `scene.overlay` as three's wide
+  lines, vendored `examples/jsm/lines`, and sprites). Horizontal parts are divided by the grid's scale factor at
+  WebODM's offset (`measure.grid_scale`, pyproj's `get_factors`; `pages.measure_scene`, `data-grid-scale`); offered
+  only with the offset known. Tests: `test_measure.py` (+4: UTM's 0.9996 on its central meridian, the 3D page's
+  button and scale, none without the offset or on splats alone, a link's 3D page), `measure.test.js` (+6: distance
+  parts and the grid correction, sloped against horizontal area on a 45-degree face, angles, Distance and Angle
+  finishing by themselves, a double pick as one point, the unit switch; a mutation dropping the correction failed
+  two). Live (`.claude/skills/live-check/measure-3d.js`, 14 checks, task 358acbe0): Distance's horizontal 39.64 m
+  against pyproj's geodesic 39.6411 m (the grid alone 39.6291 m); picked heights against the DSM, median 0.00 m on
+  the mesh and 0.03 m on the cloud (36 picks each; outliers are cloud points on walls and tree edges); no long tasks;
+  phone width (the check caught the four modes overflowing the panel on a computer, fixed). The map's check
+  (`measure.js`, 16) passes after the refactor.
 
 - **Measurement tools, step A: the map page** (2026-11-27, branch `measure-map`; plan above). A **Measure** tool (M)
   on the map page for links, View as Visitor and signed-in users (`measure_tools.html`, `public/measure.js`):

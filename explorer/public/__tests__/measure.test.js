@@ -310,3 +310,93 @@ test("M toggles the tool, Backspace undoes, Enter finishes, Escape closes", () =
     key("Escape");
     expect(tool.state().on).toBe(false);
 });
+
+// The 3D page's values: in the task's grid, horizontal parts divided by its scale factor
+test("a 3D distance has its horizontal and vertical parts and its slope, the horizontal on the ground", () => {
+    const d = Measure.distance3d([0, 0, 100], [3, 4, 112], 1);
+    expect(d.length).toBeCloseTo(13, 9);
+    expect(d.horizontal).toBeCloseTo(5, 9);
+    expect(d.vertical).toBeCloseTo(12, 9);
+    expect(d.degrees).toBeCloseTo(Math.atan2(12, 5) * 180 / Math.PI, 9);
+    expect(d.percent).toBeCloseTo(240, 9);
+    // UTM's grid is 0.9996 of the ground on its central meridian: 9996 m of grid are 10 km on the ground
+    expect(Measure.distance3d([0, 0, 0], [9996, 0, 0], 0.9996).horizontal).toBeCloseTo(10000, 6);
+    expect(Measure.distance3d([0, 0, 0], [0, 0, 5], 1).percent).toBeNull();
+    expect(Measure.distance3d([0, 0, 5], [1, 0, 0], 1).vertical).toBe(-5);
+});
+
+test("a 3D area is its area seen from above and its area on the plane through the points", () => {
+    // A 10 m x 10 m roof face rising 10 m across: 100 m2 from above, 100 * sqrt(2) on the slope
+    const roof = [[0, 0, 0], [10, 0, 0], [10, 10, 10], [0, 10, 10]];
+    const a = Measure.area3d(roof, 1);
+    expect(a.horizontal).toBeCloseTo(100, 9);
+    expect(a.sloped).toBeCloseTo(100 * Math.SQRT2, 9);
+    expect(a.perimeter).toBeCloseTo(20 + 20 * Math.SQRT2, 9);
+    expect(Measure.area3d(roof.slice().reverse(), 1).horizontal).toBeCloseTo(100, 9);
+    expect(Measure.area3d([[0, 0, 0], [9996, 0, 0], [9996, 9996, 0]], 0.9996).horizontal).toBeCloseTo(5e7, 0);
+});
+
+test("an angle is the one at the middle point, in degrees", () => {
+    expect(Measure.angle3d([1, 0, 0], [0, 0, 0], [0, 1, 0], 1)).toBeCloseTo(90, 9);
+    expect(Measure.angle3d([1, 0, 0], [0, 0, 0], [1, 0, 1], 1)).toBeCloseTo(45, 9);
+    expect(Measure.angle3d([1, 0, 0], [0, 0, 0], [-1, 0, 0], 1)).toBeCloseTo(180, 9);
+});
+
+// The shared panel on another surface (the 3D page's), with the modes it has
+function fakeSurface() {
+    return {
+        started: null, drawn: 0,
+        start(h) { this.started = h; }, stop() { this.started = null; }, draw() { this.drawn++; },
+        hint: (state) => "hint " + state.mode, rows: (state) => [["Points", String(state.points.length)]],
+    };
+}
+
+function renderScene() {
+    document.body.innerHTML = `<div data-explorer-viewer><button data-tool="measure"></button><div class="explorer-scene"></div></div>`;
+    const page = document.querySelector("[data-explorer-viewer]");
+    const surface = fakeSurface();
+    const tool = Measure.create({page, view: page.querySelector(".explorer-scene"), toggle: page.querySelector("[data-tool=measure]"),
+        texts: Object.assign({}, TEXTS, {distance: "Distance", angle: "Angle", units: "Switch units"}), surface, units: true,
+        modes: ["distance", "area", "point", "angle"]});
+    return {page, surface, tool};
+}
+
+test("Distance finishes by itself at its second point, Angle at its third", () => {
+    const { surface, tool } = renderScene();
+    tool.on();
+    surface.started.click([0, 0, 0]);
+    expect(tool.state().done).toBe(false);
+    surface.started.click([1, 0, 0]);
+    expect(tool.state().done).toBe(true);
+    tool.setMode("angle");
+    [[0, 0, 0], [1, 0, 0], [1, 1, 0]].forEach((p) => surface.started.click(p));
+    expect(tool.state().done).toBe(true);
+    expect(tool.state().points).toHaveLength(3);
+});
+
+test("the same spot picked twice (a double-click) is one point; a click on nothing says so until the next click", () => {
+    const { page, surface, tool } = renderScene();
+    tool.on();
+    tool.setMode("area");
+    surface.started.click([0, 0, 0]);
+    surface.started.click([0, 0, 0]);
+    expect(tool.state().points).toHaveLength(1);
+    surface.started.say("Nothing there");
+    expect(page.querySelector(".explorer-measure-hint").textContent).toBe("Nothing there");
+    surface.started.click([1, 0, 0]);
+    expect(page.querySelector(".explorer-measure-hint").textContent).toBe("hint area");
+});
+
+test("the panel's unit switch flips metres and feet and tells the page", () => {
+    const { page, tool } = renderScene();
+    tool.on();
+    const heard = [];
+    page.addEventListener("explorer-units", () => heard.push(true));
+    const units = page.querySelector("[data-units]");
+    expect(units.textContent).toBe("m");
+    units.click();
+    expect(window.localStorage.getItem("explorer-units-elevation")).toBe("ft");
+    expect(units.textContent).toBe("ft");
+    expect(heard).toHaveLength(1);
+    expect(page.querySelector(".explorer-measure-method").hidden).toBe(true);  // no Volume Base in 3D
+});

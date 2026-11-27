@@ -119,6 +119,7 @@ const pct = (a, b) => ((a - b) / b * 100).toFixed(3) + "%";
         const ePts = await page.evaluate(() => document.querySelector("[data-explorer-map]").explorerMeasure.state().points);
         console.log("Explorer's panel:", JSON.stringify(panel));
         await shot(page, "measure-02-explorer");
+        check("the panel's content fits it (no sideways scroll inside)", await page.$eval(".explorer-measure", (e) => e.scrollWidth <= e.clientWidth + 1));
         const moved = Math.max(...ePts.map((p, i) => G.Inverse(p[0], p[1], pts[i][0], pts[i][1]).s12));
         console.log(`  Explorer's points are within ${(moved * 100).toFixed(1)} cm of WebODM's`);
         // 3b. Explorer's numbers are GeographicLib's

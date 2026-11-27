@@ -58,8 +58,11 @@ copy "$work/three-$THREE/package" "$vendor/three-$THREE" \
     examples/jsm/libs/ktx-parse.module.js examples/jsm/libs/zstddec.module.js \
     examples/jsm/libs/basis/README.md examples/jsm/libs/basis/basis_transcoder.js \
     examples/jsm/libs/basis/basis_transcoder.wasm \
-    examples/jsm/libs/meshopt_decoder.module.js
+    examples/jsm/libs/meshopt_decoder.module.js \
+    examples/jsm/lines/Line2.js examples/jsm/lines/LineSegments2.js examples/jsm/lines/LineGeometry.js \
+    examples/jsm/lines/LineSegmentsGeometry.js examples/jsm/lines/LineMaterial.js
 # The mesh tiles: KTX2 textures (Obj2Tiles) need the Basis transcoder, meshopt geometry (gltfpack) the meshopt decoder
+# examples/jsm/lines: the Measure tool's lines on the 3D page, three's wide lines (WebGL draws its own 1 px wide)
 # The Apache License 2.0's terms, which go with each Apache-licensed part (section 4a): taken from 3DTilesRendererJS's
 # LICENSE, up to the end of the terms (its appendix names its own copyright)
 apache="$work/apache-2.0.txt"

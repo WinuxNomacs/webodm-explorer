@@ -105,3 +105,10 @@ own (e.g. starting "Live check"), delete only that afterwards, and say what was 
   also on failure): a visitor's area, volume and elevation, the link's volume equal to WebODM's API's on the same
   points, no long tasks while drawing, and phone width. WebODM's popup reads leaflet-measure's own copy of the
   points, a few millimetres from the polygon it exports (2026-11-27: 0.2% on 150 m2), so it is compared loosely.
+- `measure-3d.js` (repo, screenshot folder, user, password, project id, task id, the task's EPSG code; Chromium on the
+  Metal GPU): the 3D page's Measure tool. Distance on the textured model, its horizontal part against pyproj's exact
+  geodesic between the same points (run in `ex-webapp`), Point, Angle and Area; Area on the point cloud; then one
+  "Live check" link (revoked at the end, also on failure): a visitor's distance on the cloud, the panel's unit switch,
+  splats refused with a message, no long tasks while picking, the panel's fit (no mode name cut short), phone width.
+  Baseline (2026-11-27, task 358acbe0, grid scale 0.9997): 39.64 m shown, 39.6411 m by pyproj, 39.6291 m in the grid
+  alone.

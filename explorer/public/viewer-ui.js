@@ -51,6 +51,8 @@
             unit.onclick = function () {
                 remember(key, choices[(index + 1) % choices.length].label);
                 drawLegend();
+                // The Measure panel reads in the same units (measure.js)
+                page.dispatchEvent(new window.CustomEvent("explorer-units"));
             };
         }
         function apply() {
@@ -70,6 +72,8 @@
             panel.addEventListener(name, function (e) { e.stopPropagation(); });
         });
         apply();
+        // The Measure panel's unit switch changes the legend's too
+        page.addEventListener("explorer-units", drawLegend);
         return {
             show: function (on) {
                 panel.hidden = !on;
