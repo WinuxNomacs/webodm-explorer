@@ -5,7 +5,7 @@
 Released: **0.1.0** (2026-11-23, experimental; see "Done"): tagged, the GitHub release with the zip, the
 WebODM-Plugins entry as draft pull request #16 (the user marks it ready).
 
-Up next: **release 0.3.0** (v0.2.0 tagged locally, not published). Built: **measurement tools**, steps A (the map
+Up next: **measuring on Gaussian splats** (the user's request 2026-11-27, before the release; plan below, decided), then **release 0.3.0** (v0.2.0 tagged locally, not published). Built: **measurement tools**, steps A (the map
 page) and B (the 3D page), then **measuring at full detail** (the user's rule 2026-11-27): plan below, see "Done".
 
 Then: **the road to 1.0.0** (below): each phase discussed with the user when it comes up.
@@ -1158,6 +1158,40 @@ Step A, the map page (`link_map.html`: links, View as Visitor, signed-in users):
 - Proof: Jest against GeographicLib's published test data and known shapes; Django tests on a synthetic DSM and DTM
   (elevations, the token and cap paths, each failure above injected); a live check measuring the same line, polygon and
   stockpile in WebODM's map and Explorer's (lengths and areas within the measured sphere error, volumes equal).
+
+### Plan: measuring on Gaussian splats (the request, 2026-11-27)
+
+The request: use the point cloud to measure on Gaussian splats too (today the 3D page refuses: "Measuring works on
+the textured model and the point cloud, not on Gaussian splats"). Builds on the 3D Measure tool and the cloud's
+full-detail picking (`ept-tree.js` `pickNearest`, `EptCloud.pickFinest`).
+
+What the code and a measurement say (2026-11-27):
+- The splats, the mesh and the cloud are placed at WebODM's offset in one scene (`scene.js`), and a switch keeps the
+  camera, so the same pixel is the same ray in each view.
+- Measured on task 358acbe0 (the only tasks with splats and a cloud are project 1's 358acbe0 and 89d7617e): at the same
+  pixels, close up (about 7 m), the cloud's full-detail picks sit 0.10 m from the full-detail mesh at the median (0.29 m
+  at p75); Spark's splat hits sit 0.30 m from it at the median, 3.1 m at p75 and 6.5 m at p90; from the default view
+  (about 83 m) both about 0.26 m at the median. Of 54 close spots, 8 hit splats with no cloud point within 6 px.
+- Why the splat hits stray: Spark 2.4.0's `raycast` tests the splats currently loaded (coarse, large ones at a distance,
+  paged) and counts any of opacity 0.2 or more (`minRaycastOpacity`), so faint large splats catch the ray in front of or
+  behind the surface. So the splat hit is not a reliable check on the cloud's point.
+
+The design:
+- Offered on splats when the task has a point cloud (EPT); without one, splats stay refused as now.
+- Turning Measure on over splats opens the cloud's hierarchy without drawing it (an `EptCloud` kept hidden, its nodes
+  fetched only along a click by `pickFinest`, decoded in its worker and cached as now). Switching to the cloud view
+  reuses it.
+- A click picks the cloud's nearest real point along the ray (2 px, then 6 px), as on the cloud view: the same values,
+  grid correction and units. The dot and lines are drawn over the splats as on the other views, so where the point
+  landed shows at once (Undo takes it back). No point within 6 px says the point cloud has nothing there.
+- The panel says the values come from the point cloud.
+- Tests: Jest where logic is new; `measure-3d.js` gains splat cases (a distance on splats equals the cloud view's at
+  the same pixels; a task without a cloud still refuses; no long tasks while picking); the guide and README updated.
+
+The user's answers (2026-11-27):
+1. The source: **the point cloud alone** (not the mesh tiles where the cloud has nothing within 6 px).
+2. **No check against the splats**: the drawn dot is the feedback (refusing on Spark's splat hit would refuse about a
+   quarter of close clicks wrongly at today's raycast).
 
 ### Plan: the road to 1.0.0 (the review and the user's answer, 2026-11-23)
 
