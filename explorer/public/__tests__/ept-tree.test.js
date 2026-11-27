@@ -108,3 +108,62 @@ test("each shown node knows the depth of the deepest shown node below it", () =>
     const deepest = Tree.deepestShown([t.root, t.nodes["1-0-0-0"], t.nodes["1-1-1-1"], t.nodes["2-0-0-0"]]);
     expect(deepest).toEqual({"0-0-0-0": 2, "1-0-0-0": 2, "1-1-1-1": 1, "2-0-0-0": 2});
 });
+
+// Picking at full detail (the Measure tool): the bounds are [-50, 50] on each axis; a ray straight down x = y = 10
+const DOWN = {origin: [10, 10, 1000], dir: [0, 0, -1]};
+const pickNearest = (t, points, overrides = {}) => {
+    const fetched = [];
+    const positionsOf = (node) => { fetched.push(node.key); return overrides.fail === node.key ? Promise.reject(new Error("gone")) : Promise.resolve(points[node.key] || []); };
+    const loadHierarchy = overrides.loadHierarchy || (() => Promise.resolve());
+    return Tree.pickNearest(t, DOWN.origin, DOWN.dir, 0.5, positionsOf, loadHierarchy, overrides.max || 100).then((p) => ({p, fetched}));
+};
+
+test("a ray's entry into a node's box, grown by a margin", () => {
+    expect(Tree.rayEntry([0, 0, 0, 10, 10, 10], 0, [5, 5, 20], [0, 0, -1])).toBe(10);
+    expect(Tree.rayEntry([0, 0, 0, 10, 10, 10], 1, [5, 5, 20], [0, 0, -1])).toBe(9);
+    expect(Tree.rayEntry([0, 0, 0, 10, 10, 10], 0, [5, 5, 5], [0, 0, -1])).toBe(0);
+    expect(Tree.rayEntry([0, 0, 0, 10, 10, 10], 0, [20, 5, 20], [0, 0, -1])).toBeNull();
+    expect(Tree.rayEntry([0, 0, 0, 10, 10, 10], 0, [5, 5, 20], [0, 0, 1])).toBeNull();
+});
+
+test("the nearest point is searched at every depth: a deeper node's point nearer the ray's start wins", async () => {
+    // The root has a point on the ground under the ray; its child 1-1-1-1 (the upper +x+y octant) one on a roof above it
+    const t = tree({"0-0-0-0": 10, "1-1-1-1": 5});
+    const { p } = await pickNearest(t, {"0-0-0-0": [10, 10, -40, 30, 30, 0], "1-1-1-1": [10.2, 10, 20]});
+    expect(p).toEqual([10.2, 10, 20]);
+});
+
+test("points farther than the threshold from the ray are not picked", async () => {
+    const t = tree({"0-0-0-0": 10});
+    expect((await pickNearest(t, {"0-0-0-0": [11, 10, 0]})).p).toBeNull();
+    expect((await pickNearest(t, {"0-0-0-0": [10.4, 10, 0]})).p).toEqual([10.4, 10, 0]);
+});
+
+test("nodes the ray enters beyond the point found are not fetched", async () => {
+    // The ray finds a point at z = 40 in 1-1-1-1; 1-1-1-0 (below, z < 0) can only hold farther points
+    const t = tree({"0-0-0-0": 10, "1-1-1-1": 5, "1-1-1-0": 5});
+    const { p, fetched } = await pickNearest(t, {"1-1-1-1": [10, 10, 40], "1-1-1-0": [10, 10, -10]});
+    expect(p).toEqual([10, 10, 40]);
+    expect(fetched).toEqual(["0-0-0-0", "1-1-1-1"]);
+});
+
+test("nodes the ray doesn't pass near are never fetched", async () => {
+    const t = tree({"0-0-0-0": 10, "1-0-0-1": 5, "1-1-1-1": 5});
+    const { fetched } = await pickNearest(t, {});
+    expect(fetched).not.toContain("1-0-0-1");
+});
+
+test("a subtree whose file isn't read yet is read before its nodes are searched", async () => {
+    const t = tree({"0-0-0-0": 10, "1-1-1-1": -1});
+    const loadHierarchy = jest.fn((node) => { Tree.addHierarchy(t, {"1-1-1-1": 5}); return Promise.resolve(node); });
+    const { p } = await pickNearest(t, {"1-1-1-1": [10, 10, 5]}, {loadHierarchy});
+    expect(loadHierarchy).toHaveBeenCalledWith(t.nodes["1-1-1-1"]);
+    expect(p).toEqual([10, 10, 5]);
+});
+
+test("a node that can't be fetched fails the pick, and the search stops after its node limit", async () => {
+    const t = tree({"0-0-0-0": 10, "1-1-1-1": 5});
+    await expect(pickNearest(t, {}, {fail: "1-1-1-1"})).rejects.toThrow("gone");
+    const { fetched } = await pickNearest(t, {}, {max: 1});
+    expect(fetched).toEqual(["0-0-0-0"]);
+});

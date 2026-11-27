@@ -6,7 +6,7 @@ Released: **0.1.0** (2026-11-23, experimental; see "Done"): tagged, the GitHub r
 WebODM-Plugins entry as draft pull request #16 (the user marks it ready).
 
 Up next: **release 0.3.0** (v0.2.0 tagged locally, not published). Built: **measurement tools**, steps A (the map
-page) and B (the 3D page): the user's request 2026-11-27, plan below, see "Done".
+page) and B (the 3D page), then **measuring at full detail** (the user's rule 2026-11-27): plan below, see "Done".
 
 Then: **the road to 1.0.0** (below): each phase discussed with the user when it comes up.
 
@@ -1292,6 +1292,21 @@ The user chose to fix all four groups:
 
 ## Done
 
+- **Measuring at full detail** (2026-11-27, branch `measure-finest`). The user's rule, recorded in `CLAUDE.md`: a
+  measurement downloads the data it needs to be accurate; a long download is discussed with the user when one comes
+  up. The map already measured on the full data (the points as clicked, the full DSM and DTM and WebODM's volume on
+  the server), and the GLB fallback is the full mesh. The 3D page's picks now use the finest data along the click,
+  whatever the view streams: on the mesh tiles a hidden second renderer (`scene.pickFinest`, `finestTiles`) aimed down
+  the ray with a 0.1-degree view loads the full-detail tiles there (the browser's cache when present), then raycasts
+  them; any tile failing fails the pick ("could not be loaded", nothing measured from coarser tiles). On the point
+  cloud, whose levels add points, `ept-tree.js`'s `pickNearest` walks the nodes the ray crosses front to back at every
+  depth, fetching ones not shown (cached, at most 400 per pick) and stopping once nothing nearer can be found; 2 px,
+  then 6 px. The panel says "Loading the model's full detail there..." while it loads. Tests: `ept-tree.test.js`
+  (+7: the ray's entry, every depth, the threshold, no fetch past the found point, nodes off the ray, a pending
+  hierarchy, a failure, the node cap; a mutation dropping the early stop failed one). Live (`measure-3d.js`, 17
+  checks, task 358acbe0): mesh picks move 3-21 mm at full detail, cold 200-840 ms, warm about 55 ms; cloud picks
+  move about 0.45 m, against the DSM median 0.035 m (was 0.101 m) and p75 0.37 m (was 3.25 m), cold about 100 ms; the
+  refused full-detail tiles say so with no value.
 - **Measurement tools, step B: the 3D page** (2026-11-27, branch `measure-3d`; plan above). The same **Measure** tool
   (M) on the textured model and the point cloud: **Distance** (3D, horizontal, height difference, slope), **Area**
   (horizontal, sloped on the plane through the points by Newell's normal, perimeter), **Point** (the picked

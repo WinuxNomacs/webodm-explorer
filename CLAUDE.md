@@ -60,6 +60,10 @@ public: nothing private, nothing true only on one machine. Keep it short; edit i
   Getting Started, a guide per page, Developing). A feature change updates its guide page and the README on the same
   branch. The site (https://winuxnomacs.github.io/webodm-explorer/) is published by the docs workflow: run it by hand
   after a docs change that shouldn't wait for the next release.
+- **Measurements download the data they need to be accurate** (the user, 2026-11-27): a measurement uses the finest
+  data there is (the full-detail mesh tiles, the point cloud's deepest nodes, the full-resolution DEM), never only what
+  the current view happens to show. When that needs a long download, the choice between asking the visitor first and
+  showing progress is made with the user at that time.
 - **Names in the UI are in Title Case**: headings, buttons, menu items and setting names; descriptions and messages
   are sentences.
 - Planned in `upcoming-changes.md`; new requests arrive in `new.md` (untracked).

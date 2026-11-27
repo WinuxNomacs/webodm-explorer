@@ -198,9 +198,71 @@
         return deepest;
     }
 
+    // Where a ray (origin, unit direction) enters a node's box grown by `margin`: 0 from inside, null if it misses
+    function rayEntry(bounds, margin, origin, dir) {
+        var near = 0, far = Infinity;
+        for (var a = 0; a < 3; a++) {
+            var lo = bounds[a] - margin, hi = bounds[a + 3] + margin;
+            if (Math.abs(dir[a]) < 1e-12) {
+                if (origin[a] < lo || origin[a] > hi) return null;
+                continue;
+            }
+            var t1 = (lo - origin[a]) / dir[a], t2 = (hi - origin[a]) / dir[a];
+            if (t1 > t2) { var swap = t1; t1 = t2; t2 = swap; }
+            near = Math.max(near, t1);
+            far = Math.min(far, t2);
+            if (near > far) return null;
+        }
+        return near;
+    }
+
+    /*
+     * The point nearest the camera within `threshold` of a ray, at the cloud's full detail (the Measure tool,
+     * public/viewer/ept.js): EPT nodes add points to their parents', so every node the ray passes near is searched, at
+     * every depth, front to back; a node is skipped once a point nearer than where the ray enters it is found, so only
+     * the nodes around the first surface are fetched. origin and dir (unit) are in the nodes' coordinates.
+     * positionsOf(node) -> Promise of a flat [x, y, z, ...] array (or null), loadHierarchy(node) -> Promise for a node
+     * whose subtree file isn't read yet. At most maxNodes nodes. Resolves with [x, y, z] or null; rejects as they do.
+     */
+    function pickNearest(tree, origin, dir, threshold, positionsOf, loadHierarchy, maxNodes) {
+        var queue = [], best = null, bestT = Infinity, visited = 0, limit = threshold * threshold;
+        function enqueue(node) {
+            var t = rayEntry(node.bounds, threshold, origin, dir);
+            if (t !== null && t < bestT) queue.push({node: node, t: t});
+        }
+        function search(positions) {
+            for (var i = 0; positions && i < positions.length; i += 3) {
+                var x = positions[i] - origin[0], y = positions[i + 1] - origin[1], z = positions[i + 2] - origin[2];
+                var along = x * dir[0] + y * dir[1] + z * dir[2];
+                if (along <= 0 || along >= bestT) continue;
+                if (x * x + y * y + z * z - along * along < limit) {
+                    bestT = along;
+                    best = [positions[i], positions[i + 1], positions[i + 2]];
+                }
+            }
+        }
+        function next() {
+            queue.sort(function (a, b) { return a.t - b.t; });
+            var item = queue.shift();
+            if (!item || item.t >= bestT || visited >= maxNodes) return Promise.resolve(best);
+            visited++;
+            var node = item.node;
+            var ready = node.pendingHierarchy ? loadHierarchy(node) : Promise.resolve();
+            return ready.then(function () {
+                return node.count > 0 ? positionsOf(node) : null;
+            }).then(function (positions) {
+                search(positions);
+                for (var i = 0; i < node.children.length; i++) enqueue(node.children[i]);
+                return next();
+            });
+        }
+        enqueue(tree.root);
+        return next();
+    }
+
     var api = {
         parseEpt: parseEpt, keyBounds: keyBounds, spacing: spacing, createTree: createTree, addHierarchy: addHierarchy,
-        select: select, deepestShown: deepestShown, parseKey: parseKey
+        select: select, deepestShown: deepestShown, parseKey: parseKey, rayEntry: rayEntry, pickNearest: pickNearest
     };
     if (typeof module !== "undefined" && module.exports) {
         module.exports = api;

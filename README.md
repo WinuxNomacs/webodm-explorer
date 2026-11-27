@@ -84,7 +84,8 @@ links are public.
   are exact geodesics on WGS84 (GeographicLib); volume is WebODM's own, from its Measure plugin. Only what the task's
   data allows is offered. The 3D page measures on the textured model and the point cloud: **Distance** (with its
   horizontal part, height difference and slope), **Area** (horizontal and sloped), a **Point**'s elevation and an
-  **Angle**, corrected from the task's grid to lengths on the ground.
+  **Angle**, at the model's full detail whatever the view shows, corrected from the task's grid to lengths on the
+  ground.
 - **Presentation tools** on the map and 3D pages, for pointing at things while you talk about them: a **Laser
   Pointer** (L) with a fading trail, and **Area Highlight** (H) to draw a freehand loop, rectangle or ellipse that
   fades after a few seconds (Shift keeps it), optionally as a **Spotlight** that dims everything else. For visitors

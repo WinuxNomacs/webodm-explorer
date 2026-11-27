@@ -33,6 +33,11 @@ const TILES_RETRY_MS = 5000;
 const TILES_RETRY_MAX_MS = 60000;
 const TILES_RETRIES = 6;
 const PICK_PIXELS = 6;
+// Measuring picks at full detail (the user, 2026-11-27): the cloud's nodes within FINE_PIXELS of the ray first, then
+// PICK_PIXELS; the mesh's finest tiles along the ray, waited for at most FINEST_TIMEOUT_MS
+const FINE_PIXELS = 2;
+const FINEST_TIMEOUT_MS = 30000;
+const FINEST_SETTLE_FRAMES = 3;
 const DOUBLE_TAP_MS = 300;
 const DOUBLE_TAP_PIXELS = 24;
 
@@ -152,6 +157,7 @@ function createScene(container, options) {
     let current = null;
     let cloud = null; // the EptCloud once open
     let tiles = null; // the TilesRenderer once its first tile shows
+    let tilesUrl = null;
     // Views still opening, by type: in the scene while they load, shown only while their type is the one chosen
     const opening = new Map();
 
@@ -256,6 +262,84 @@ function createScene(container, options) {
     overlay.renderOrder = 998;
     scene.add(overlay);
 
+    // The point under a screen position at the data's full detail, whatever the view shows (for measuring): on the
+    // point cloud every node the ray passes through, to the deepest (EPT nodes add points to their parents'); on the
+    // mesh tiles the finest tiles along the ray (finestTiles); WebODM's GLB is its full detail already. onLoading()
+    // when data has to come first.
+    async function pickFinest(clientX, clientY, onLoading) {
+        const view = current && views[current] ? await views[current].catch(() => null) : null;
+        if (!view) return null;
+        const rect = renderer.domElement.getBoundingClientRect();
+        const ndc = new THREE.Vector2((clientX - rect.left) / rect.width * 2 - 1, -(clientY - rect.top) / rect.height * 2 + 1);
+        const caster = new THREE.Raycaster();
+        caster.setFromCamera(ndc, camera);
+        const ray = caster.ray.clone();
+        if (current === "cloud" && cloud) {
+            const distance = camera.position.distanceTo(controls.target);
+            const perPixel = 2 * distance * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) / rect.height;
+            return (await cloud.pickFinest(ray, perPixel * FINE_PIXELS, onLoading))
+                || cloud.pickFinest(ray, perPixel * PICK_PIXELS, onLoading);
+        }
+        if (current === "mesh" && tiles && tilesUrl) return finestTiles(ray, onLoading);
+        return pick(clientX, clientY);
+    }
+
+    // A second TilesRenderer, never drawn, whose camera looks down the ray through a fraction of a degree with an error
+    // target that only the finest tiles meet: it loads just the finest tiles along the ray, through the renderer's own
+    // loading (and the browser's cache: tiles are immutable), and the ray is cast on them. Kept between picks.
+    let finest = null;
+    let finestQueue = Promise.resolve();
+    function finestTiles(ray, onLoading) {
+        const run = finestQueue.then(() => castFinest(ray, onLoading));
+        finestQueue = run.catch(() => null);
+        return run;
+    }
+    async function castFinest(ray, onLoading) {
+        if (!finest || finest.url !== tilesUrl) {
+            if (finest) finest.renderer.dispose();
+            const r = new TilesRenderer(tilesUrl);
+            r.registerPlugin(new GLTFExtensionsPlugin({ dracoLoader, ktxLoader: ktx2Loader, meshoptDecoder: MeshoptDecoder }));
+            r.registerPlugin({ name: "EXPLORER_FETCH", fetchData: tilesFetch });
+            r.errorTarget = 0.01;
+            r.lruCache.maxBytesSize = 64 * 1024 * 1024;
+            r.lruCache.minBytesSize = 32 * 1024 * 1024;
+            r.group.rotation.x = -Math.PI / 2; // as the shown tiles (loadTiles)
+            const holder = new THREE.Scene();
+            holder.add(r.group);
+            const eye = new THREE.PerspectiveCamera(0.1, 1, 0.01, 1e7);
+            r.setCamera(eye);
+            r.setResolution(eye, 64, 64);
+            finest = { url: tilesUrl, renderer: r, holder, eye };
+        }
+        const { renderer: r, holder, eye } = finest;
+        // Tiles that failed for an earlier pick are tried again; any that fails now fails the pick, so a coarser tile
+        // left in its place never gives a value
+        r.resetFailedTiles();
+        const failedBefore = r.stats.failed;
+        eye.position.copy(ray.origin);
+        eye.lookAt(ray.origin.clone().add(ray.direction));
+        eye.updateMatrixWorld();
+        holder.updateMatrixWorld(true);
+        const started = performance.now();
+        let settled = 0, told = false;
+        while (settled < FINEST_SETTLE_FRAMES) {
+            r.update();
+            const s = r.stats;
+            const busy = s.downloading + s.parsing + (s.queued || 0) > 0 || !r.root;
+            if (busy && !told && onLoading) { told = true; onLoading(); }
+            settled = busy ? 0 : settled + 1;
+            if (performance.now() - started > FINEST_TIMEOUT_MS) throw new Error("the finest tiles took too long");
+            await new Promise((resolve) => setTimeout(resolve, 16));
+        }
+        if (r.stats.failed > failedBefore) throw new Error("some of the finest tiles could not load");
+        holder.updateMatrixWorld(true);
+        const caster = new THREE.Raycaster(ray.origin, ray.direction);
+        const hits = caster.intersectObject(r.group, true).filter((hit) => hit.point && isFinite(hit.point.x));
+        if (!hits.length) return null;
+        hits.sort((a, b) => a.distance - b.distance);
+        return hits[0].point;
+    }
+
     // Source Frames' spot (frames.js): a ring of one size on screen, drawn over the model wherever the camera is;
     // colours are CSS colours (the theme's). null removes it.
     let marker = null;
@@ -333,6 +417,7 @@ function createScene(container, options) {
 
     // The mesh tiles, open once the root tile shows; rejects if the tileset or the root can't load
     function loadTiles(url, onFailure) {
+        tilesUrl = url;
         if (!ktx2Loader) {
             ktx2Loader = new KTX2Loader().setTranscoderPath(options.basis).detectSupport(renderer);
             // Geometry decoding off the main thread, so tiles arriving don't stall a frame
@@ -622,7 +707,7 @@ function createScene(container, options) {
         });
     }
 
-    return { show, resize, stats, place, reset, setCloudStyle, cloudRange, pick, setMarker, watchContext,
+    return { show, resize, stats, place, reset, setCloudStyle, cloudRange, pick, pickFinest, setMarker, watchContext,
         setBackground: backdrop.set, offset: offset ? offset.clone() : null, overlay,
         shown: () => current, size: () => [renderer.domElement.clientWidth, renderer.domElement.clientHeight] };
 }
