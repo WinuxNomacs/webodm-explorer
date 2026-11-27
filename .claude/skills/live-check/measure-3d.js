@@ -2,7 +2,9 @@
 // 1. Signed in, the textured model: Distance between two picked points; its horizontal part against pyproj's exact
 //    geodesic between the same points (their task coordinates converted to WGS84 in the web container: pyproj's Geod
 //    is Karney's, as GeographicLib), and the uncorrected grid length for comparison; Point, Angle, Area.
-// 2. The point cloud: Area and Angle; the Point's elevation.
+//    Full detail: ordinary and full-detail picks at the same pixels (moved, cold and warm times), repeatable; the
+//    full-detail tiles answering 500 say so.
+// 2. The point cloud: Area; full-detail picks.
 // 3. A link (one "Live check" link, revoked at the end, also on failure): Distance on the cloud as an anonymous
 //    visitor, the panel's unit switch, Gaussian splats refused with a message (when the task has them), no long tasks
 //    while picking, phone width.
@@ -39,13 +41,17 @@ async function open3d(page, url) {
     await page.waitForTimeout(12000);
     return page.$eval(".explorer-scene canvas", (e) => { const r = e.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; });
 }
-// Clicks until the tool has `count` points (a click on a gap of the cloud picks nothing)
+// Clicks until the tool has `count` points (a click on a gap of the cloud picks nothing), each answered before the next
 async function pickPoints(page, c, spots, count) {
     for (const [fx, fy] of spots) {
         const n = await page.evaluate(() => document.querySelector("[data-explorer-viewer]").explorerMeasure.state().points.length);
         if (n >= count) break;
         await page.mouse.click(c.x + c.w * fx, c.y + c.h * fy);
-        await page.waitForTimeout(250);
+        // A pick loads full detail first: wait for its answer (a new point, or a message), not a fixed time
+        await page.waitForFunction((before) => {
+            const tool = document.querySelector("[data-explorer-viewer]").explorerMeasure.state();
+            return tool.points.length !== before || tool.done || (tool.message && !/Loading/.test(tool.message));
+        }, n, { timeout: 60000 }).catch(() => {});
     }
 }
 const panel = (page) => page.$$eval(".explorer-measure-results dt, .explorer-measure-results dd", (els) => els.map((e) => e.textContent));
@@ -96,6 +102,45 @@ for (let i = 0; i < 7; i++) for (let j = 0; j < 7; j++) SPOTS.push([0.3 + 0.07 *
         check("the panel's content fits it (no sideways scroll inside)", await page.$eval(".explorer-measure", (e) => e.scrollWidth <= e.clientWidth + 1));
         check("no mode's name is cut short", await page.$$eval(".explorer-measure-modes .btn", (bs) => bs.every((b) => b.scrollWidth <= b.clientWidth)));
 
+        // Full detail (the user, 2026-11-27: measurements download the data they need): ordinary picks of what the view
+        // shows against full-detail picks at the same pixels, which repeat exactly; then the full-detail tiles refused
+        const detail = async (view) => page.evaluate(async () => {
+            const scene = window.ExplorerViewer.scene, r = document.querySelector(".explorer-scene canvas").getBoundingClientRect();
+            const rows = [];
+            for (const [fx, fy] of [[0.45, 0.5], [0.55, 0.45], [0.5, 0.55], [0.4, 0.6]]) {
+                const x = r.left + r.width * fx, y = r.top + r.height * fy;
+                const coarse = await scene.pick(x, y);
+                let t0 = performance.now(); const fine = await scene.pickFinest(x, y); const cold = performance.now() - t0;
+                t0 = performance.now(); const again = await scene.pickFinest(x, y); const warm = performance.now() - t0;
+                const d = (a, b) => a && b ? a.distanceTo(b) : null;
+                rows.push({ moved: d(coarse, fine), repeat: d(fine, again), cold: Math.round(cold), warm: Math.round(warm), found: Boolean(fine) });
+            }
+            return rows;
+        });
+        const meshDetail = await detail();
+        check("mesh: full-detail picks repeat exactly", meshDetail.filter((r) => r.found).every((r) => r.repeat < 1e-9), JSON.stringify(meshDetail));
+        // In a fresh context (empty caches, so the tiles must be fetched), the finest tiles refused: the pick says so
+        const fresh = await browser.newContext({ viewport: { width: 1280, height: 860 } });
+        const injected = await fresh.newPage();
+        // Its console fills with the refused tiles on purpose: only uncaught errors count
+        injected.on("pageerror", (e) => errors.push(`refused tiles pageerror: ${e.message.slice(0, 160)}`));
+        let refusedTiles = 0;
+        await injected.route(/\/LOD-0\/.*\.glb/, (route) => { refusedTiles++; return route.fulfill({ status: 500, body: "" }); });
+        await injected.goto(BASE + "/login/");
+        await injected.fill("input[name=username]", user);
+        await injected.fill("input[name=password]", password);
+        await Promise.all([injected.waitForNavigation(), injected.click("button[type=submit], input[type=submit]")]);
+        const ic = await open3d(injected, `${BASE}/plugins/explorer/project/${project}/3d/${task}/?t=mesh`);
+        await injected.click("[data-tool=measure]");
+        await injected.click("[data-mode=point]");
+        await injected.mouse.click(ic.x + ic.w * 0.5, ic.y + ic.h * 0.5);
+        await injected.waitForFunction(() => /could not be loaded|Nothing there/.test(document.querySelector(".explorer-measure-hint").textContent) || /Elevation/.test(document.querySelector(".explorer-measure-results").textContent), null, { timeout: 90000 }).catch(() => {});
+        const refused = await injected.$eval(".explorer-measure-hint", (e) => e.textContent);
+        const value = await injected.$eval(".explorer-measure-results", (e) => e.textContent);
+        check("mesh: full-detail tiles refused say so, with no value from coarser tiles", /could not be loaded/.test(refused) && !/Elevation/.test(value),
+            `${refused} (${refusedTiles} tile requests refused)`);
+        await fresh.close();
+
         // 2. The point cloud
         c = await open3d(page, `${BASE}/plugins/explorer/project/${project}/3d/${task}/?t=cloud`);
         await page.click("[data-tool=measure]");
@@ -103,6 +148,8 @@ for (let i = 0; i < 7; i++) for (let j = 0; j < 7; j++) SPOTS.push([0.3 + 0.07 *
         await pickPoints(page, c, SPOTS, 4);
         await page.keyboard.press("Enter");
         const cloudArea = await panel(page);
+        const cloudDetail = await detail();
+        check("cloud: full-detail picks repeat exactly", cloudDetail.filter((r) => r.found).every((r) => r.repeat < 1e-9), JSON.stringify(cloudDetail));
         check("the cloud: Area from picked points", cloudArea[0] === "Horizontal Area", JSON.stringify(cloudArea));
         await shot(page, "measure3d-02-cloud");
 

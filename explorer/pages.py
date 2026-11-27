@@ -628,6 +628,8 @@ def measure_texts():
         "nothing": _("Nothing there: click on the model."),
         "noSplats": _("Measuring works on the textured model and the point cloud, not on Gaussian splats."),
         "units": _("Switch units"),
+        "loadingDetail": _("Loading the model's full detail there..."),
+        "detailFailed": _("The model's full detail could not be loaded: try again."),
     }
 
 

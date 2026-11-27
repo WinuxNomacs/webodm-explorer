@@ -1,10 +1,11 @@
 /*
  * The 3D page's Measure tool (upcoming-changes.md, "Plan: measurement tools", step B): Distance, Area, Point and Angle
- * on points picked on the textured model or the point cloud (scene.pick: the exact triangle, or a real point of the
- * cloud). The panel, keys and tool switching are measure.js's; this is the scene's surface: clicks that pick, the
- * drawing over the model, and the values. The scene is the task's projected grid less WebODM's offset in x and y, so
- * heights are as they are and horizontal parts are divided by the grid's scale factor at the model (data-grid-scale,
- * pyproj's on the server) to be lengths on the ground, as the map's. No measuring on Gaussian splats.
+ * on points picked on the textured model or the point cloud at their full detail, whatever the view shows
+ * (scene.pickFinest: the exact triangle of the finest mesh tiles, or a real point of the cloud from all its nodes).
+ * The panel, keys and tool switching are measure.js's; this is the scene's surface: clicks that pick, the drawing over
+ * the model, and the values. The scene is the task's projected grid less WebODM's offset in x and y, so heights are as
+ * they are and horizontal parts are divided by the grid's scale factor at the model (data-grid-scale, pyproj's on the
+ * server) to be lengths on the ground, as the map's. No measuring on Gaussian splats.
  */
 import * as THREE from "three";
 import { Line2 } from "three/addons/lines/Line2.js";
@@ -66,11 +67,15 @@ export function sceneSurface(Measure, scene, canvas, texts, scale, colour) {
             handlers.say(texts.noSplats);
             return;
         }
+        // At full detail: data the view doesn't show may have to come first (the user, 2026-11-27)
         const mine = ++picks;
-        Promise.resolve(scene.pick(e.clientX, e.clientY)).then((p) => {
+        const loading = () => { if (handlers && mine === picks) handlers.say(texts.loadingDetail); };
+        Promise.resolve(scene.pickFinest(e.clientX, e.clientY, loading)).then((p) => {
             if (!handlers || mine !== picks) return;
             if (!p) handlers.say(texts.nothing);
             else handlers.click([p.x, p.y, p.z]);
+        }, () => {
+            if (handlers && mine === picks) handlers.say(texts.detailFailed);
         });
     }
 

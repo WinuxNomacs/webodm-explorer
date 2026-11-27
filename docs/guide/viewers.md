@@ -87,9 +87,12 @@ moment. When an admin disables WebODM's Measure plugin, Volume isn't offered.
 ### Measuring in 3D
 
 The 3D page has the same **Measure** tool (M) on the textured model and the point cloud, with points picked on the
-model itself: on the textured model the exact spot of its surface, on the point cloud the nearest real point within a
-few pixels (a click on a gap says there is nothing there). Measuring isn't offered on Gaussian splats, whose surface
-isn't exact enough.
+model itself at its full detail, whatever the view shows. The view streams coarser versions of the model while you
+look from afar; a click loads the finest data along it first: on the textured model the full-detail tiles there, for
+the exact spot of its surface; on the point cloud every level of points there, for the nearest real point within a
+couple of pixels (a click on a gap says there is nothing there). The first click in a place can take a moment
+("Loading the model's full detail there..."); if that data can't be loaded, the panel says so rather than measuring
+something coarser. Measuring isn't offered on Gaussian splats, whose surface isn't exact enough.
 
 - **Distance**: two points. The panel shows the length between them, its **Horizontal** part, the **Height
   Difference** (the second point less the first) and the **Slope** in degrees and percent, for example a roof's pitch.
@@ -102,8 +105,9 @@ isn't exact enough.
 
 The 3D models are in the task's projected grid (UTM), whose lengths differ from those on the ground by up to about
 0.1%. Horizontal lengths and areas are corrected by the grid's scale factor at the model, so they match the map's;
-heights need no correction. The values are as good as the model: a textured model is smoothed where the photos saw
-little, and the point cloud has gaps and stray points.
+heights need no correction. The values are as good as the model: ODM builds the textured model from the point cloud
+and smooths it, so it rounds sharp edges and fills in what the photos saw little of; the point cloud keeps what was
+measured, with its gaps and stray points.
 
 ## Source Frames
 

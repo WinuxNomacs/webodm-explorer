@@ -15,6 +15,9 @@ const Tree = window.ExplorerEptTree;
 const MIN_NODE_PIXELS = 150;
 const MAX_FETCHES = 4;
 export const FETCH_TIMEOUT_MS = 60000;
+// Picking at full detail: at most this many nodes looked at, and the most recent nodes kept decoded for the next picks
+const PICK_NODES_MAX = 400;
+const PICK_CACHE = 64;
 const DECODE_TIMEOUT_MS = 30000;
 const RETRY_DELAY_MS = 1000;
 // A failed node or subtree file is tried again after 5 s, doubling up to a minute, MAX_TRIES times in all (a phone's
@@ -432,6 +435,42 @@ export class EptCloud {
             }
         }
         return best ? new THREE.Vector3(...best).add(this.group.position) : null;
+    }
+
+    // The nearest point to the camera within `threshold` of the ray, at the cloud's full detail (for measuring):
+    // ept-tree.js's pickNearest over every node the ray passes near, front to back. Nodes not shown are fetched and
+    // decoded for this alone (pickPositions: kept, never drawn). onLoading() before the first fetch.
+    async pickFinest(ray, threshold, onLoading) {
+        if (!this.tree) return null;
+        const origin = ray.origin.clone().sub(this.group.position);
+        let told = false;
+        const tell = () => { if (!told && onLoading) { told = true; onLoading(); } };
+        const found = await Tree.pickNearest(this.tree, origin.toArray(), ray.direction.toArray(), threshold, (node) => {
+            const shown = this.loaded.get(node.key);
+            if (shown) return shown.points.geometry.attributes.position.array;
+            tell();
+            return this.pickPositions(node);
+        }, (node) => {
+            tell();
+            return this.loadHierarchy(node);
+        }, PICK_NODES_MAX);
+        return found && !this.disposed ? new THREE.Vector3(...found).add(this.group.position) : null;
+    }
+
+    // A node's points for picking only: decoded once, kept for the next picks (the most recent PICK_CACHE nodes)
+    async pickPositions(node) {
+        this.pickCache = this.pickCache || new Map();
+        const kept = this.pickCache.get(node.key);
+        if (kept) {
+            this.pickCache.delete(node.key);
+            this.pickCache.set(node.key, kept);
+            return kept;
+        }
+        const buffer = await withRetry(() => fetchWithTimeout(this.base + "ept-data/" + node.key + ".laz"));
+        const decoded = await this.pool.decode(buffer, this.info.origin, this.sixteenBit);
+        this.pickCache.set(node.key, decoded.positions);
+        while (this.pickCache.size > PICK_CACHE) this.pickCache.delete(this.pickCache.keys().next().value);
+        return decoded.positions;
     }
 
     async loadNode(node) {
