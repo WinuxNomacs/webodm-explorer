@@ -92,7 +92,13 @@ look from afar; a click loads the finest data along it first: on the textured mo
 the exact spot of its surface; on the point cloud every level of points there, for the nearest real point within a
 couple of pixels (a click on a gap says there is nothing there). The first click in a place can take a moment
 ("Loading the model's full detail there..."); if that data can't be loaded, the panel says so rather than measuring
-something coarser. Measuring isn't offered on Gaussian splats, whose surface isn't exact enough.
+something coarser.
+
+On **Gaussian splats** the tool measures on the task's point cloud: a click takes the cloud's nearest real point along
+it, as on the point cloud view, and the dot is drawn over the splats where that point is (Undo takes it back if it
+landed somewhere else). The panel says so ("Splats are measured on the point cloud."). Splats alone don't have a
+surface exact enough to measure: their edges are soft and faint splats float in front of it. A task without a point
+cloud can't be measured on its splats, and a click where the cloud has nothing says so.
 
 - **Distance**: two points. The panel shows the length between them, its **Horizontal** part, the **Height
   Difference** (the second point less the first) and the **Slope** in degrees and percent, for example a roof's pitch.

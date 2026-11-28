@@ -5,7 +5,8 @@
  * The panel, keys and tool switching are measure.js's; this is the scene's surface: clicks that pick, the drawing over
  * the model, and the values. The scene is the task's projected grid less WebODM's offset in x and y, so heights are as
  * they are and horizontal parts are divided by the grid's scale factor at the model (data-grid-scale, pyproj's on the
- * server) to be lengths on the ground, as the map's. No measuring on Gaussian splats.
+ * server) to be lengths on the ground, as the map's. Gaussian splats are measured on the task's point cloud (none
+ * without one), the dot drawn where its point is.
  */
 import * as THREE from "three";
 import { Line2 } from "three/addons/lines/Line2.js";
@@ -63,7 +64,8 @@ export function sceneSurface(Measure, scene, canvas, texts, scale, colour) {
         const at = down;
         down = null;
         if (!handlers || !at || Math.abs(e.clientX - at.x) > CLICK_SLOP || Math.abs(e.clientY - at.y) > CLICK_SLOP) return;
-        if (scene.shown() === "splats") {
+        // Splats are measured on the point cloud: without one, not at all
+        if (!scene.measurable()) {
             handlers.say(texts.noSplats);
             return;
         }
@@ -72,7 +74,7 @@ export function sceneSurface(Measure, scene, canvas, texts, scale, colour) {
         const loading = () => { if (handlers && mine === picks) handlers.say(texts.loadingDetail); };
         Promise.resolve(scene.pickFinest(e.clientX, e.clientY, loading)).then((p) => {
             if (!handlers || mine !== picks) return;
-            if (!p) handlers.say(texts.nothing);
+            if (!p) handlers.say(scene.shown() === "splats" ? texts.nothingCloud : texts.nothing);
             else handlers.click([p.x, p.y, p.z]);
         }, () => {
             if (handlers && mine === picks) handlers.say(texts.detailFailed);
@@ -89,6 +91,7 @@ export function sceneSurface(Measure, scene, canvas, texts, scale, colour) {
     return {
         start(h) {
             handlers = h;
+            scene.prepareMeasure();
             canvas.addEventListener("pointerdown", onDown);
             canvas.addEventListener("pointerup", onUp);
             canvas.addEventListener("dblclick", onDouble);
@@ -129,9 +132,11 @@ export function sceneSurface(Measure, scene, canvas, texts, scale, colour) {
             }
         },
         hint(state) {
-            if (state.mode === "point") return texts.hintPoint3d;
-            if (state.done) return texts.hintDone3d;
-            return { distance: texts.hintDistance, area: texts.hintArea3d, angle: texts.hintAngle }[state.mode];
+            let hint;
+            if (state.mode === "point") hint = texts.hintPoint3d;
+            else if (state.done) hint = texts.hintDone3d;
+            else hint = { distance: texts.hintDistance, area: texts.hintArea3d, angle: texts.hintAngle }[state.mode];
+            return scene.shown() === "splats" && scene.measurable() ? hint + " " + texts.onCloud : hint;
         },
         rows(state, imperial) {
             const pts = state.points, n = pts.length;

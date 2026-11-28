@@ -82,7 +82,8 @@ links are public.
 - **Measure** on the map (M), for visitors and signed-in users alike: **Length**, **Area** with its perimeter and
   **Volume**, and a **Point**'s DSM and DTM elevations with the height above ground between them. Lengths and areas
   are exact geodesics on WGS84 (GeographicLib); volume is WebODM's own, from its Measure plugin. Only what the task's
-  data allows is offered. The 3D page measures on the textured model and the point cloud: **Distance** (with its
+  data allows is offered. The 3D page measures on the textured model and the point cloud, and on Gaussian splats
+  through the point cloud: **Distance** (with its
   horizontal part, height difference and slope), **Area** (horizontal and sloped), a **Point**'s elevation and an
   **Angle**, at the model's full detail whatever the view shows, corrected from the task's grid to lengths on the
   ground.

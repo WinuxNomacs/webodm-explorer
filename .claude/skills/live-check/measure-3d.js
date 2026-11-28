@@ -6,7 +6,8 @@
 //    full-detail tiles answering 500 say so.
 // 2. The point cloud: Area; full-detail picks.
 // 3. A link (one "Live check" link, revoked at the end, also on failure): Distance on the cloud as an anonymous
-//    visitor, the panel's unit switch, Gaussian splats refused with a message (when the task has them), no long tasks
+//    visitor, the panel's unit switch, Gaussian splats (when the task has them) measured on the point cloud with the
+//    cloud view's points and refused without a cloud (the page served without its cloud button), no long tasks
 //    while picking, phone width.
 // Usage: node .claude/skills/live-check/measure-3d.js <repo> <screenshot folder> <user> <password> <project id> <task id>
 //        <task EPSG code>
@@ -199,12 +200,55 @@ for (let i = 0; i < 7; i++) for (let j = 0; j < 7; j++) SPOTS.push([0.3 + 0.07 *
         check("the panel's unit switch reads in feet", /ft/.test(feet[1]), JSON.stringify(feet));
         await visitor.click("[data-units]");
         if (await visitor.$("[data-type=splats]")) {
-            await visitor.click("[data-type=splats]");
-            await visitor.waitForTimeout(6000);
-            await visitor.mouse.click(c.x + c.w / 2, c.y + c.h / 2);
-            await visitor.waitForTimeout(300);
-            const hint = await visitor.$eval(".explorer-measure-hint", (e) => e.textContent);
-            check("Gaussian splats are refused with a message", /splats/i.test(hint), hint);
+            // Splats measured on the point cloud (the user, 2026-11-27), opened straight on the splats so the cloud is
+            // opened hidden for measuring
+            const splatPage = await visitorContext.newPage();
+            watch(splatPage, "splats");
+            const sc = await open3d(splatPage, `${BASE}/plugins/explorer/s/${token}/3d/${task}/?t=splats`);
+            await splatPage.click("[data-tool=measure]");
+            await splatPage.evaluate(() => { window.__long = []; new PerformanceObserver((l) => l.getEntries().forEach((e) => window.__long.push(Math.round(e.duration)))).observe({ type: "longtask" }); });
+            const onCloud = await splatPage.$eval(".explorer-measure-hint", (e) => e.textContent);
+            await pickPoints(splatPage, sc, SPOTS, 2);
+            const sDist = await panel(splatPage);
+            check("splats: a visitor measures a distance, on the point cloud", sDist[0] === "Distance" && /point cloud/.test(onCloud),
+                `${JSON.stringify(sDist)}; ${onCloud}`);
+            check("splats: no long tasks while picking", (await splatPage.evaluate(() => window.__long)).length === 0, JSON.stringify(await splatPage.evaluate(() => window.__long)));
+            await shot(splatPage, "measure3d-04-splats");
+            // The same pixels on the cloud view (the camera kept across the switch) give the same points
+            const at = (pg) => pg.evaluate(async () => {
+                const scene = window.ExplorerViewer.scene, r = document.querySelector(".explorer-scene canvas").getBoundingClientRect();
+                const out = [];
+                for (const [fx, fy] of [[0.4, 0.4], [0.5, 0.5], [0.6, 0.45], [0.45, 0.6], [0.55, 0.55]]) {
+                    const p = await scene.pickFinest(r.left + r.width * fx, r.top + r.height * fy).catch(() => null);
+                    out.push(p && p.toArray());
+                }
+                return { shown: scene.shown(), out };
+            });
+            const onSplats = await at(splatPage);
+            await splatPage.click("[data-type=cloud]");
+            await splatPage.waitForTimeout(6000);
+            const onCloudView = await at(splatPage);
+            const same = onSplats.out.every((p, k) => (p === null) === (onCloudView.out[k] === null)
+                && (p === null || Math.hypot(p[0] - onCloudView.out[k][0], p[1] - onCloudView.out[k][1], p[2] - onCloudView.out[k][2]) < 1e-6));
+            check("splats: the points are the cloud view's at the same pixels", onSplats.shown === "splats" && onCloudView.shown === "cloud"
+                && same && onSplats.out.some(Boolean), `${onSplats.out.filter(Boolean).length} of 5 found`);
+            await splatPage.close();
+            // Without a point cloud (the page served with its cloud button removed), splats are refused with a message
+            const bare = await visitorContext.newPage();
+            watch(bare, "splats without a cloud");
+            await bare.route(/\/3d\/[^/]+\/\?t=splats$/, async (route) => {
+                const response = await route.fetch();
+                const html = (await response.text()).replace(/<button[^>]*data-type="cloud"[\s\S]*?<\/button>/, "");
+                await route.fulfill({ response, body: html });
+            });
+            const bc = await open3d(bare, `${BASE}/plugins/explorer/s/${token}/3d/${task}/?t=splats`);
+            const removed = !(await bare.$("[data-type=cloud]"));
+            await bare.click("[data-tool=measure]");
+            await bare.mouse.click(bc.x + bc.w / 2, bc.y + bc.h / 2);
+            await bare.waitForTimeout(300);
+            const hint = await bare.$eval(".explorer-measure-hint", (e) => e.textContent);
+            check("splats without a point cloud are refused with a message", removed && /needs the task's point cloud/.test(hint), hint);
+            await bare.close();
         }
         await visitor.setViewportSize({ width: 390, height: 844 });
         await visitor.waitForTimeout(500);

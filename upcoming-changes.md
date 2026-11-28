@@ -5,7 +5,7 @@
 Released: **0.1.0** (2026-11-23, experimental; see "Done"): tagged, the GitHub release with the zip, the
 WebODM-Plugins entry as draft pull request #16 (the user marks it ready).
 
-Up next: **measuring on Gaussian splats** (the user's request 2026-11-27, before the release; plan below, decided), then **release 0.3.0** (v0.2.0 tagged locally, not published). Built: **measurement tools**, steps A (the map
+Up next: **release 0.3.0** (v0.2.0 tagged locally, not published). Built: **measurement tools**, steps A (the map
 page) and B (the 3D page), then **measuring at full detail** (the user's rule 2026-11-27): plan below, see "Done".
 
 Then: **the road to 1.0.0** (below): each phase discussed with the user when it comes up.
@@ -1159,7 +1159,7 @@ Step A, the map page (`link_map.html`: links, View as Visitor, signed-in users):
   (elevations, the token and cap paths, each failure above injected); a live check measuring the same line, polygon and
   stockpile in WebODM's map and Explorer's (lengths and areas within the measured sphere error, volumes equal).
 
-### Plan: measuring on Gaussian splats (the request, 2026-11-27)
+### Plan: measuring on Gaussian splats (the request, 2026-11-27; built: see "Done")
 
 The request: use the point cloud to measure on Gaussian splats too (today the 3D page refuses: "Measuring works on
 the textured model and the point cloud, not on Gaussian splats"). Builds on the 3D Measure tool and the cloud's
@@ -1326,6 +1326,17 @@ The user chose to fix all four groups:
 
 ## Done
 
+- **Measuring on Gaussian splats** (2026-11-27, branch `splat-measure`; plan above). On splats the 3D Measure tool
+  picks the task's point cloud: `scene.js` opens the cloud hidden for it (`measureCloud`: hierarchy and root only, no
+  streaming while hidden; the cloud view reuses it, a node failure going to that view's handler once shown) from the
+  cloud button's URL, and `pickFinest` on splats is the cloud's full-detail pick (2 px, then 6 px). `measure3d.js`:
+  `scene.measurable()` (splats only with a cloud), the cloud opened as Measure turns on, "Splats are measured on the
+  point cloud." in the hint, "Nothing in the point cloud there" for a gap, "Measuring on Gaussian splats needs the
+  task's point cloud." without one. Live (`measure-3d.js`, 21 checks, task 358acbe0): a visitor's distance on the
+  splats; the points equal the cloud view's at the same pixels (4 of 5 found); splats refused when the page has no
+  cloud button; the splats screenshot shows no cloud drawn over them. Smoothness: one long task (94 ms, as the hidden
+  cloud opened) in 1 of 10 runs of turning Measure on and picking, none in the other 9 nor in 5 idle runs; the
+  checked live run had none.
 - **Slow full-detail picks on heavy meshes** (the user, 2026-11-27: find out why first; branch `slow-tiles`). Project
   2's task 25cdbf17 took 5.9 s a click (median, 16-28 s at most): its finest tiles carry large textures (111 tiles with
   a 1024 or 2048 px one, against 4 on project 1), and transcoding them was most of each tile's 100-400 ms. A pick needs
