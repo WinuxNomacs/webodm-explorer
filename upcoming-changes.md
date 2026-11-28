@@ -5,8 +5,13 @@
 Released: **0.1.0** (2026-11-23, experimental; see "Done"): tagged, the GitHub release with the zip, the
 WebODM-Plugins entry as draft pull request #16 (the user marks it ready).
 
-Prepared: **release 0.3.0** (2026-11-27, merged into `main`; the user tags `v0.3.0` and publishes it; v0.2.0 was
-tagged locally, not published). Built for it: **measurement tools**, steps A (the map page) and B (the 3D page), then
+Up next: **testing on Windows before 0.3.0 is tagged** (the user, 2026-11-27, in a new session on a Windows machine:
+see CLAUDE.md, "A new machine" and "Windows: work from WSL2"). A bug found there goes first, on its own branch; any
+change to `explorer/` then means a new zip and the `release-check` skill again (the sha256 reported on 2026-11-27,
+`e984764...`, is then void).
+
+Prepared: **release 0.3.0** (2026-11-27, merged into `main`, not tagged; the user tags `v0.3.0` and publishes it after
+the Windows testing; v0.2.0 was tagged locally, not published). Built for it: **measurement tools**, steps A (the map page) and B (the 3D page), then
 **measuring at full detail** (the user's rule 2026-11-27): plan below, see "Done".
 
 Then: **the road to 1.0.0** (below): each phase discussed with the user when it comes up.

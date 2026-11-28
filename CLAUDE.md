@@ -46,7 +46,9 @@ public: nothing private, nothing true only on one machine. Keep it short; edit i
   pushed `v*` tag or by hand (Actions > Docs > Run workflow); a push to `main` runs nothing. A release: Claude prepares a `release/X.Y.Z` branch (manifest
   version, `CHANGELOG.md`, `README.md`), builds the zip with `dev/package.sh` (`dist/explorer-X.Y.Z.zip` and its
   sha256), runs the `release-check` skill and merges; the user tags `vX.Y.Z`, attaches the zip to the GitHub release
-  and adds `{url, sha256}` to WebODM-Plugins' `directory.json`.
+  and adds `{url, sha256}` to WebODM-Plugins' `directory.json`. The zip isn't byte-reproducible (file times): each
+  build has a new sha256, so the one reported is the last zip built, and a change after the release check means a new
+  zip and the check again.
 - **A smooth, responsive UI is a key measure of the results** (the user, 2026-11-21): viewers keep a steady frame
   rate while streaming (decoding, parsing and building off the main thread, no long tasks on interaction), show
   something useful at once and refine it, and never block on a build or download the visitor didn't ask for. Each
@@ -95,8 +97,8 @@ public: nothing private, nothing true only on one machine. Keep it short; edit i
   only a function's source: it is standard library only, loaded by its file path, and the worker needs no restart to
   pick up a change. Builds and their state live in each task's folder
   (`app/media/project/<project>/task/<task>/explorer-tiles/`, `state.json` inside; the build lock in the plugin's
-  persistent path), so plugin upgrades keep them; bump `PIPELINE` when the tools or their
-  options change, so every mesh is rebuilt under a new build id.
+  persistent path), so plugin upgrades keep them, and a build an upgrade interrupts is retried at once; bump
+  `PIPELINE` when the tools or their options change, so every mesh is rebuilt under a new build id.
 - Browser libraries (three.js, Spark, Leaflet, laz-perf, 3DTilesRendererJS) are vendored in `explorer/public/vendor/` by `dev/vendor.sh`,
   which pins their versions; the 3D page's import map and data attributes (`explorer/templates/link_3d.html`) and the
   map page's tags name the same versions. `explorer/public/viewer/` is ES modules (its own ESLint block); the rest of
@@ -105,6 +107,20 @@ public: nothing private, nothing true only on one machine. Keep it short; edit i
 - Host tools: `uv venv --python 3.14 .venv && uv pip install -r requirements-dev.txt` (Django and DRF for the IDE,
   Ruff); `npm install` (Jest, ESLint, Playwright). VSCode: interpreter `.venv`, `ignored/WebODM` on Pylance's
   extra paths (local `.vscode/settings.json`); extensions Python, Pylance, Ruff, ESLint, Docker.
+- **A new machine** starts from nothing the repo doesn't hold: `ignored/` is git-ignored (clone the three checkouts
+  above, WebODM at `v4.0.1`), then `dev/tools.sh`, the host tools above, `npx playwright install chromium`,
+  `dev/webodm.sh up`, an admin account made on the stack's first page (the user gives it; never in the repo), and test
+  data imported (Roof Sample or the user's own tasks: the live-check scripts take project and task ids, their defaults
+  are another machine's). Claude's memory stays on the machine it was written on.
+- **Windows: work from WSL2** (Ubuntu, Docker Desktop's WSL integration), with the repo cloned in the Linux filesystem
+  (`~/...`, not `/mnt/c`) and Claude Code and VS Code (Remote - WSL) running there. Natively it breaks: the scripts are
+  bash; WebODM's checkout, mounted into the containers, has no `.gitattributes`, so Git for Windows' default CRLF
+  breaks its shell scripts (this repo's `.gitattributes` keeps LF); bind mounts from NTFS are slow and don't pass file
+  changes to the containers (no reload on save); Git Bash rewrites `/webodm`-style arguments of `docker exec` unless
+  `MSYS_NO_PATHCONV=1`. Playwright's Chromium in WSL needs system libraries (`npx playwright install-deps chromium`,
+  with sudo: ask first). An NVIDIA GPU reaches containers through Docker Desktop on WSL2; if `EX_GPU=auto` still
+  picks the CPU (it needs `nvidia-smi` in WSL and an nvidia runtime in `docker info`, which Docker Desktop may not
+  list: not yet checked), try `EX_GPU=1`.
 
 ## Tests and checks
 
