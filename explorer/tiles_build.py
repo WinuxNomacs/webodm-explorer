@@ -19,7 +19,7 @@ nothing. The work folder (the plugin's persistent path) holds .build.lock, held 
 .bin, the tools' executable copies, and .tmp-<task id>-<build id>/, the build in progress: built there, out of the task
 folder (which WebODM copies, zips and removes as a whole), and moved into it as <build id> once read back. All three
 are made again when an upgrade removes them; a .tmp- folder left by a build that was killed goes when the next build
-takes the lock.
+takes the lock. A build that fails because an upgrade replaced the work folder under it may be tried again at once.
 """
 import contextlib
 import errno
@@ -368,6 +368,15 @@ def clear_stale(work):
                 shutil.rmtree(os.path.join(work, entry), ignore_errors=True)
 
 
+def lock_file(work):
+    """The build lock's file identity, or None: another one (or none) once an upgrade has replaced the work folder."""
+    try:
+        found = os.stat(os.path.join(work, ".build.lock"))
+        return found.st_dev, found.st_ino
+    except OSError:
+        return None
+
+
 def try_build_lock(work):
     """<work>/.build.lock if no other build holds it, else None."""
     os.makedirs(work, exist_ok=True)
@@ -447,6 +456,7 @@ def build_one(work, folder, obj_path, tools_dir, now=time.time):
             return True
 
     tmp = os.path.join(work, f".tmp-{re.sub(r'[^A-Za-z0-9-]', '_', task_id)}-{build}")
+    lock = lock_file(work)
     try:
         started = time.monotonic()
         build_into(tmp, obj_path, tools_dir, work, beat)
@@ -478,10 +488,15 @@ def build_one(work, folder, obj_path, tools_dir, now=time.time):
         if not os.path.isfile(obj_path):
             remove(folder)
             return {"state": "gone"}
+        # A plugin upgrade replaced the work folder under the build (its tools and files went with the old one):
+        # not the mesh's fault, so the next request builds it again
+        interrupted = lock is not None and lock_file(work) != lock
+        if interrupted:
+            message = f"interrupted by a plugin upgrade ({message})"
         logger.warning(f"Explorer: the mesh tiles of task {task_id} could not be built: {message}")
         with contextlib.suppress(OSError):
             finish({"state": "failed", "fingerprint": fp, "updated": time.time(), "error": message[:500],
-                    "retry_after": RETRY_FAILED})
+                    "retry_after": 0 if interrupted else RETRY_FAILED})
         return {"state": "failed", "error": message}
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

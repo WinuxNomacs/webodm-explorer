@@ -256,6 +256,26 @@ class BuildTests(unittest.TestCase):
         self.assertEqual(state["state"], "queued")
         self.assertEqual(state["fingerprint"], build.fingerprint(self.obj))
 
+    def test_a_build_whose_work_folder_an_upgrade_replaced_may_be_tried_again_at_once(self):
+        def upgraded(tmp, obj, tools, work, beat):
+            # WebODM's Update moves the plugin's folder (the work folder) aside, puts the new version in its place,
+            # and the new version's first build takes a new lock there; the tools then fail on their missing files
+            shutil.move(self.work, os.path.join(self.dir, "plugin_old"))
+            os.close(build.try_build_lock(self.work))
+            raise build.BuildError("gltfpack: exit 0 on LOD-0/Mesh-XL.glb")
+        with mock.patch.object(build, "build_into", side_effect=upgraded):
+            self.assertEqual(self.run_build()["state"], "failed")
+        state = self.state()
+        self.assertEqual(state["state"], "failed")
+        self.assertEqual(state["retry_after"], 0)
+        self.assertIn("interrupted", state["error"])
+        self.assertEqual(build.decide(state, state["fingerprint"], time.time())[0], "queue")
+
+    def test_a_build_failing_on_its_own_waits_before_it_is_tried_again(self):
+        with mock.patch.object(build, "build_into", side_effect=build.BuildError("boom")):
+            self.assertEqual(self.run_build()["state"], "failed")
+        self.assertEqual(self.state()["retry_after"], build.RETRY_FAILED)
+
     def test_a_mesh_that_cannot_be_read_for_now_keeps_the_tiles_built(self):
         self.assertEqual(self.run_build()["state"], "ready")
         ready = self.state()["build"]
