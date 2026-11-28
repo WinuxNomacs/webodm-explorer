@@ -387,6 +387,33 @@ test("the same spot picked twice (a double-click) is one point; a click on nothi
     expect(page.querySelector(".explorer-measure-hint").textContent).toBe("hint area");
 });
 
+test("Clear, another mode and closing cancel what the surface is still working out; a new shape after Finish doesn't", () => {
+    const { page, surface, tool } = renderScene();
+    surface.cancelled = 0;
+    surface.cancel = () => { surface.cancelled++; };
+    tool.on();
+    tool.setMode("area");
+    expect(surface.cancelled).toBe(1);
+    [[0, 0, 0], [1, 0, 0], [1, 1, 0]].forEach((p) => surface.started.click(p));
+    surface.started.finish();
+    surface.started.click([5, 5, 0]);  // starts a new shape: the picks after it must still count
+    expect(surface.cancelled).toBe(1);
+    page.querySelector("[data-clear]").click();
+    expect(surface.cancelled).toBe(2);
+    tool.off();
+    expect(surface.cancelled).toBe(3);
+});
+
+test("the hint follows the 3D page's view switch", () => {
+    const { page, surface, tool } = renderScene();
+    let view = "mesh";
+    surface.hint = () => "hint on " + view;
+    tool.on();
+    view = "splats";
+    page.dispatchEvent(new window.CustomEvent("explorer-view", {detail: {type: "splats"}}));
+    expect(page.querySelector(".explorer-measure-hint").textContent).toBe("hint on splats");
+});
+
 test("the panel's unit switch flips metres and feet and tells the page", () => {
     const { page, tool } = renderScene();
     tool.on();

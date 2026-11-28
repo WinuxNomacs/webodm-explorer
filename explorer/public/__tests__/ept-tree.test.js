@@ -161,9 +161,20 @@ test("a subtree whose file isn't read yet is read before its nodes are searched"
     expect(p).toEqual([10, 10, 5]);
 });
 
-test("a node that can't be fetched fails the pick, and the search stops after its node limit", async () => {
+test("a node that can't be fetched fails the pick", async () => {
     const t = tree({"0-0-0-0": 10, "1-1-1-1": 5});
     await expect(pickNearest(t, {}, {fail: "1-1-1-1"})).rejects.toThrow("gone");
-    const { fetched } = await pickNearest(t, {}, {max: 1});
-    expect(fetched).toEqual(["0-0-0-0"]);
+});
+
+test("a subtree whose file still isn't read after loading fails the pick, rather than search without its nodes", async () => {
+    const t = tree({"0-0-0-0": 10, "1-1-1-1": -1});
+    // A load that resolves without reading it (already being read for the view, or set aside after failing)
+    await expect(pickNearest(t, {"0-0-0-0": [10, 10, -40]}, {loadHierarchy: () => Promise.resolve()})).rejects.toThrow("1-1-1-1");
+});
+
+test("a search cut short by its node limit fails the pick while nearer nodes remain, never giving a farther point", async () => {
+    const t = tree({"0-0-0-0": 10, "1-1-1-1": 5});
+    await expect(pickNearest(t, {"0-0-0-0": [10, 10, -40]}, {max: 1})).rejects.toThrow("node limit");
+    // With the point found nearer than every node left, the limit doesn't matter
+    expect((await pickNearest(t, {"0-0-0-0": [10, 10, 60]}, {max: 1})).p).toEqual([10, 10, 60]);
 });

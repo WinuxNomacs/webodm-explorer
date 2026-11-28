@@ -222,7 +222,8 @@
      * every depth, front to back; a node is skipped once a point nearer than where the ray enters it is found, so only
      * the nodes around the first surface are fetched. origin and dir (unit) are in the nodes' coordinates.
      * positionsOf(node) -> Promise of a flat [x, y, z, ...] array (or null), loadHierarchy(node) -> Promise for a node
-     * whose subtree file isn't read yet. At most maxNodes nodes. Resolves with [x, y, z] or null; rejects as they do.
+     * whose subtree file isn't read yet. At most maxNodes nodes. Resolves with [x, y, z] or null; rejects as they do,
+     * when a subtree is still unread after loadHierarchy, or when the node limit is reached with nearer nodes left.
      */
     function pickNearest(tree, origin, dir, threshold, positionsOf, loadHierarchy, maxNodes) {
         var queue = [], best = null, bestT = Infinity, visited = 0, limit = threshold * threshold;
@@ -244,11 +245,15 @@
         function next() {
             queue.sort(function (a, b) { return a.t - b.t; });
             var item = queue.shift();
-            if (!item || item.t >= bestT || visited >= maxNodes) return Promise.resolve(best);
+            if (!item || item.t >= bestT) return Promise.resolve(best);
+            // Nodes nearer than the point found are left: what was found may not be the nearest
+            if (visited >= maxNodes) return Promise.reject(new Error("EPT: the pick reached its node limit (" + maxNodes + ")"));
             visited++;
             var node = item.node;
             var ready = node.pendingHierarchy ? loadHierarchy(node) : Promise.resolve();
             return ready.then(function () {
+                // Searching on without its subtree could give a coarser or farther point
+                if (node.pendingHierarchy) throw new Error("EPT: the subtree of " + node.key + " could not be read");
                 return node.count > 0 ? positionsOf(node) : null;
             }).then(function (positions) {
                 search(positions);

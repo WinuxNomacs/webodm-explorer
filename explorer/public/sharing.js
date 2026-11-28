@@ -59,6 +59,15 @@
         return result;
     }
 
+    // A query string's part decoded, or as it is when it doesn't decode (a hand-typed "50%")
+    function decode(text) {
+        try {
+            return decodeURIComponent(text.replace(/\+/g, " "));
+        } catch (e) {
+            return text;
+        }
+    }
+
     // The filters from the page's query string; unknown values give the defaults
     function readFilters(search) {
         var filters = {};
@@ -66,8 +75,8 @@
         (search || "").replace(/^\?/, "").split("&").forEach(function (pair) {
             if (!pair) return;
             var at = pair.indexOf("=");
-            var name = decodeURIComponent((at === -1 ? pair : pair.slice(0, at)).replace(/\+/g, " "));
-            params[name] = at === -1 ? "" : decodeURIComponent(pair.slice(at + 1).replace(/\+/g, " "));
+            var name = decode(at === -1 ? pair : pair.slice(0, at));
+            params[name] = at === -1 ? "" : decode(pair.slice(at + 1));
         });
         Object.keys(DEFAULTS).forEach(function (name) {
             var value = params[name];

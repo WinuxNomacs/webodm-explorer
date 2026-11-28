@@ -259,7 +259,7 @@
             var clear = button(texts.clear, "fa-eraser", "data-clear");
             undo.addEventListener("click", undoPoint);
             finish.addEventListener("click", finishShape);
-            clear.addEventListener("click", function () { reset(); });
+            clear.addEventListener("click", function () { cancel(); reset(); });
             actions.appendChild(undo);
             actions.appendChild(finish);
             actions.appendChild(clear);
@@ -337,7 +337,13 @@
             update();
         }
 
+        // Clear, another mode or closing drops what the surface is still working out (a 3D pick still loading)
+        function cancel() {
+            if (surface.cancel) surface.cancel();
+        }
+
         function setMode(mode) {
+            cancel();
             state.mode = modes.indexOf(mode) >= 0 ? mode : modes[0];
             reset(true);
         }
@@ -404,6 +410,7 @@
         function off() {
             if (!state.on) return;
             state.on = false;
+            cancel();
             reset();
             surface.stop();
             if (panel) panel.hidden = true;
@@ -418,6 +425,8 @@
         });
         // The legend's unit switch (map.js) and the 3D page's unit menu change what the panel reads in
         page.addEventListener("explorer-units", render);
+        // The 3D page's view switch (viewer-ui.js): the hint can depend on the view (splats measured on the cloud)
+        page.addEventListener("explorer-view", render);
         var Controls = node ? require("./viewer-controls.js") : window.ExplorerControls;
         document.addEventListener("keydown", function (event) {
             if (!Controls.isShortcut(event)) return;

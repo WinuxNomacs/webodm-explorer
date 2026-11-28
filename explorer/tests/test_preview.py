@@ -108,6 +108,8 @@ class PreviewTests(LinkTestMixin, BootTestCase):
         wrong_project = path.replace(f"projects/{self.project.id}/", f"projects/{self.other_project.id}/")
         self.assertEqual(self.client_for("testuser").get(wrong_project).status_code, 404)
         self.assertEqual(self.client_for("testuser").get(path.replace("tileset.json", "../state.json")).status_code, 404)
+        # Another site can't read a signed-in user's tiles through their cookies (WebODM allows any origin)
+        self.assertEqual(self.client_for("testuser").get(path, HTTP_SEC_FETCH_SITE="cross-site").status_code, 403)
 
     def test_a_preview_address_without_its_slash_redirects(self):
         response = self.client_for("testuser").get(f"{self.base}3d/{self.full.id}?t=mesh")

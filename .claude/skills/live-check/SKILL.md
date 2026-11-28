@@ -110,11 +110,13 @@ own (e.g. starting "Live check"), delete only that afterwards, and say what was 
   geodesic between the same points (run in `ex-webapp`), Point, Angle and Area; Area on the point cloud; then one
   "Live check" link (revoked at the end, also on failure): a visitor's distance on the cloud, the panel's unit switch,
   splats measured on the point cloud (a visitor's distance, the same points as the cloud view at the same pixels, no
-  long tasks) and refused when the page is served without its cloud button, no long tasks while picking, the panel's fit (no mode name cut short), phone width.
+  long tasks) and refused when the page is served without its cloud button, no long tasks while picking, the panel's
+  fit (no mode name cut short), phone width. Picks slowed on purpose (`scene.pickFinest` wrapped with a delay): a
+  double-click must finish an area with its own corner, and Clear must drop a pick still loading.
   Full detail: the same spots picked as the view shows them and at full detail (how far apart, cold and warm times),
   the cloud's picks against the DSM, and a fresh context with the full-detail tiles (`/LOD-0/`) refused, which must
-  say the detail could not be loaded and measure nothing; then close up (12 wheel steps in), where every spot on the
-  view's surface must have a full-detail point within 25 cm (a close view once picked nothing) (its console fills with the refused requests on purpose:
-  only its uncaught errors count).
+  say the detail could not be loaded and measure nothing (its console fills with the refused requests on purpose:
+  only its uncaught errors count); then close up (12 wheel steps in), where every spot on the view's surface must have
+  a full-detail point within 25 cm (a close view once picked nothing).
   Baseline (2026-11-27, task 358acbe0, grid scale 0.9997): 39.64 m shown, 39.6411 m by pyproj, 39.6291 m in the grid
   alone.

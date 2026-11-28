@@ -25,7 +25,7 @@ publicly in WebODM or a superuser ticks **Allow Links** here, and until then the
 To create one:
 
 1. Give it a **Label** (optional; who it is for, say). Links without one show as **Untitled Link**.
-2. Pick an **Expiry**: 7, 30 or 90 days, or **Never expires**.
+2. Pick an **Expiry**: 7, 30 or 90 days, or **Never Expires**.
 3. Tick **Allow Downloads** if visitors may download the outputs (see below).
 4. Tick **Allow All Task Files** if visitors may also download every other file of WebODM's Download menu (see
    below). It needs **Allow Downloads**: the box can be ticked only while that one is.
@@ -43,7 +43,7 @@ Each link in the list has:
   **Allow Downloads** again brings the files back.
 - **Embed**, for code that shows the link's views in another website (below).
 - **Edit**, to change its label or its expiry: **Keep the Current Expiry**, or 7, 30 or 90 days from today, or
-  **Never expires**. The link's address stays the same.
+  **Never Expires**. The link's address stays the same.
 - **Revoke**, which stops the link at once, for everyone using it.
 
 The **Share** button shows how many active links the project has, and cards on [Explorer's home](/guide/projects)

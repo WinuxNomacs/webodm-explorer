@@ -139,13 +139,22 @@
         for (var j = 0; j < drawn.length; j++) drawWhenSeen(drawn[j]);
     }
 
+    // A query string's part decoded, or as it is when it doesn't decode (a hand-typed "50%")
+    function decodePart(text) {
+        try {
+            return decodeURIComponent(text.replace(/\+/g, " "));
+        } catch (e) {
+            return text;
+        }
+    }
+
     // The value of a name in a query string ("?a=1&b=2"), or ""
     function queryValue(search, name) {
         var pairs = (search || "").replace(/^\?/, "").split("&");
         for (var i = 0; i < pairs.length; i++) {
             var at = pairs[i].indexOf("=");
-            if (at !== -1 && decodeURIComponent(pairs[i].slice(0, at)) === name) {
-                return decodeURIComponent(pairs[i].slice(at + 1).replace(/\+/g, " "));
+            if (at !== -1 && decodePart(pairs[i].slice(0, at)) === name) {
+                return decodePart(pairs[i].slice(at + 1));
             }
         }
         return "";
@@ -217,6 +226,12 @@
         function choose(item, history) {
             mark(item);
             list.classList.add("explorer-list-chosen");
+            // On a phone the pane takes the folder's place: from its top, with the focus on Back to Projects (the
+            // folder's link it had is hidden now)
+            if (back && window.matchMedia && window.matchMedia("(max-width: 767px)").matches) {
+                if (list.scrollIntoView) list.scrollIntoView({block: "start"});
+                back.focus();
+            }
             if (history && window.history && window.history.pushState) {
                 window.history[history === "push" ? "pushState" : "replaceState"]({project: item.getAttribute("data-project")},
                     "", item.getAttribute("href"));
@@ -442,6 +457,13 @@
                 if (mine === latest) failed();
             });
         }
+
+        // Back or Forward to an address with another search (each search replaces the address in place): the page
+        // as that address has it
+        window.addEventListener("popstate", function () {
+            if (!document.documentElement.contains(box)) return;
+            if (queryValue(window.location.search, "q") !== box.value.trim()) window.location.reload();
+        });
 
         box.addEventListener("input", function () {
             var q = box.value.trim();
@@ -1097,7 +1119,16 @@
 
             var editForm = editBox(link, {text: text, request: request, url: url, saved: function (updated) {
                 showError("");
-                load().then(function () { highlight(updated.token); });
+                load().then(function () {
+                    // A link renewed under the Expired filter (or edited out of the others) is shown all the same
+                    if (!body.querySelector('tr[data-token="' + updated.token + '"]')) {
+                        Object.keys(Sharing.DEFAULTS).forEach(function (name) { filters[name] = Sharing.DEFAULTS[name]; });
+                        fillFilters();
+                        readForm();
+                        render();
+                    }
+                    highlight(updated.token);
+                });
             }, failed: function (message, status) {
                 showError(message);
                 if (status === 404) load().then(function () { showError(message); });

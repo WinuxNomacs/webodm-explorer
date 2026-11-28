@@ -119,3 +119,21 @@ test("Back to Projects shows the folder pane again, and the browser's Back retur
     expect(window.fetch).toHaveBeenCalledTimes(2);
     expect(items[0].getAttribute("aria-current")).toBe("true");
 });
+
+test("on a phone a chosen project's pane opens from its top, with the focus on Back to Projects", async () => {
+    window.matchMedia = jest.fn((query) => ({matches: query === "(max-width: 767px)"}));
+    const scrolled = jest.fn();
+    window.HTMLElement.prototype.scrollIntoView = scrolled;
+    try {
+        const { list, items, back } = render([html(200, pane(2))]);
+        items[1].focus();
+        items[1].click();
+        expect(scrolled).toHaveBeenCalledWith({block: "start"});
+        expect(scrolled.mock.instances[0]).toBe(list);
+        expect(document.activeElement).toBe(back);
+        await settle();
+    } finally {
+        delete window.matchMedia;
+        delete window.HTMLElement.prototype.scrollIntoView;
+    }
+});

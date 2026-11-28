@@ -201,9 +201,11 @@ def parse(data):
         raise FramesError("Expected a Point")
     try:
         point = [float(v) for v in coords]
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         raise FramesError("Invalid coordinates")
     if len(point) < 2 or len(point) > 3 or not all(math.isfinite(v) for v in point):
+        raise FramesError("Invalid coordinates")
+    if crs == "wgs84" and not (-180 <= point[0] <= 180 and -90 <= point[1] <= 90):
         raise FramesError("Invalid coordinates")
     if crs == "task" and len(point) != 3:
         raise FramesError("A point in the task's coordinates takes x, y and z")
