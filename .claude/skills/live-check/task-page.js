@@ -6,7 +6,7 @@
 const path = require("path");
 const [repo, out, user, password, projectArg] = process.argv.slice(2);
 const { chromium } = require(repo + "/node_modules/playwright");
-const BASE = "http://localhost:8008";
+const BASE = process.env.EXPLORER_BASE || "http://localhost:8008";
 const PROJECT = Number(projectArg || 2);
 const shot = (page, name) => page.screenshot({ path: path.join(out, name + ".png"), fullPage: true, timeout: 90000 })
     .catch((e) => console.log("screenshot " + name + " failed: " + e.message.split("\n")[0]));

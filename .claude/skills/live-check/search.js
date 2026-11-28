@@ -9,7 +9,7 @@
 const path = require("path");
 const [repo, out, user, password, wordArg, noneArg, sharedArg] = process.argv.slice(2);
 const { chromium } = require(repo + "/node_modules/playwright");
-const BASE = "http://localhost:8008";
+const BASE = process.env.EXPLORER_BASE || "http://localhost:8008";
 const HOME = BASE + "/plugins/explorer/";
 const WORD = wordArg || "homerun";  // part of one task's name, not of its project's name
 const NONE = noneArg || "zzqq";

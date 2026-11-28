@@ -1,6 +1,6 @@
 // Live check of the mesh tiles on a link's 3D page, against the dev server (http://localhost:8008). The task's tiles
-// must be built (open its mesh once and wait: the build's state is in the plugin's persistent path,
-// app/media/plugins/explorer/tiles/<task id>/state.json in the web container).
+// must be built (open its mesh once and wait: the build's state is in the task's folder,
+// app/media/project/<project>/task/<task id>/explorer-tiles/state.json in the web container).
 // Creates one "Live check" link on the project through the links API (which queues the project's other builds) and
 // revokes it, also on failure.
 // Usage: node .claude/skills/live-check/link-tiles.js <repo> <screenshot folder> <user> <password> [project id] [task id prefix]
@@ -10,7 +10,7 @@
 const path = require("path");
 const [repo, out, user, password, projectArg, taskPrefix] = process.argv.slice(2);
 const { chromium } = require(repo + "/node_modules/playwright");
-const BASE = "http://localhost:8008";
+const BASE = process.env.EXPLORER_BASE || "http://localhost:8008";
 const PROJECT = Number(projectArg || 1);
 const shot = (page, name) => page.screenshot({ path: path.join(out, name + ".png"), timeout: 90000 }).catch((e) => console.log("screenshot " + name + " failed: " + e.message.split("\n")[0]));
 const masked = (url) => url.replace(/s\/[A-Za-z0-9_-]{43}/, "s/<token>");
