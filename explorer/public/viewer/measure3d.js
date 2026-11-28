@@ -42,8 +42,12 @@ function dot(colour) {
 // The surface for measure.js's create(): `Measure` is window.ExplorerMeasure (the helpers and the formats)
 export function sceneSurface(Measure, scene, canvas, texts, scale, colour) {
     let handlers = null;
-    let picks = 0;
+    // Picks at full detail can take a while: each starts at its click, and their results are applied in click order
+    // (a double-click's Finish after the clicks before it); Clear, another mode or closing drops those still loading
+    let generation = 0;
+    let applying = Promise.resolve();
     let down = null;
+    const pointers = new Set(); // pressed: a second finger makes it a pinch, not a click
     const texture = dot(colour);
     const lineMaterial = new LineMaterial({ color: new THREE.Color(colour).getHex(), linewidth: 3, depthTest: false,
         depthWrite: false, transparent: true });
@@ -57,32 +61,47 @@ export function sceneSurface(Measure, scene, canvas, texts, scale, colour) {
     }
 
     function onDown(e) {
-        down = e.button === 0 || e.pointerType === "touch" ? { x: e.clientX, y: e.clientY } : null;
+        pointers.add(e.pointerId);
+        down = pointers.size === 1 && (e.button === 0 || e.pointerType === "touch") ? { x: e.clientX, y: e.clientY, id: e.pointerId } : null;
+    }
+
+    function onCancel(e) {
+        pointers.delete(e.pointerId);
+        down = null;
     }
 
     function onUp(e) {
+        pointers.delete(e.pointerId);
         const at = down;
         down = null;
-        if (!handlers || !at || Math.abs(e.clientX - at.x) > CLICK_SLOP || Math.abs(e.clientY - at.y) > CLICK_SLOP) return;
+        if (!handlers || !at || at.id !== e.pointerId || Math.abs(e.clientX - at.x) > CLICK_SLOP || Math.abs(e.clientY - at.y) > CLICK_SLOP) return;
         // Splats are measured on the point cloud: without one, not at all
         if (!scene.measurable()) {
             handlers.say(texts.noSplats);
             return;
         }
         // At full detail: data the view doesn't show may have to come first (the user, 2026-11-27)
-        const mine = ++picks;
-        const loading = () => { if (handlers && mine === picks) handlers.say(texts.loadingDetail); };
-        Promise.resolve(scene.pickFinest(e.clientX, e.clientY, loading)).then((p) => {
-            if (!handlers || mine !== picks) return;
-            if (!p) handlers.say(scene.shown() === "splats" ? texts.nothingCloud : texts.nothing);
+        const mine = generation;
+        const live = () => handlers && mine === generation;
+        const loading = () => { if (live()) handlers.say(texts.loadingDetail); };
+        const picked = Promise.resolve(scene.pickFinest(e.clientX, e.clientY, loading)).then((p) => ({ p }), (error) => ({ error }));
+        applying = applying.then(() => picked).then(({ p, error }) => {
+            if (!live()) return;
+            if (error) handlers.say(texts.detailFailed);
+            else if (!p) handlers.say(scene.shown() === "splats" ? texts.nothingCloud : texts.nothing);
             else handlers.click([p.x, p.y, p.z]);
-        }, () => {
-            if (handlers && mine === picks) handlers.say(texts.detailFailed);
         });
     }
 
     function onDouble() {
-        if (handlers) handlers.finish();
+        const mine = generation;
+        applying = applying.then(() => { if (handlers && mine === generation) handlers.finish(); });
+    }
+
+    // The lines keep their width in pixels when the view's size changes (a turned phone, Fullscreen)
+    function onResize() {
+        const [w, h] = scene.size();
+        lineMaterial.resolution.set(w, h);
     }
 
     const height = (metres, imperial) => Measure.formatHeight(metres, imperial);
@@ -94,15 +113,23 @@ export function sceneSurface(Measure, scene, canvas, texts, scale, colour) {
             scene.prepareMeasure();
             canvas.addEventListener("pointerdown", onDown);
             canvas.addEventListener("pointerup", onUp);
+            canvas.addEventListener("pointercancel", onCancel);
             canvas.addEventListener("dblclick", onDouble);
+            window.addEventListener("resize", onResize);
         },
         stop() {
             handlers = null;
-            picks++;
+            generation++;
+            pointers.clear();
             canvas.removeEventListener("pointerdown", onDown);
             canvas.removeEventListener("pointerup", onUp);
+            canvas.removeEventListener("pointercancel", onCancel);
             canvas.removeEventListener("dblclick", onDouble);
+            window.removeEventListener("resize", onResize);
             clear();
+        },
+        cancel() {
+            generation++;
         },
         // The points as dots of one size on screen, and the line through them (closed for an area)
         draw(state) {

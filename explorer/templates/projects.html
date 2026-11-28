@@ -43,7 +43,7 @@
     </form>
 
     {# What the search shows: swapped in place as the user types (explorer.js initLiveSearch) #}
-    <div class="explorer-results" data-explorer-results aria-live="polite">
+    <div class="explorer-results" data-explorer-results>
     {% if query.view == "map" %}
     {% if places.places %}
     <div class="explorer-home-map explorer-footprint-map theme-border-secondary-07" data-explorer-footprints="projects"
@@ -90,7 +90,7 @@
                     <span class="explorer-folder-count" title="{% blocktrans count count=entry.count %}{{ count }} task with outputs{% plural %}{{ count }} tasks with outputs{% endblocktrans %}">{{ entry.count }}</span>
                 </a>
                 {% if entry.task_matches %}
-                <ul class="explorer-folder-tasks" aria-label="{% trans "Matching tasks" %}">
+                <ul class="explorer-folder-tasks" aria-label="{% trans "Matching Tasks" %}">
                     {% for match in entry.task_matches %}<li><a href="{{ match.page }}"><i class="fa fa-cube fa-fw"></i> {{ match.name }}</a></li>{% endfor %}
                 </ul>
                 {% endif %}
@@ -99,7 +99,7 @@
             </ul>
             {% if folder.capped %}<p class="explorer-card-text explorer-folder-note">{% blocktrans with count=folder.limit %}The first {{ count }} projects by name are listed: search to find others.{% endblocktrans %}</p>{% endif %}
         </nav>
-        <section class="explorer-pane" aria-live="polite">
+        <section class="explorer-pane">
             <a class="explorer-pane-back" href="?{{ back_params }}"><i class="fa fa-chevron-left"></i> {% trans "Back to Projects" %}</a>
             <div class="explorer-pane-content">{% if pane %}{% include pane_template %}{% elif folder.results %}{% include results_template with results=folder.results %}{% endif %}</div>
         </section>

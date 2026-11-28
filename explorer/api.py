@@ -8,6 +8,7 @@ The plugin's API (api_mount_points, under /api/plugins/explorer/):
 - Explorer's settings (options.py), for WebODM's admins.
 """
 import logging
+import math
 import os
 import posixpath
 import re
@@ -491,6 +492,28 @@ class Elevation(APIView):
         return elevation_response(task, request.query_params)
 
 
+def volume_ring(data):
+    """The volume request's polygon ring, or None: WebODM's view reads area["geometry"]["coordinates"][0] unchecked."""
+    area = data.get("area") if isinstance(data, dict) else None
+    geometry = area.get("geometry") if isinstance(area, dict) else None
+    rings = geometry.get("coordinates") if isinstance(geometry, dict) else None
+    ring = rings[0] if isinstance(rings, list) and rings else None
+    if not isinstance(ring, list) or len(ring) < 3:
+        return None
+    for position in ring:
+        if not isinstance(position, list) or len(position) < 2:
+            return None
+        for v in position[:2]:
+            if isinstance(v, bool) or not isinstance(v, (int, float)):
+                return None
+            try:
+                if not math.isfinite(float(v)):
+                    return None
+            except OverflowError:
+                return None
+    return ring
+
+
 class TokenVolume(TokenTaskMixin, TaskVolume):
     """
     POST: WebODM's own volume (its Measure plugin's view and calc_volume, in WebODM's worker) through a link, with the
@@ -503,6 +526,8 @@ class TokenVolume(TokenTaskMixin, TaskVolume):
         if not measure.measure_active():
             raise exceptions.NotFound()
         self.get_and_check_task(request, pk)
+        if volume_ring(request.data) is None:
+            return Response({"error": _("The area isn't a polygon.")}, status=status.HTTP_400_BAD_REQUEST)
         try:
             slot = measure.claim_slot(self.share_token)
         except measure.CapUnavailable:
@@ -573,7 +598,7 @@ class TokenMeshTiles(TokenTaskMixin, MeshTilesView):
 
 class PreviewMeshTiles(MeshTilesView):
     """The same files for a signed-in user's preview: the project viewable, the task in it, completed."""
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (NotCrossSite, IsAuthenticated)
 
     def get(self, request, project_pk=None, pk=None, build=None, path=None):
         project = Project.objects.filter(pk=project_pk, deleting=False).first()

@@ -99,6 +99,46 @@ for (let i = 0; i < 7; i++) for (let j = 0; j < 7; j++) SPOTS.push([0.3 + 0.07 *
         await page.keyboard.press("Enter");
         const area = await panel(page);
         check("Area reads a horizontal and a sloped area, the sloped no smaller", metres(area[3]) >= metres(area[1]) - 0.01, JSON.stringify(area));
+        // A double-click finishes the shape with its own corner, though that corner's full-detail pick is still loading
+        // (it once wiped the area: Finish ran first, then the late pick started a new shape)
+        await page.click(".explorer-measure [data-clear]");
+        await pickPoints(page, c, [[0.4, 0.4], [0.6, 0.4], [0.6, 0.6], [0.55, 0.62], [0.62, 0.52], [0.5, 0.42]], 3);
+        // Picks made slow on purpose (a cold full-detail load), so the double-click's Finish comes while its pick loads
+        const slowPicks = (ms) => page.evaluate((delay) => {
+            const scene = window.ExplorerViewer.scene;
+            scene.__pickFinest = scene.__pickFinest || scene.pickFinest;
+            scene.pickFinest = delay ? (...args) => new Promise((resolve) => setTimeout(resolve, delay)).then(() => scene.__pickFinest(...args))
+                : scene.__pickFinest;
+        }, ms);
+        await slowPicks(1500);
+        await page.mouse.dblclick(c.x + c.w * 0.4, c.y + c.h * 0.6);
+        const early = await page.evaluate(() => document.querySelector("[data-explorer-viewer]").explorerMeasure.state().points.length);
+        await page.waitForFunction(() => document.querySelector("[data-explorer-viewer]").explorerMeasure.state().done, null, { timeout: 60000 }).catch(() => {});
+        await page.waitForTimeout(2000);
+        const doubled = await page.evaluate(() => document.querySelector("[data-explorer-viewer]").explorerMeasure.state());
+        check("a double-click finishes the area with its own corner, its pick still loading at the time",
+            early === 3 && doubled.done && doubled.points.length === 4, `${early} points at the double-click, then ${doubled.points.length}, done ${doubled.done}`);
+        // Clear while a pick is loading (a first point placed, the second's pick still slow): nothing comes afterwards
+        // (the double-click also turned the camera to orbit its spot: spots on the model are found again first)
+        await page.click("[data-mode=distance]");
+        const onModel = await page.evaluate(async (spots) => {
+            const scene = window.ExplorerViewer.scene, r = document.querySelector(".explorer-scene canvas").getBoundingClientRect();
+            const found = [];
+            for (const [fx, fy] of spots) {
+                if (found.length === 2) break;
+                if (await scene.pick(r.left + r.width * fx, r.top + r.height * fy)) found.push([fx, fy]);
+            }
+            return found;
+        }, SPOTS);
+        await pickPoints(page, c, onModel.slice(0, 1), 1);
+        await page.mouse.click(c.x + c.w * onModel[1][0], c.y + c.h * onModel[1][1]);
+        const loadingWhenCleared = await page.evaluate(() => document.querySelector("[data-explorer-viewer]").explorerMeasure.state().points.length);
+        await page.click(".explorer-measure [data-clear]");
+        await page.waitForTimeout(3000);
+        const cleared = await page.evaluate(() => document.querySelector("[data-explorer-viewer]").explorerMeasure.state().points.length);
+        check("Clear drops a pick still loading", loadingWhenCleared === 1 && cleared === 0,
+            `${loadingWhenCleared} point when Clear was pressed (the second still loading), ${cleared} after`);
+        await slowPicks(0);
         await shot(page, "measure3d-01-mesh");
         check("the panel's content fits it (no sideways scroll inside)", await page.$eval(".explorer-measure", (e) => e.scrollWidth <= e.clientWidth + 1));
         check("no mode's name is cut short", await page.$$eval(".explorer-measure-modes .btn", (bs) => bs.every((b) => b.scrollWidth <= b.clientWidth)));
@@ -259,7 +299,8 @@ for (let i = 0; i < 7; i++) for (let j = 0; j < 7; j++) SPOTS.push([0.3 + 0.07 *
         await visitorContext.close();
     } catch (e) {
         failed++;
-        console.log("FAIL exception: " + e.message.split("\n")[0]);
+        // The first lines of Playwright's call log say what an action waited for
+        console.log("FAIL exception: " + e.message.split("\n").slice(0, 8).join("\n  "));
     } finally {
         if (token) {
             const status = await page.evaluate(async ([pid, tok]) => {

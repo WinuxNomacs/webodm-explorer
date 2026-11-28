@@ -250,6 +250,8 @@
                     if (current !== type || contextLost) return;
                     helpers.explainFailure(page, line, function () { return current === type && !contextLost; });
                 });
+                // The scene shows this type from now on: the Measure panel's hint follows (measure.js)
+                page.dispatchEvent(new window.CustomEvent("explorer-view", {detail: {type: type}}));
             }
 
             var initial = switches[0];

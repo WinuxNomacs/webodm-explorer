@@ -151,6 +151,8 @@ class FramesRankingTests(FramesTestMixin, BootTestCase):
         for data in ({}, [], {"type": "LineString", "coordinates": [[0, 0], [1, 1]]},
                      {"type": "Point", "coordinates": "x"}, {"type": "Point", "coordinates": [0, 0, 0, 0]},
                      {"type": "Point", "coordinates": [0, float("nan")]},
+                     {"type": "Point", "coordinates": [0, 10 ** 400]}, {"type": "Point", "coordinates": [200, 0]},
+                     {"type": "Point", "coordinates": [0, -91]},
                      {"type": "Point", "coordinates": [0, 0], "crs": "EPSG:4326"}):
             self.assertEqual(self.post(data).status_code, 400, data)
         self.cameras.available_assets = ["orthophoto.tif"]

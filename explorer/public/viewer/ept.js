@@ -241,7 +241,7 @@ export class EptCloud {
         this.loaded = new Map(); // key -> {points, count, used}
         this.loading = new Set();
         this.failed = new Map(); // key -> {tries, again (time it may be tried again)}
-        this.hierarchyLoading = new Set();
+        this.hierarchyLoading = new Map(); // key -> the read's promise
         this.fetches = 0;
         this.dirty = true;
         this.lastCamera = new THREE.Matrix4();
@@ -452,7 +452,7 @@ export class EptCloud {
             return this.pickPositions(node);
         }, (node) => {
             tell();
-            return this.loadHierarchy(node);
+            return this.pickHierarchy(node);
         }, PICK_NODES_MAX);
         return found && !this.disposed ? new THREE.Vector3(...found).add(this.group.position) : null;
     }
@@ -466,7 +466,14 @@ export class EptCloud {
             this.pickCache.set(node.key, kept);
             return kept;
         }
-        const buffer = await withRetry(() => fetchWithTimeout(this.base + "ept-data/" + node.key + ".laz"));
+        let buffer;
+        try {
+            buffer = await withRetry(() => fetchWithTimeout(this.base + "ept-data/" + node.key + ".laz"));
+        } catch (e) {
+            // The page checks whether the link was revoked, as for the view's nodes
+            this.onFailure(e instanceof HttpError ? e.status : null);
+            throw e;
+        }
         const decoded = await this.pool.decode(buffer, this.info.origin, this.sixteenBit);
         this.pickCache.set(node.key, decoded.positions);
         while (this.pickCache.size > PICK_CACHE) this.pickCache.delete(this.pickCache.keys().next().value);
@@ -497,20 +504,43 @@ export class EptCloud {
         }
     }
 
-    async loadHierarchy(node) {
-        if (this.hierarchyLoading.has(node.key) || this.setAside(node.key)) return;
-        this.hierarchyLoading.add(node.key);
+    // The view's: a subtree's file read once at a time, set aside after failing; never rejects
+    loadHierarchy(node) {
+        if (this.hierarchyLoading.has(node.key)) return this.hierarchyLoading.get(node.key);
+        if (this.setAside(node.key)) return Promise.resolve();
+        const read = (async () => {
+            try {
+                const json = await withRetry(() => fetchWithTimeout(this.base + "ept-hierarchy/" + node.key + ".json", "json"));
+                if (!this.disposed) {
+                    Tree.addHierarchy(this.tree, json);
+                    this.failed.delete(node.key);
+                }
+            } catch (e) {
+                if (!this.disposed) this.failure(node.key, e);
+            } finally {
+                this.hierarchyLoading.delete(node.key);
+                this.dirty = true;
+            }
+        })();
+        this.hierarchyLoading.set(node.key, read);
+        return read;
+    }
+
+    // A pick's: waits for a read already under way, tries one set aside again at once, and rejects when the file can't
+    // be read, so a pick never searches on without the subtree (pickNearest rejects then too)
+    async pickHierarchy(node) {
+        if (this.hierarchyLoading.has(node.key)) await this.hierarchyLoading.get(node.key);
+        if (!node.pendingHierarchy || this.disposed) return;
         try {
             const json = await withRetry(() => fetchWithTimeout(this.base + "ept-hierarchy/" + node.key + ".json", "json"));
             if (!this.disposed) {
                 Tree.addHierarchy(this.tree, json);
                 this.failed.delete(node.key);
+                this.dirty = true;
             }
         } catch (e) {
-            if (!this.disposed) this.failure(node.key, e);
-        } finally {
-            this.hierarchyLoading.delete(node.key);
-            this.dirty = true;
+            this.onFailure(e instanceof HttpError ? e.status : null);
+            throw e;
         }
     }
 

@@ -165,7 +165,7 @@ class SharingCenterTests(LinkTestMixin, BootTestCase):
     def test_a_project_whose_links_are_not_allowed_cannot_be_picked(self):
         links.set_private_links(links.NONE)
         html = self.client_for("testuser").get(PAGE).content.decode()
-        self.assertIn(f'<option value="{self.project.id}" disabled>User Test Project (links not allowed)', html)
+        self.assertIn(f'<option value="{self.project.id}" disabled>User Test Project (Links Not Allowed)', html)
 
     def test_a_user_who_can_change_no_project_gets_a_note_instead(self):
         lone = User.objects.create_user(username="lone", password="test1234")

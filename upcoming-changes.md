@@ -1326,6 +1326,25 @@ The user chose to fix all four groups:
 
 ## Done
 
+- **Pre-release review for 0.3.0** (2026-11-27, branch `review-fixes`): three reviewers read every change since 0.1.0
+  (server and security; 3D viewer and measuring; pages and their interface), and each finding was checked in the code
+  before fixing. Fixed: a double-click finishing an area while its pick loaded wiped the area, and Clear, another mode
+  or closing let a late pick land (`measure3d.js` applies picks in click order and drops them on `cancel`, which
+  `measure.js` calls); a cloud pick searched on without a subtree whose file was still loading or set aside, or
+  stopped at its node limit with nearer nodes left, giving a coarser point (`ept-tree.js` rejects, `ept.js`
+  `pickHierarchy` waits and retries); a pinch could count as a click (Measure and Source Frames); measurement lines
+  keep their width after a resize; the hint follows a view switch (`explorer-view`); a refused node during a pick goes
+  to the page's revoked-link check. Server: a link visitor's malformed volume area is a 400 (WebODM's view read it
+  unchecked: a 500), Source Frames refuses overflowing and out-of-range coordinates with a 400, and the signed-in
+  tiles preview refuses cross-site requests. Pages: on a phone a chosen project's pane opens at its top with the focus
+  on Back to Projects; Back after a live search reloads the page for its address; a link renewed under the Expired
+  filter stays shown; a malformed "%" in an address no longer stops the home or the Sharing Center; the large
+  `aria-live` regions are gone (the Sharing Center's empty note stays announced); the expiry choices and two labels
+  in Title Case. Tests: Jest +6, Django +1 and two cases extended, `measure-3d.js` +2 (both seen failing on the old
+  code through a route). Not changed, by design or minor: Allow Source Photos shows full-size photos without EXIF
+  (documented); the per-link volume cap does nothing in DEBUG (WebODM's DummyCache; production and tests use real
+  caches); a volume slot frees after 120 s even if its job runs on (a rate limit, as planned); a closed tool's mesh
+  pick loads on for up to 30 s.
 - **Measuring on Gaussian splats** (2026-11-27, branch `splat-measure`; plan above). On splats the 3D Measure tool
   picks the task's point cloud: `scene.js` opens the cloud hidden for it (`measureCloud`: hierarchy and root only, no
   streaming while hidden; the cloud view reuses it, a node failure going to that view's handler once shown) from the

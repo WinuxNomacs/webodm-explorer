@@ -442,14 +442,21 @@
             hint: null,
             start: function (onSpot) {
                 api.stop();
-                on = {at: null, picks: 0};
+                // pressed: pointers down now, so a second finger makes a pinch, not a click
+                on = {at: null, picks: 0, pressed: {}, count: 0};
                 on.down = function (e) {
-                    on.at = e.button === 0 || e.pointerType === "touch" ? {x: e.clientX, y: e.clientY} : null;
+                    if (!on.pressed[e.pointerId]) { on.pressed[e.pointerId] = true; on.count++; }
+                    on.at = on.count === 1 && (e.button === 0 || e.pointerType === "touch") ? {x: e.clientX, y: e.clientY, id: e.pointerId} : null;
+                };
+                on.cancel = function (e) {
+                    if (on.pressed[e.pointerId]) { delete on.pressed[e.pointerId]; on.count--; }
+                    on.at = null;
                 };
                 on.up = function (e) {
+                    if (on.pressed[e.pointerId]) { delete on.pressed[e.pointerId]; on.count--; }
                     var at = on.at;
                     on.at = null;
-                    if (!at || Math.abs(e.clientX - at.x) > CLICK_SLOP || Math.abs(e.clientY - at.y) > CLICK_SLOP) return;
+                    if (!at || at.id !== e.pointerId || Math.abs(e.clientX - at.x) > CLICK_SLOP || Math.abs(e.clientY - at.y) > CLICK_SLOP) return;
                     var mine = ++on.picks, current = on;
                     Promise.resolve(scene.pick(e.clientX, e.clientY)).then(function (p) {
                         if (on !== current || mine !== current.picks) return;
@@ -464,11 +471,13 @@
                 };
                 view.addEventListener("pointerdown", on.down, true);
                 view.addEventListener("pointerup", on.up, true);
+                view.addEventListener("pointercancel", on.cancel, true);
             },
             stop: function () {
                 if (on) {
                     view.removeEventListener("pointerdown", on.down, true);
                     view.removeEventListener("pointerup", on.up, true);
+                    view.removeEventListener("pointercancel", on.cancel, true);
                     on = null;
                 }
                 scene.setMarker(null);

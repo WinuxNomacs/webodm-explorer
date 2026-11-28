@@ -52,6 +52,8 @@ describe("the logic", () => {
         expect(Sharing.readFilters("?project=7&status=all&q=roof+top&access=sign_in&downloads=no")).toEqual(
             {project: "7", status: "all", q: "roof top", access: "sign_in", downloads: "no"});
         expect(Sharing.readFilters("?project=x&status=gone&access=1")).toEqual(Sharing.DEFAULTS);
+        // A hand-typed address that doesn't decode still opens the page
+        expect(Sharing.readFilters("?q=50%").q).toBe("50%");
         expect(Sharing.writeFilters(Sharing.DEFAULTS)).toBe("");
         expect(Sharing.writeFilters(Object.assign({}, Sharing.DEFAULTS, {status: "expired", q: "a&b"})))
             .toBe("?status=expired&q=a%26b");
@@ -204,6 +206,19 @@ describe("the Sharing Center", () => {
         expect(JSON.parse(window.fetch.mock.calls[1][1].body)).toEqual({expires_days: "30"});
         expect(rows()[0].className).not.toContain("explorer-sharing-expired");
         expect(filters.elements.status.value).toBe("all");
+    });
+
+    test("a link renewed under the Expired filter is shown all the same, the filters back to their defaults", async () => {
+        const renewed = Object.assign({}, EXPIRED, {expired: false, expires: new Date(Date.now() + 30 * DAY).toISOString()});
+        const { rows, filters } = renderCenter([json(200, [EXPIRED]), json(200, renewed), json(200, [renewed])], "?status=expired");
+        await settle();
+        rows()[0].querySelector("button").click();
+        document.querySelector(".explorer-link-edit").dispatchEvent(new Event("submit", {cancelable: true}));
+        await settle();
+        await settle();
+        expect(rows()).toHaveLength(1);
+        expect(rows()[0].getAttribute("data-token")).toBe(EXPIRED.token);
+        expect(filters.elements.status.value).toBe(Sharing.DEFAULTS.status);
     });
 
     test("Delete removes an expired link after asking", async () => {

@@ -36,15 +36,15 @@
             <select name="project" class="form-control input-sm" aria-label="{% trans "Project" %}">
                 <option value="">{% trans "Choose a Project" %}</option>
                 {% for project in projects %}
-                <option value="{{ project.id }}"{% if not project.links_work %} disabled{% endif %}>{{ project.name }}{% if not project.links_work %} ({% trans "links not allowed" %}){% endif %}</option>
+                <option value="{{ project.id }}"{% if not project.links_work %} disabled{% endif %}>{{ project.name }}{% if not project.links_work %} ({% trans "Links Not Allowed" %}){% endif %}</option>
                 {% endfor %}
             </select>
             <input name="label" class="form-control input-sm" maxlength="100" placeholder="{% trans "Label (optional)" %}" aria-label="{% trans "Label" %}">
             <select name="expires_days" class="form-control input-sm" aria-label="{% trans "Expiry" %}">
-                <option value="7">{% trans "Expires in 7 days" %}</option>
-                <option value="30" selected>{% trans "Expires in 30 days" %}</option>
-                <option value="90">{% trans "Expires in 90 days" %}</option>
-                <option value="never">{% trans "Never expires" %}</option>
+                <option value="7">{% trans "Expires in 7 Days" %}</option>
+                <option value="30" selected>{% trans "Expires in 30 Days" %}</option>
+                <option value="90">{% trans "Expires in 90 Days" %}</option>
+                <option value="never">{% trans "Never Expires" %}</option>
             </select>
             <label class="explorer-link-downloads"><input type="checkbox" name="downloads"> {% trans "Allow Downloads" %}</label>
             <label class="explorer-link-downloads" title="{% trans "Source Frames on the link's maps and 3D views: the task's photos that show a spot" %}"><input type="checkbox" name="photos"> {% trans "Allow Source Photos" %}</label>
@@ -86,7 +86,7 @@
     </form>
 
     <div class="explorer-links-error alert alert-warning" role="alert" hidden></div>
-    <div aria-live="polite">
+    <div>
         <table class="table explorer-sharing-table" hidden>
             <thead>
                 <tr>
@@ -101,7 +101,7 @@
             </thead>
             <tbody class="explorer-sharing-rows"></tbody>
         </table>
-        <p class="explorer-sharing-empty explorer-card-text" hidden></p>
+        <p class="explorer-sharing-empty explorer-card-text" aria-live="polite" hidden></p>
     </div>
     {{ projects|json_script:"explorer-sharing-projects" }}
     {{ embed_views|json_script:"explorer-embed-views" }}

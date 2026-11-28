@@ -185,6 +185,19 @@ class VolumeTests(MeasureTestMixin, BootTestCase):
             self.assertEqual(self.post_volume().status_code, 200)
 
     @override_settings(CACHES=LOCAL_CACHE)
+    def test_an_area_that_isnt_a_polygon_is_refused_and_takes_no_place(self):
+        # WebODM's view reads area["geometry"]["coordinates"][0] unchecked: a visitor's malformed area is a 400, not a 500
+        for area in ({}, "x", None, {"geometry": {}}, {"geometry": {"coordinates": []}},
+                     {"geometry": {"coordinates": [[[0, 0], [1, 1]]]}},
+                     {"geometry": {"coordinates": [[["a", 0], [1, 1], [2, 0]]]}},
+                     {"geometry": {"coordinates": [[[0, 0], [1, 1], [True, 0]]]}}):
+            response = Client().post(self.token_api + "volume", json.dumps({"area": area, "method": "triangulate"}),
+                                     content_type="application/json")
+            self.assertEqual(response.status_code, 400, area)
+        with self.capture_jobs():
+            self.assertEqual(self.post_volume().status_code, 200)
+
+    @override_settings(CACHES=LOCAL_CACHE)
     def test_a_refused_or_failed_start_gives_its_place_back(self):
         with mock.patch.object(TaskVolume, "post", side_effect=lambda request, pk=None: api.Response({"error": "No DSM"})):
             for _ in range(measure.VOLUME_JOBS_PER_LINK + 1):
