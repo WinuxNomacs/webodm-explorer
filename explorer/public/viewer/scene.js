@@ -284,8 +284,33 @@ function createScene(container, options) {
             return (await cloud.pickFinest(ray, perPixel * FINE_PIXELS, onLoading))
                 || cloud.pickFinest(ray, perPixel * PICK_PIXELS, onLoading);
         }
+        if (current === "splats") {
+            // Splats are measured on the point cloud (the user, 2026-11-27): Spark's own hit test catches large faint
+            // splats metres off the surface, so the point is the cloud's nearest real one along the click
+            if (!views.cloud && options.cloudUrl && onLoading) onLoading();
+            const measured = await measureCloud();
+            if (!measured) return null;
+            const distance = camera.position.distanceTo(controls.target);
+            const perPixel = 2 * distance * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) / rect.height;
+            return (await measured.pickFinest(ray, perPixel * FINE_PIXELS, onLoading))
+                || measured.pickFinest(ray, perPixel * PICK_PIXELS, onLoading);
+        }
         if (current === "mesh" && tiles && tilesUrl) return finestTiles(ray, onLoading);
         return pick(clientX, clientY);
+    }
+
+    // The point cloud for measuring on the splats, opened hidden (its hierarchy and root only: it streams nodes only
+    // while its own view shows) as the cloud view, which then reuses it; null without one. A node failing later goes to
+    // the cloud view's handler once it has shown.
+    let cloudFailure = () => {};
+    function measureCloud() {
+        if (!options.cloudUrl) return Promise.resolve(null);
+        if (!views.cloud) {
+            const opened = loadCloud(options.cloudUrl, () => {}, (status) => cloudFailure(status));
+            views.cloud = opened;
+            opened.catch(() => { if (views.cloud === opened) delete views.cloud; });
+        }
+        return views.cloud.then(() => cloud);
     }
 
     // A second TilesRenderer, never drawn, whose camera looks down the ray through a fraction of a degree with an error
@@ -618,6 +643,8 @@ function createScene(container, options) {
         }
         cloud = opened;
         opened.setStyle(cloudStyle);
+        // Hidden when opened for measuring on the splats (measureCloud)
+        opened.group.visible = current === "cloud";
         // The cloud is drawn relative to its centre; WebODM's offset puts it where the mesh and the splats are
         const { box, floor } = cloudFrame(positions);
         if (offset) {
@@ -641,8 +668,9 @@ function createScene(container, options) {
         for (const [other, view] of Object.entries(views)) {
             if (other !== type) view.then((v) => { v.object.visible = current === other; }, () => {});
         }
+        if (type === "cloud" && onFailure) cloudFailure = onFailure;
         if (!views[type]) {
-            const opened = loaders[type](url, onProgress, onFailure || (() => {}), fallback);
+            const opened = loaders[type](url, onProgress, type === "cloud" ? (status) => cloudFailure(status) : onFailure || (() => {}), fallback);
             views[type] = opened;
             // Only this load's entry: a load started again meanwhile (after a lost context) keeps its own
             opened.catch(() => { if (views[type] === opened) delete views[type]; });
@@ -733,6 +761,9 @@ function createScene(container, options) {
     }
 
     return { show, resize, stats, place, reset, setCloudStyle, cloudRange, pick, pickFinest, setMarker, watchContext,
+        // Measuring: whether the shown view can be measured (splats through the point cloud), and getting it ready
+        measurable: () => current !== "splats" || Boolean(options.cloudUrl),
+        prepareMeasure: () => { if (current === "splats") measureCloud().catch(() => {}); },
         setBackground: backdrop.set, offset: offset ? offset.clone() : null, overlay,
         shown: () => current, size: () => [renderer.domElement.clientWidth, renderer.domElement.clientHeight] };
 }
@@ -753,6 +784,8 @@ if (page && window.ExplorerViewer) {
             tiles: { memory: window.ExplorerViewer.tilesMemory },
             small: window.ExplorerViewer.small,
             offset: offsetOf(page.getAttribute("data-offset")),
+            // The point cloud, which also measures the splats
+            cloudUrl: (page.querySelector("[data-type=cloud]") || { getAttribute: () => null }).getAttribute("data-url"),
             cloud: {
                 budget: window.ExplorerViewer.pointBudget,
                 scripts: {
