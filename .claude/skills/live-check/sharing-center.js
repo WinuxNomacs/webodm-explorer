@@ -7,7 +7,8 @@ const path = require("path");
 const { execFileSync } = require("child_process");
 const [repo, out, user, password, projectArg] = process.argv.slice(2);
 const { chromium } = require(repo + "/node_modules/playwright");
-const BASE = "http://localhost:8008";
+const WEBAPP = process.env.EXPLORER_WEBAPP || "ex-webapp";
+const BASE = process.env.EXPLORER_BASE || "http://localhost:8008";
 const PROJECT = Number(projectArg || 2);
 const shot = (page, name) => page.screenshot({ path: path.join(out, name + ".png"), fullPage: true, timeout: 90000 })
     .catch((e) => console.log("screenshot " + name + " failed: " + e.message.split("\n")[0]));
@@ -29,7 +30,7 @@ function expire(token) {
         "        if link['token'] == os.environ['T']:\n" +
         "            link['expires'] = (timezone.now() - timedelta(days=1)).isoformat()\n" +
         `    links.store().set_json(links.links_key(${PROJECT}), saved)\n`;
-    execFileSync("docker", ["exec", "-e", "T=" + token, "-w", "/webodm", "ex-webapp", "python", "manage.py", "shell", "-c", code],
+    execFileSync("docker", ["exec", "-e", "T=" + token, "-w", "/webodm", WEBAPP, "python", "manage.py", "shell", "-c", code],
         { stdio: ["ignore", "ignore", "inherit"] });
 }
 
