@@ -11,18 +11,29 @@ and committed.
 1. **The tests** (the `test` skill), including WebODM's `app.tests.test_plugins`.
 2. **The zip:** `dev/package.sh`. Check its listing: one root folder `explorer/` with `manifest.json`, `plugin.py`,
    `LICENSE`; no `tests/`, `public/__tests__/`, `node_modules` or `__pycache__`. Note the sha256.
-3. **WebODM without the mounted plugin:** ask the user first (this restarts their stack), then
-   `EX_PLUGIN_DIR=<an empty folder in the scratchpad> dev/webodm.sh up --force-recreate webapp worker` and wait for
-   http://localhost:8008 to answer. WebODM logs "Cleaned [explorer] plugin from database": only its row in the
-   plugin list, not its data stores. If `/webodm/app/media/plugins/explorer` exists in `ex-webapp`, the upload is
-   refused ("already exist"): move it aside, and back after step 6.
-4. **Install the zip as a user would:** log in as the dev admin (the `live-check` skill), Administration >
-   Plugins, Load Plugin (.zip). Then restart the webapp, as the docs tell users to (`docker restart ex-webapp`):
-   WebODM never asks, and production's other gunicorn workers only load the plugin at start, which the dev server's
-   single process can't show; the restart checks the installed copy loads from a cold start.
-5. **Live check on the installed copy** (the `live-check` skill): every feature in the README.
-6. **Leave it as found:** remove the installed plugin in Administration > Plugins, then
-   `dev/webodm.sh up --force-recreate webapp worker` without `EX_PLUGIN_DIR` to mount `explorer/` again.
+3. **A throwaway WebODM** (`dev/rehearsal/`), never the dev stack: `dev/rehearsal/stack.sh up` runs WebODM 4.0.1 as
+   users do (production settings, the image's own code, no plugin mounted, the dev stack's pinned images) on
+   http://127.0.0.1:8010 only, containers `exr-*`, volumes `webodm-explorer-rehearsal_*`. Create its admin with a
+   generated password kept in the scratchpad (`docker exec -it exr-webapp python manage.py createsuperuser` or
+   WebODM's first-run page), and export `REHEARSAL_USER` and `REHEARSAL_PASSWORD` for the scripts below. Import a
+   task with textured model, point cloud and orthophoto: the user's Roof Sample from the dev stack (its `all.zip`,
+   downloaded as the dev account) through `POST /api/projects/<id>/tasks/import` (JWT from `/api/token-auth/`).
+4. **Rehearse the upgrade** from the last published version (skip it for a release that changes neither code nor
+   saved state, and say so):
+   - `node dev/rehearsal/admin.js <repo> load <old zip>` (from its GitHub release), then
+     `dev/rehearsal/stack.sh restart webapp worker`;
+   - `node dev/rehearsal/state.js <repo> write <project>` (settings, Allow Links, three links), then
+     `read <project> > before.json`; open a textured model through a link so its 3D Tiles build;
+   - start a second build and, while its `state.json` says building, upgrade as users will:
+     `admin.js <repo> update <new zip> <sha256>` (the same upload as the plugin browser's Update) or `delete explorer`
+     then `load <new zip>`; restart webapp and worker;
+   - `state.js read` again and compare with `before.json` (it must be identical); the first build is still served,
+     and the interrupted one builds again when its model is opened.
+5. **Live check on the installed copy:** the live-check scripts take `EXPLORER_BASE=http://127.0.0.1:8010` and
+   `EXPLORER_WEBAPP=exr-webapp` (at least `link-tiles.js`, `link-cloud.js` and `measure-3d.js` on the imported task),
+   and every other README feature by hand where no script covers it.
+6. **Leave nothing behind:** `dev/rehearsal/stack.sh down -v` (the containers and volumes), and the scratchpad's
+   password, zips and downloads. The dev stack on 8008 was never touched.
 
 Then merge the release branch into `main` and tell the user: the zip and its sha256, the tag to make
 (`vX.Y.Z`), where to attach the zip (the GitHub release), and the `directory.json` entry for WebODM-Plugins

@@ -5,8 +5,9 @@
 Released: **0.1.0** (2026-11-23, experimental; see "Done"): tagged, the GitHub release with the zip, the
 WebODM-Plugins entry as draft pull request #16 (the user marks it ready).
 
-Up next: **release 0.3.0** (v0.2.0 tagged locally, not published). Built: **measurement tools**, steps A (the map
-page) and B (the 3D page), then **measuring at full detail** (the user's rule 2026-11-27): plan below, see "Done".
+Prepared: **release 0.3.0** (2026-11-27, merged into `main`; the user tags `v0.3.0` and publishes it; v0.2.0 was
+tagged locally, not published). Built for it: **measurement tools**, steps A (the map page) and B (the 3D page), then
+**measuring at full detail** (the user's rule 2026-11-27): plan below, see "Done".
 
 Then: **the road to 1.0.0** (below): each phase discussed with the user when it comes up.
 
@@ -1326,6 +1327,13 @@ The user chose to fix all four groups:
 
 ## Done
 
+- **Release 0.3.0 prepared** (2026-11-27, branch `release/0.3.0`): the upgrade from 0.1.0 rehearsed on a throwaway
+  WebODM (`dev/rehearsal/`, the `release-check` skill) with the Roof Sample imported: settings, Allow Links and three
+  links identical after the plugin browser's Update and after Delete + Load, built 3D Tiles kept, the live checks of
+  tiles, cloud and 3D Measure passing on the installed copy. It found that a tile build running during the upgrade
+  failed and waited a day: fixed (`fix-interrupted-build`: a build whose lock file an upgrade replaced records
+  `retry_after` 0; `retry-old-failures`: failed states carry their build id, and one without the current id, as
+  every earlier version saved them, is retried at once), tests in `explorer/tests/test_tiles.py`.
 - **Pre-release review for 0.3.0** (2026-11-27, branch `review-fixes`): three reviewers read every change since 0.1.0
   (server and security; 3D viewer and measuring; pages and their interface), and each finding was checked in the code
   before fixing. Fixed: a double-click finishing an area while its pick loaded wiped the area, and Clear, another mode
