@@ -79,6 +79,9 @@ public: nothing private, nothing true only on one machine. Keep it short; edit i
   `ex-db`, `ex-broker`, `ex-node-odx-1`, project and volumes `webodm-explorer`, so it runs beside other WebODMs
   (TweakUI's stacks use 8005-8007). Images are pinned by digest in `dev/webodm.sh`. The processing node uses an
   NVIDIA GPU when Docker can (`EX_GPU=auto`, `dev/compose.gpu.yml`); `EX_GPU=0` runs it on the CPU.
+- `dev/rehearsal/stack.sh` runs a throwaway WebODM 4.0.1 as users run it (no plugin mounted, production settings) on
+  127.0.0.1:8010, containers `exr-*`, for release checks and upgrade rehearsals (the `release-check` skill); its
+  `down -v` deletes it with its volumes.
 - **`explorer/` is mounted live** and the server reloads on every save: check a Python change with Ruff on a scratch
   copy before it lands in `explorer/`, and have a scripted edit assert that every replacement matched before
   writing anything.

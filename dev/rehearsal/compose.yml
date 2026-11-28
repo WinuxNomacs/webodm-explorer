@@ -1,0 +1,23 @@
+# Added to WebODM's own docker-compose.yml by dev/rehearsal/stack.sh: WebODM as users run it (the image's own code,
+# no checkout mounted, production settings), under its own names (exr-*), volumes (project webodm-explorer-rehearsal)
+# and port, reachable from this machine only, never restarted by Docker: a throwaway for release checks and upgrade
+# rehearsals (the release-check skill). No processing node: tasks are imported.
+services:
+  db:
+    image: ${EX_DB_IMAGE}
+    container_name: exr-db
+    restart: "no"
+  broker:
+    image: ${EX_BROKER_IMAGE}
+    container_name: exr-broker
+    restart: "no"
+  webapp:
+    image: ${EX_WEBAPP_IMAGE}
+    container_name: exr-webapp
+    restart: "no"
+    ports: !override
+      - "127.0.0.1:${WO_PORT}:8000/tcp"
+  worker:
+    image: ${EX_WEBAPP_IMAGE}
+    container_name: exr-worker
+    restart: "no"
