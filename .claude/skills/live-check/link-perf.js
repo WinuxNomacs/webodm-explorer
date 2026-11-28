@@ -8,7 +8,7 @@
 // over 50 ms (PerformanceObserver). Other heavy processes on the machine skew the numbers: check before running.
 const [repo, user, password, projectArg, taskPrefix, typesArg] = process.argv.slice(2);
 const { chromium } = require(repo + "/node_modules/playwright");
-const BASE = "http://localhost:8008";
+const BASE = process.env.EXPLORER_BASE || "http://localhost:8008";
 const PROJECT = Number(projectArg || 1);
 const TYPES = (typesArg || "cloud,mesh,splats").split(",");
 const masked = (url) => url.replace(/s\/[A-Za-z0-9_-]{43}/, "s/<token>");

@@ -18,7 +18,7 @@ const { chromium } = require(repo + "/node_modules/playwright");
 const geodesic = require(repo + "/explorer/public/vendor/geographiclib-geodesic-2.2.0/geographiclib-geodesic.min.js");
 const turfArea = require(turfDir + "/node_modules/@turf/area").default || require(turfDir + "/node_modules/@turf/area");
 const turfLength = require(turfDir + "/node_modules/@turf/length").default || require(turfDir + "/node_modules/@turf/length");
-const BASE = "http://localhost:8008";
+const BASE = process.env.EXPLORER_BASE || "http://localhost:8008";
 const G = geodesic.Geodesic.WGS84;
 let passed = 0, failed = 0;
 const check = (name, ok, detail) => { if (ok) passed++; else failed++; console.log(`${ok ? "PASS" : "FAIL"} ${name}${detail === undefined ? "" : ": " + detail}`); };

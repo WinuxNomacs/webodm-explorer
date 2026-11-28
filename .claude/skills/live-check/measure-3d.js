@@ -15,7 +15,8 @@ const path = require("path");
 const { execFileSync } = require("child_process");
 const [repo, out, user, password, project, task, epsg] = process.argv.slice(2);
 const { chromium } = require(repo + "/node_modules/playwright");
-const BASE = "http://localhost:8008";
+const WEBAPP = process.env.EXPLORER_WEBAPP || "ex-webapp";
+const BASE = process.env.EXPLORER_BASE || "http://localhost:8008";
 let passed = 0, failed = 0;
 const check = (name, ok, detail) => { if (ok) passed++; else failed++; console.log(`${ok ? "PASS" : "FAIL"} ${name}${detail === undefined ? "" : ": " + detail}`); };
 const errors = [];
@@ -34,7 +35,7 @@ a, b, epsg = json.loads(sys.argv[1])
 t = Transformer.from_crs(f"EPSG:{epsg}", "EPSG:4326", always_xy=True)
 (lon1, lat1), (lon2, lat2) = t.transform(*a), t.transform(*b)
 print(Geod(ellps="WGS84").inv(lon1, lat1, lon2, lat2)[2])`;
-    return parseFloat(execFileSync("docker", ["exec", "ex-webapp", "/webodm/venv/bin/python", "-c", code, JSON.stringify([a, b, Number(epsg)])]).toString());
+    return parseFloat(execFileSync("docker", ["exec", WEBAPP, "/webodm/venv/bin/python", "-c", code, JSON.stringify([a, b, Number(epsg)])]).toString());
 }
 
 async function open3d(page, url) {
