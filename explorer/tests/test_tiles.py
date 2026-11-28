@@ -359,6 +359,15 @@ class StateTests(unittest.TestCase):
         current = dict(old, build=build.build_id("1-1"))
         self.assertEqual(build.decide(current, "1-1", time.time()), ("ready", build.build_id("1-1")))
 
+    def test_a_failure_saved_by_an_earlier_version_or_pipeline_is_tried_again_at_once(self):
+        # As 0.1.0 saved it (no build id), for instance when an upgrade interrupted its build
+        earlier = {"state": "failed", "fingerprint": "1-1", "updated": time.time(), "error": "gltfpack: exit 0",
+                   "retry_after": build.RETRY_FAILED}
+        self.assertEqual(build.decide(earlier, "1-1", time.time()), ("queue", None))
+        self.assertEqual(build.decide(dict(earlier, build="0123456789abcdef"), "1-1", time.time()), ("queue", None))
+        current = dict(earlier, build=build.build_id("1-1"))
+        self.assertEqual(build.decide(current, "1-1", time.time()), ("failed", None))
+
     def test_a_ready_build_whose_folder_is_gone_is_built_again(self):
         state = {"state": "ready", "fingerprint": "1-1", "updated": time.time(), "build": "0123456789abcdef"}
         build.write_state(self.tiles, state)
