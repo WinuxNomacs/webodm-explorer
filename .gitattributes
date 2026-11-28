@@ -1,0 +1,5 @@
+# LF everywhere, whatever the platform's Git does (a Windows checkout would otherwise get CRLF, which breaks the shell
+# scripts, the files mounted into WebODM's Linux containers and the Linode setup script)
+* text=auto eol=lf
+# Vendored libraries stay byte for byte as their pinned packages (dev/vendor.sh)
+explorer/public/vendor/** -text
