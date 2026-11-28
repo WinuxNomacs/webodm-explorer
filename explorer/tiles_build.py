@@ -10,8 +10,8 @@ Each task's tiles are in its own folder in WebODM's media, <task folder>/explore
 plugin upgrades (which replace the plugin's persistent path), are removed with the task and copied (hard-linked) with
 it when it is duplicated:
 - state.json: {state: queued | building | ready | failed, fingerprint (the OBJ's size and time), build (the ready
-  build's id), updated, heartbeat (building), mesh (queued: the OBJ's path from the task folder), error and
-  retry_after (failed)}, changed only under .lock;
+  build's id, or the failed one's), updated, heartbeat (building), mesh (queued: the OBJ's path from the task folder),
+  error and retry_after (failed)}, changed only under .lock;
 - <build id>/: a finished build (tileset.json and its tiles), its id derived from the fingerprint and PIPELINE, so a
   URL's content never changes and browsers may keep it;
 The folder is created only inside an existing task folder: a build finishing after its task was removed writes
@@ -156,7 +156,9 @@ def decide(state, fp, now, built=lambda build: True):
     if state["state"] == "building":
         beat = state.get("heartbeat", state["updated"])
         return ("building", None) if same and now - beat < HEARTBEAT_STALE else ("queue", None)
-    retry = state.get("retry_after", RETRY_FAILED)
+    # A failure saved by another pipeline or an earlier version (no build id) may be tried again: an upgrade may have
+    # interrupted it, or changed what failed
+    retry = state.get("retry_after", RETRY_FAILED) if state.get("build") == build_id(fp) else 0
     return ("failed", None) if same and age < retry else ("queue", None)
 
 
@@ -190,7 +192,7 @@ def claim(folder, fp, now=None, obj=None):
 
 def mark_failed(folder, fp, error, retry_after=RETRY_FAILED):
     with task_lock(folder):
-        write_state(folder, {"state": "failed", "fingerprint": fp, "updated": time.time(),
+        write_state(folder, {"state": "failed", "fingerprint": fp, "build": build_id(fp), "updated": time.time(),
                              "error": str(error)[:500], "retry_after": retry_after})
 
 
@@ -495,7 +497,7 @@ def build_one(work, folder, obj_path, tools_dir, now=time.time):
             message = f"interrupted by a plugin upgrade ({message})"
         logger.warning(f"Explorer: the mesh tiles of task {task_id} could not be built: {message}")
         with contextlib.suppress(OSError):
-            finish({"state": "failed", "fingerprint": fp, "updated": time.time(), "error": message[:500],
+            finish({"state": "failed", "fingerprint": fp, "build": build, "updated": time.time(), "error": message[:500],
                     "retry_after": 0 if interrupted else RETRY_FAILED})
         return {"state": "failed", "error": message}
     finally:
